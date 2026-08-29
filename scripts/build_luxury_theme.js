@@ -1,0 +1,3266 @@
+import fs from 'fs';
+import path from 'path';
+
+const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HYDERI NIMCO & FROZEN | Serving Fresh Since 1970 - North Nazimabad Karachi</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥟</text></svg>" />
+
+  <!-- Google Fonts: Plus Jakarta Sans, Cinzel / Playfair / Outfit & Noto Nastaliq Urdu -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            brand: ['"Outfit"', 'sans-serif'],
+            serifBrand: ['"Cinzel"', 'Georgia', 'serif'],
+            urdu: ['"Noto Nastaliq Urdu"', '"Plus Jakarta Sans"', 'serif'],
+          },
+          colors: {
+            emeraldBrand: {
+              50: '#F0F7F4',
+              100: '#E1EFEA',
+              600: '#145A48',
+              700: '#10493A',
+              800: '#0D382C',
+              900: '#09261E',
+              950: '#051812',
+            },
+            goldBrand: {
+              50: '#FFFDF5',
+              100: '#FEF9E3',
+              200: '#FAECA8',
+              300: '#F5DC6E',
+              400: '#E8C53A',
+              500: '#D4AF37',
+              600: '#B8860B',
+              700: '#946800',
+              800: '#755000',
+            },
+            parchment: {
+              50: '#FFFDF9',
+              100: '#FAF5E8',
+              200: '#F5ECE0',
+              300: '#EADECB',
+              400: '#D5C4AB'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & Babel & Canvas Confetti -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      background-color: #FAF5E8;
+      color: #1A2421;
+      overflow-x: hidden;
+    }
+    .lang-urdu {
+      font-family: 'Noto Nastaliq Urdu', 'Plus Jakarta Sans', serif;
+      direction: rtl;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #FAF5E8; }
+    ::-webkit-scrollbar-thumb { background: #D5C4AB; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #B8860B; }
+    
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #F5DC6E 0%, #D4AF37 50%, #B8860B 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .emerald-gold-border {
+      border: 1px solid rgba(212, 175, 55, 0.4);
+    }
+  </style>
+</head>
+<body class="selection:bg-emeraldBrand-800 selection:text-goldBrand-200">
+  <div id="root"></div>
+
+  <!-- Main React Script -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const CATEGORIES = [
+      { id: 'all', label: 'All Menu', labelUrdu: 'تمام مینو (۵۴ آئٹمز)', icon: '✨' },
+      { id: 'samosa', label: 'SAMOSA', labelUrdu: 'سموسے (۱۳ آئٹمز)', icon: '🥟' },
+      { id: 'roll', label: 'ROLL', labelUrdu: 'رول (۱۳ آئٹمز)', icon: '🌯' },
+      { id: 'kabab', label: 'KABAB', labelUrdu: 'کباب اور موموز (۱۱ آئٹمز)', icon: '🍢' },
+      { id: 'pizza', label: 'PIZZA', labelUrdu: 'منی پیزا (۲ آئٹمز)', icon: '🍕' },
+      { id: 'special', label: 'OTHER SPECIAL', labelUrdu: 'دیگر اسپیشل (۱۵ آئٹمز)', icon: '🍗' }
+    ];
+
+    const KARACHI_AREAS = [
+      { en: "North Nazimabad (Local Shop Pickup / Fast Express)", ur: "نارتھ ناظم آباد (شاپ پک اپ / ایکسپریس)" },
+      { en: "North Karachi", ur: "نارتھ کراچی" },
+      { en: "Buffer Zone", ur: "بفر زون" },
+      { en: "Federal B Area (FB Area)", ur: "فیڈرل بی ایریا" },
+      { en: "Nazimabad (Blocks 1 - 7)", ur: "ناظم آباد (۱ تا ۷)" },
+      { en: "Gulberg", ur: "گلبرگ کراچی" },
+      { en: "Gulshan-e-Iqbal", ur: "گلشنِ اقبال" },
+      { en: "Gulistan-e-Johar", ur: "گلستانِ جوہر" },
+      { en: "Clifton", ur: "کلفٹن" },
+      { en: "Defence Housing Authority (DHA)", ur: "ڈیفنس (ڈی ایچ اے)" },
+      { en: "PECHS / Tariq Road", ur: "پی ای سی ایچ ایس / طارق روڈ" },
+      { en: "Bahadurabad", ur: "بہادر آباد" },
+      { en: "Saddar / Garden", ur: "صدر / گارڈن" },
+      { en: "Malir Cantt / Model Colony", ur: "ملیر کینٹ / ماڈل کالونی" },
+      { en: "Scheme 33 / Safoora", ur: "اسکیم ۳۳ / صفورہ" },
+      { en: "Korangi / Landhi", ur: "کورنگی / لانڈھی" },
+      { en: "Other Karachi Area", ur: "دیگر کراچی ایریاز" }
+    ];
+
+    // Chef Hat Emblem Component
+    function HyderiLogoEmblem({ size = "normal" }) {
+      const isLarge = size === "large";
+      return (
+        <div className={\`relative flex items-center justify-center rounded-full bg-gradient-to-br from-emeraldBrand-900 to-emeraldBrand-950 border-2 border-goldBrand-400/80 shadow-lg shrink-0 \${isLarge ? 'w-16 h-16' : 'w-11 h-11'}\`}>
+          <div className="text-center flex flex-col items-center justify-center">
+            <span className={isLarge ? 'text-2xl leading-none' : 'text-lg leading-none'}>👨‍🍳</span>
+            <span className="text-[7px] font-black text-goldBrand-300 tracking-tighter leading-none mt-0.5">1970</span>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [lang, setLang] = useState('en'); // 'en' | 'ur'
+      const [products, setProducts] = useState([]);
+      const [settings, setSettings] = useState({});
+      const [activeCategory, setActiveCategory] = useState('all');
+      const [searchQuery, setSearchQuery] = useState('');
+      
+      const [cart, setCart] = useState(() => {
+        try {
+          const saved = localStorage.getItem('hyderi_cart');
+          return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+      });
+
+      const [isCartOpen, setIsCartOpen] = useState(false);
+      const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+      const [selectedProduct, setSelectedProduct] = useState(null);
+      const [completedOrder, setCompletedOrder] = useState(null);
+      const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+      const [isAdminOpen, setIsAdminOpen] = useState(false);
+      const [isChatOpen, setIsChatOpen] = useState(false);
+      const [isBrochureModalOpen, setIsBrochureModalOpen] = useState(false);
+
+      useEffect(() => {
+        try { localStorage.setItem('hyderi_cart', JSON.stringify(cart)); } catch (e) {}
+      }, [cart]);
+
+      const loadProducts = async () => {
+        try {
+          const res = await fetch('/api/products');
+          const data = await res.json();
+          if (data.success && data.products) {
+            setProducts(data.products);
+          }
+        } catch (e) {}
+      };
+
+      const loadSettings = async () => {
+        try {
+          const res = await fetch('/api/settings');
+          const data = await res.json();
+          if (data.success && data.settings) {
+            setSettings(data.settings);
+          }
+        } catch (e) {}
+      };
+
+      useEffect(() => {
+        loadProducts();
+        loadSettings();
+      }, []);
+
+      const addToCart = (product, quantity = 1) => {
+        setCart(prev => {
+          const exists = prev.find(item => item.id === product.id);
+          if (exists) {
+            return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
+          }
+          return [...prev, { ...product, quantity }];
+        });
+      };
+
+      const updateQuantity = (id, newQty) => {
+        if (newQty <= 0) {
+          setCart(prev => prev.filter(i => i.id !== id));
+        } else {
+          setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: newQty } : i));
+        }
+      };
+
+      const removeItem = (id) => {
+        setCart(prev => prev.filter(i => i.id !== id));
+      };
+
+      const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+      const searchSynonyms = {
+        samosa: ['samosa', 'samusa', 'samose', 'سموسہ', 'سموسے', 'vonton'],
+        roll: ['roll', 'rol', 'رول', 'رولز', 'changa', 'chimmy'],
+        kabab: ['kabab', 'kebab', 'shami', 'seekh', 'chapli', 'کباب', 'شامی', 'سیخ', 'چپلی', 'patty', 'stick', 'kofta', 'momo', 'momos', 'موموز'],
+        pizza: ['pizza', 'piza', 'پیزا', 'puff'],
+        special: ['nugget', 'nagets', 'نگٹس', 'hot shot', 'popcorn', 'chilos', 'cheese ball', 'donuts', 'fries', 'chips', 'فرائز'],
+        nimco: ['nimco', 'nemco', 'namkeen', 'نمکو', 'moth', 'موٹھ', 'papdi', 'sev', 'سیو']
+      };
+
+      const searchMatches = useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        const q = searchQuery.toLowerCase().trim();
+
+        let matchedCats = [];
+        for (const [catKey, terms] of Object.entries(searchSynonyms)) {
+          if (terms.some(t => q.includes(t) || t.includes(q))) {
+            matchedCats.push(catKey);
+          }
+        }
+
+        return products.filter(p => {
+          const nameMatch = p.name.toLowerCase().includes(q) || (p.nameUrdu && p.nameUrdu.includes(q));
+          const descMatch = (p.description && p.description.toLowerCase().includes(q)) || (p.descriptionUrdu && p.descriptionUrdu.includes(q));
+          const catMatch = (p.category && p.category.toLowerCase().includes(q)) ||
+                           (p.categoryLabel && p.categoryLabel.toLowerCase().includes(q)) ||
+                           (p.categoryLabelUrdu && p.categoryLabelUrdu.includes(q));
+          const packMatch = p.packQuantity && p.packQuantity.toLowerCase().includes(q);
+          const synMatch = matchedCats.includes(p.category);
+
+          return nameMatch || descMatch || catMatch || packMatch || synMatch;
+        });
+      }, [products, searchQuery]);
+
+      const filtered = useMemo(() => {
+        if (!searchQuery.trim()) {
+          return activeCategory === 'all' ? products : products.filter(p => p.category === activeCategory);
+        }
+        return searchMatches;
+      }, [products, activeCategory, searchQuery, searchMatches]);
+
+      const cartCount = cart.reduce((acc, it) => acc + it.quantity, 0);
+      const subtotal = cart.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+      const freeLimit = settings.freeDeliveryAbove || 2500;
+      const isFree = subtotal >= freeLimit;
+      const deliveryFee = cart.length === 0 ? 0 : (isFree ? 0 : (settings.deliveryFee || 150));
+      const totalAmount = subtotal + deliveryFee;
+
+      const isUrdu = lang === 'ur';
+
+      return (
+        <div className={\`min-h-screen flex flex-col bg-[#FAF5E8] \${isUrdu ? 'lang-urdu' : ''}\`}>
+          
+          {/* Top Brand Announcement Bar */}
+          <header className="sticky top-0 z-40 bg-emeraldBrand-950 text-white border-b border-goldBrand-500/40 shadow-md">
+            <div className="bg-gradient-to-r from-emeraldBrand-950 via-emeraldBrand-900 to-emeraldBrand-950 py-1.5 px-4 text-xs font-medium border-b border-goldBrand-500/20">
+              <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="bg-goldBrand-500 text-emeraldBrand-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    {isUrdu ? 'کراچی ایکسپریس ڈیلیوری' : 'Karachi Express'}
+                  </span>
+                  <span className="text-goldBrand-100 font-medium hidden sm:inline">
+                    {isUrdu ? '✨ ۲۵۰۰ روپے سے زائد کے آرڈر پر پورے کراچی میں فری ڈیلیوری! ۱۹۷۰ سے تازہ اور لذیذ ذائقہ۔' : settings.announcement}
+                  </span>
+                  <span className="text-goldBrand-100 font-medium sm:hidden">
+                    {isUrdu ? '۲۵۰۰ روپے پر فری ڈیلیوری!' : 'Free Delivery above Rs. 2,500!'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs">
+                  {/* Hotline phones */}
+                  <div className="hidden lg:flex items-center gap-3 text-goldBrand-300 font-mono font-bold text-[11px]">
+                    <a href={\`https://wa.me/\${settings.whatsapp || '923252747343'}\`} target="_blank" rel="noopener noreferrer" className="hover:text-white flex items-center gap-1">
+                      <span>💬 WhatsApp:</span>
+                      <span>{settings.phone1 || '0325-2747343'}</span>
+                    </a>
+                    <span>📞 {settings.phone2 || '0336-2438422'}</span>
+                    <span>☎️ {settings.phone3 || '021-36625698'}</span>
+                  </div>
+
+                  {/* Bilingual Language Switcher */}
+                  <div className="flex items-center bg-black/40 rounded-full p-0.5 border border-goldBrand-500/40">
+                    <button
+                      onClick={() => setLang('en')}
+                      className={\`px-2.5 py-0.5 rounded-full text-[11px] font-bold transition-all \${!isUrdu ? 'bg-goldBrand-500 text-emeraldBrand-950 shadow-sm font-black' : 'text-goldBrand-200 hover:text-white'}\`}
+                    >
+                      EN 🇬🇧
+                    </button>
+                    <button
+                      onClick={() => setLang('ur')}
+                      className={\`px-2.5 py-0.5 rounded-full text-[11px] font-bold transition-all \${isUrdu ? 'bg-goldBrand-500 text-emeraldBrand-950 shadow-sm font-black' : 'text-goldBrand-200 hover:text-white'}\`}
+                    >
+                      اردو 🇵🇰
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Navigation Bar */}
+            <div className="bg-emeraldBrand-900 py-3 px-4 sm:px-6 lg:px-8 border-b border-goldBrand-500/30">
+              <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                
+                {/* Brand Logo & Title (Matching Signboard Theme) */}
+                <div className="flex items-center gap-3">
+                  <a href="#" className="flex items-center gap-3 group">
+                    <HyderiLogoEmblem />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl sm:text-2xl font-black tracking-wider text-goldBrand-300 font-serifBrand">
+                          HYDERI
+                        </span>
+                        <span className="bg-goldBrand-500/20 text-goldBrand-300 text-[10px] font-black px-1.5 py-0.5 rounded border border-goldBrand-500/40">
+                          {isUrdu ? '۱۹۷۰ سے' : 'Since 1970'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] sm:text-[11px] font-bold text-emeraldBrand-100 uppercase tracking-widest leading-none mt-0.5">
+                        {isUrdu ? 'نمکو اینڈ فروزن فوڈز' : 'NIMCO & FROZEN'}
+                      </p>
+                    </div>
+                  </a>
+                </div>
+
+                {/* Desktop Search Bar with Live Suggestions Dropdown */}
+                <div className="hidden md:flex flex-1 max-w-md mx-4 relative">
+                  <div className="relative w-full">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onFocus={() => setIsSearchOpen(true)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setIsSearchOpen(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setIsSearchOpen(false);
+                          document.getElementById('menu-view')?.scrollIntoView({ behavior: 'smooth' });
+                        } else if (e.key === 'Escape') {
+                          setIsSearchOpen(false);
+                        }
+                      }}
+                      placeholder={isUrdu ? "سموسہ، رول، کباب، پیزا، نگٹس، نمکو تلاش کریں..." : "Search Samosa, Roll, Kabab, Momos, Pizza, Nimco..."}
+                      className="w-full pl-10 pr-9 py-2 bg-emeraldBrand-950/80 text-white placeholder-emeraldBrand-100/60 text-xs rounded-full border border-goldBrand-500/40 focus:border-goldBrand-400 focus:bg-emeraldBrand-950 outline-none transition-all shadow-inner"
+                    />
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-goldBrand-400 text-xs">🔍</span>
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setIsSearchOpen(false);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs bg-emeraldBrand-800 text-goldBrand-300 w-4 h-4 rounded-full flex items-center justify-center font-bold hover:bg-emeraldBrand-700"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Desktop Live Suggestions Dropdown */}
+                  {isSearchOpen && searchQuery.trim().length > 0 && (
+                    <div className="absolute top-full mt-2 inset-x-0 bg-white rounded-2xl shadow-2xl border-2 border-goldBrand-400 overflow-hidden z-50 text-gray-900 animate-in fade-in-50 zoom-in-95">
+                      <div className="p-3 bg-emeraldBrand-900 text-white border-b border-goldBrand-500/40 flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold text-goldBrand-300 flex items-center gap-1.5">
+                          <span>🔍</span>
+                          <span>{isUrdu ? \`تلاش کے نتائج: "\${searchQuery}"\` : \`Results for "\${searchQuery}"\`}</span>
+                          <span className="bg-goldBrand-500 text-emeraldBrand-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">{searchMatches.length}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsSearchOpen(false)}
+                          className="text-[11px] font-bold text-emeraldBrand-100 hover:text-white"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {searchMatches.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500 space-y-2">
+                          <p className="text-2xl">🥟</p>
+                          <p className="text-xs font-bold">{isUrdu ? 'کوئی پروڈکٹ نہیں ملی' : 'No matching items found'}</p>
+                          <p className="text-[11px] text-gray-400">{isUrdu ? 'مثال کے طور پر: "Samosa", "Roll", "Kabab", "Nimco" لکھیں' : 'Try typing "Samosa", "Roll", "Kabab", "Nimco"'}</p>
+                        </div>
+                      ) : (
+                        <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                          {searchMatches.slice(0, 6).map(prod => (
+                            <div
+                              key={prod.id}
+                              onClick={() => {
+                                setSelectedProduct(prod);
+                                setIsSearchOpen(false);
+                              }}
+                              className="p-2.5 hover:bg-parchment-100 flex items-center justify-between gap-3 cursor-pointer transition-colors group"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <img src={prod.image} alt={prod.name} className="w-12 h-12 rounded-xl object-cover border border-goldBrand-400/40 shrink-0" />
+                                <div className="min-w-0">
+                                  <h4 className="font-bold text-xs text-gray-900 group-hover:text-emeraldBrand-800 truncate">
+                                    {isUrdu ? (prod.nameUrdu || prod.name) : prod.name}
+                                  </h4>
+                                  <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5">
+                                    <span className="text-emeraldBrand-800 font-bold">{prod.packQuantity}</span>
+                                    <span>•</span>
+                                    <span className="text-goldBrand-700 font-extrabold">{isUrdu ? 'روپے ' : 'Rs. '}{prod.price}/-</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addToCart(prod, 1);
+                                }}
+                                className="px-2.5 py-1.5 bg-emeraldBrand-800 hover:bg-emeraldBrand-900 text-goldBrand-200 rounded-lg text-xs font-bold shrink-0 shadow-sm"
+                              >
+                                + {isUrdu ? 'شامل کریں' : 'Add'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Action Buttons */}
+                <div className="flex items-center gap-2">
+                  
+                  {/* View Official Brochure Card Button */}
+                  <button
+                    onClick={() => setIsBrochureModalOpen(true)}
+                    className="hidden sm:inline-flex items-center gap-1.5 bg-goldBrand-500/20 hover:bg-goldBrand-500/30 text-goldBrand-300 border border-goldBrand-500/40 px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                  >
+                    <span>📜</span>
+                    <span>{isUrdu ? 'بروشر مینو کارڈ' : 'Menu Card'}</span>
+                  </button>
+
+                  {/* Order Tracking Button */}
+                  <button
+                    onClick={() => setIsTrackingOpen(true)}
+                    className="inline-flex items-center gap-1.5 bg-emeraldBrand-950/80 hover:bg-emeraldBrand-950 text-emeraldBrand-100 border border-goldBrand-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <span>🛵</span>
+                    <span className="hidden sm:inline">{isUrdu ? 'آرڈر ٹریک کریں' : 'Track Order'}</span>
+                  </button>
+
+                  {/* Shopping Bag Button */}
+                  <button
+                    onClick={() => setIsCartOpen(true)}
+                    className="relative inline-flex items-center gap-2 bg-gradient-to-r from-goldBrand-500 to-goldBrand-600 hover:from-goldBrand-400 hover:to-goldBrand-500 text-emeraldBrand-950 px-3.5 py-1.5 rounded-xl text-xs font-black shadow-md transition-all active:scale-95"
+                  >
+                    <span className="text-sm">🛍️</span>
+                    <span className="hidden sm:inline">{isUrdu ? 'شاپنگ بیگ' : 'Bag'}</span>
+                    {cartCount > 0 && (
+                      <span className="bg-emeraldBrand-950 text-goldBrand-300 text-[10px] font-black px-1.5 py-0.2 rounded-full border border-goldBrand-400">
+                        {cartCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Mobile Search Bar with Live Suggestions Dropdown */}
+              <div className="mt-2.5 pt-2 border-t border-emeraldBrand-800 md:hidden relative">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onFocus={() => setIsSearchOpen(true)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setIsSearchOpen(true);
+                    }}
+                    placeholder={isUrdu ? "۴۰+ سموسے، رولز، کباب تلاش کریں..." : "Search 40+ Samosas, Rolls, Kababs..."}
+                    className="w-full pl-9 pr-8 py-2 bg-emeraldBrand-950/80 text-white placeholder-emeraldBrand-100/60 text-xs rounded-xl border border-goldBrand-500/40 outline-none"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-goldBrand-400 text-xs">🔍</span>
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setIsSearchOpen(false);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs bg-emeraldBrand-800 text-goldBrand-300 w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile Live Suggestions Dropdown */}
+                {isSearchOpen && searchQuery.trim().length > 0 && (
+                  <div className="absolute top-full mt-2 inset-x-0 bg-white rounded-2xl shadow-2xl border-2 border-goldBrand-400 overflow-hidden z-50 text-gray-900 animate-in fade-in-50">
+                    <div className="p-2.5 bg-emeraldBrand-900 text-white border-b border-goldBrand-500/40 flex justify-between items-center text-xs">
+                      <span className="font-bold text-goldBrand-300">{searchMatches.length} {isUrdu ? 'پروڈکٹس ملیں' : 'Items Found'}</span>
+                      <button onClick={() => setIsSearchOpen(false)} className="text-emeraldBrand-100 font-bold text-[11px]">✕</button>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto divide-y divide-gray-100">
+                      {searchMatches.slice(0, 5).map(prod => (
+                        <div
+                          key={prod.id}
+                          onClick={() => {
+                            setSelectedProduct(prod);
+                            setIsSearchOpen(false);
+                          }}
+                          className="p-2 flex items-center justify-between gap-2 cursor-pointer active:bg-parchment-100"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <img src={prod.image} alt={prod.name} className="w-10 h-10 rounded-lg object-cover border border-goldBrand-400/40 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-bold text-xs text-gray-900 truncate">{isUrdu ? (prod.nameUrdu || prod.name) : prod.name}</p>
+                              <p className="text-[10px] text-gray-500">{prod.packQuantity} • <span className="font-bold text-emeraldBrand-800">Rs. {prod.price}</span></p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(prod, 1);
+                            }}
+                            className="px-2 py-1 bg-emeraldBrand-800 text-goldBrand-300 rounded text-[10px] font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* Royal Emerald & Gold Signboard Hero Banner */}
+          <div className="relative overflow-hidden bg-gradient-to-b from-emeraldBrand-950 via-emeraldBrand-900 to-emeraldBrand-950 text-white border-b-4 border-goldBrand-500 shadow-xl">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
+              
+              {/* Outer Golden Border Frame */}
+              <div className="rounded-3xl border-2 border-goldBrand-400/60 p-5 sm:p-8 bg-black/20 backdrop-blur-xs relative overflow-hidden shadow-2xl">
+                
+                {/* Decorative Arch Ribbon Header */}
+                <div className="text-center space-y-3 max-w-3xl mx-auto">
+                  <div className="inline-flex items-center justify-center gap-3">
+                    <span className="text-goldBrand-400 text-lg">❦</span>
+                    <span className="text-goldBrand-300 font-bold uppercase tracking-widest text-xs sm:text-sm">
+                      {isUrdu ? 'نارتھ ناظم آباد کراچی کا روایتی ذائقہ' : 'North Nazimabad Karachi • Since 1970'}
+                    </span>
+                    <span className="text-goldBrand-400 text-lg">❦</span>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center">
+                    <HyderiLogoEmblem size="large" />
+                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-goldBrand-300 font-serifBrand tracking-wider mt-2 drop-shadow-md">
+                      HYDERI
+                    </h1>
+                    
+                    {/* Ribbon Banner */}
+                    <div className="bg-gradient-to-r from-emeraldBrand-900 via-emeraldBrand-800 to-emeraldBrand-900 border-y-2 border-goldBrand-400 py-1 px-8 rounded-full shadow-lg mt-2">
+                      <h2 className="text-xs sm:text-base font-extrabold uppercase tracking-widest text-goldBrand-200">
+                        NIMCO AND FROZEN
+                      </h2>
+                    </div>
+
+                    {/* Urdu Slogan from Signboard */}
+                    <p className="text-goldBrand-200 text-sm sm:text-lg font-urdu font-bold mt-3 tracking-wide drop-shadow-sm">
+                      {isUrdu ? settings.sloganUrdu : 'Serving Fresh Handcrafted Samosas, Rolls, Kababs & Hyderi Mix Nimco'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3 Signboard Feature Pillars */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-3xl mx-auto text-center border-t border-goldBrand-500/30 mt-6">
+                  <div className="bg-emeraldBrand-950/60 border border-goldBrand-500/40 p-3 rounded-2xl flex items-center justify-center gap-2.5">
+                    <span className="text-xl">🥜</span>
+                    <span className="text-xs font-black text-goldBrand-200 uppercase tracking-wider">WIDE RANGE OF NIMCO</span>
+                  </div>
+                  <div className="bg-emeraldBrand-950/60 border border-goldBrand-500/40 p-3 rounded-2xl flex items-center justify-center gap-2.5">
+                    <span className="text-xl">❄️</span>
+                    <span className="text-xs font-black text-goldBrand-200 uppercase tracking-wider">FROZEN FOOD VARIETY</span>
+                  </div>
+                  <div className="bg-emeraldBrand-950/60 border border-goldBrand-500/40 p-3 rounded-2xl flex items-center justify-center gap-2.5">
+                    <span className="text-xl">🌿</span>
+                    <span className="text-xs font-black text-goldBrand-200 uppercase tracking-wider">HYGIENIC & FRESH 100%</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-6">
+                  <button
+                    onClick={() => document.getElementById('menu-view').scrollIntoView({ behavior: 'smooth' })}
+                    className="flex items-center gap-2 bg-gradient-to-r from-goldBrand-500 via-goldBrand-400 to-goldBrand-500 hover:from-goldBrand-400 hover:to-goldBrand-300 text-emeraldBrand-950 px-6 py-3 rounded-2xl font-black text-xs sm:text-sm shadow-xl shadow-goldBrand-500/20 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <span>{isUrdu ? 'مکمل بروشر مینو آرڈر کریں' : 'Explore Brochure Menu'}</span>
+                    <span>➔</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsBrochureModalOpen(true)}
+                    className="flex items-center gap-2 bg-emeraldBrand-800 hover:bg-emeraldBrand-700 text-goldBrand-200 border-2 border-goldBrand-500/60 px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm shadow-md transition-all hover:scale-105"
+                  >
+                    <span>📜</span>
+                    <span>{isUrdu ? 'اصل مینو کارڈ دیکھیں' : 'View Menu Card Image'}</span>
+                  </button>
+
+                  <a
+                    href={\`https://wa.me/\${settings.whatsapp}?text=Assalam%20o%20Alaikum%2C%20I%20want%20to%20order%20Hyderi%20Nimco%20%26%20Frozen%20items\`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm shadow-md transition-all hover:scale-105"
+                  >
+                    <span>💬</span>
+                    <span>{isUrdu ? 'واٹس ایپ پر رابطہ' : 'WhatsApp Order'}</span>
+                  </a>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          {/* Main Content Area: Menu Catalog */}
+          <main id="menu-view" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+            
+            {/* Catalog Section Header */}
+            <div className="text-center space-y-2 mb-6">
+              <div className="inline-flex items-center justify-center gap-2 text-goldBrand-700 font-bold text-sm">
+                <span>❦</span>
+                <span className="uppercase tracking-widest text-xs">{isUrdu ? 'تازہ تیار شدہ بروشر مینو' : 'Official Brochure Menu'}</span>
+                <span>❦</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-emeraldBrand-950 font-serifBrand">
+                {isUrdu ? 'ہمارے لذیذ سموسے، رولز، کباب اور نمکو' : 'Handcrafted Frozen Delicacies & Fresh Nimco'}
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-600 max-w-lg mx-auto">
+                {isUrdu ? 'تمام ۵۸ آئٹمز ۱۰۰٪ حلال گوشت، خالص مصالحوں اور حفظان صحت کے اصولوں پر تیار کیے جاتے ہیں۔' : 'Freshly prepared daily with 100% Halal meats, authentic spices, and temperature-controlled frozen delivery.'}
+              </p>
+            </div>
+
+            {/* Category Navigation Pills */}
+            <div className="sticky top-[105px] z-30 bg-[#FAF5E8]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 border-y border-goldBrand-400/30">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      setActiveCategory(cat.id);
+                      setSearchQuery('');
+                    }}
+                    className={\`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-200 border \${
+                      activeCategory === cat.id && !searchQuery
+                        ? 'bg-emeraldBrand-900 text-goldBrand-300 border-goldBrand-500 shadow-md scale-105 font-black'
+                        : 'bg-white text-emeraldBrand-950 border-goldBrand-300/60 hover:bg-parchment-100 hover:border-goldBrand-500'
+                    }\`}
+                  >
+                    <span>{cat.icon}</span>
+                    <span>{isUrdu ? cat.labelUrdu : cat.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Products Grid & Organized Category Sections */}
+            {searchQuery.trim() ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-goldBrand-400/40">
+                  <span className="text-xs font-bold text-gray-700">
+                    {isUrdu ? \`تلاش کے نتائج: "\${searchQuery}"\` : \`Search Results for "\${searchQuery}"\`} ({filtered.length} {isUrdu ? 'آئٹمز' : 'items'})
+                  </span>
+                  <button onClick={() => setSearchQuery('')} className="text-xs text-red-600 font-bold hover:underline">
+                    {isUrdu ? 'تلاش ختم کریں' : 'Clear Search'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+                  {filtered.map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isUrdu={isUrdu}
+                      onAddToCart={() => addToCart(product, 1)}
+                      onOpenDetail={() => setSelectedProduct(product)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : activeCategory === 'all' ? (
+              /* All 5 Official Menu Card Categories Grouped with Beautiful Ribbons */
+              <div className="space-y-10">
+                {[
+                  { id: 'samosa', title: 'SAMOSA', titleUrdu: 'سموسے (۱۳ آئٹمز)', count: '13 Items', icon: '🥟' },
+                  { id: 'roll', title: 'ROLL', titleUrdu: 'رول (۱۳ آئٹمز)', count: '13 Items', icon: '🌯' },
+                  { id: 'kabab', title: 'KABAB', titleUrdu: 'کباب اور موموز (۱۱ آئٹمز)', count: '11 Items', icon: '🍢' },
+                  { id: 'pizza', title: 'PIZZA', titleUrdu: 'منی پیزا (۲ آئٹمز)', count: '02 Items', icon: '🍕' },
+                  { id: 'special', title: 'OTHER SPECIAL', titleUrdu: 'دیگر اسپیشل (۱۵ آئٹمز)', count: '15 Items', icon: '🍗' }
+                ].map(sec => {
+                  const secProducts = products.filter(p => p.category === sec.id);
+                  if (secProducts.length === 0) return null;
+                  return (
+                    <section key={sec.id} className="space-y-4">
+                      {/* Section Ribbon Header matching Menu Card */}
+                      <div className="flex items-center justify-between bg-gradient-to-r from-emeraldBrand-950 via-emeraldBrand-900 to-emeraldBrand-950 text-white px-4 sm:px-6 py-2.5 rounded-2xl border-2 border-goldBrand-400 shadow-md">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl">{sec.icon}</span>
+                          <div>
+                            <h3 className="text-sm sm:text-base font-black text-goldBrand-300 font-serifBrand tracking-wider">
+                              {isUrdu ? sec.titleUrdu : sec.title}
+                            </h3>
+                          </div>
+                        </div>
+                        <span className="bg-goldBrand-500 text-emeraldBrand-950 text-[10px] sm:text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          {sec.count}
+                        </span>
+                      </div>
+
+                      {/* Section Products Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+                        {secProducts.map(product => (
+                          <ProductCard
+                            key={product.id}
+                            product={product}
+                            isUrdu={isUrdu}
+                            onAddToCart={() => addToCart(product, 1)}
+                            onOpenDetail={() => setSelectedProduct(product)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Specific Category Filter View */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-gradient-to-r from-emeraldBrand-950 via-emeraldBrand-900 to-emeraldBrand-950 text-white px-4 sm:px-6 py-2.5 rounded-2xl border-2 border-goldBrand-400 shadow-md">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">
+                      {CATEGORIES.find(c => c.id === activeCategory)?.icon || '🥟'}
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-goldBrand-300 font-serifBrand tracking-wider">
+                      {isUrdu
+                        ? CATEGORIES.find(c => c.id === activeCategory)?.labelUrdu
+                        : CATEGORIES.find(c => c.id === activeCategory)?.label}
+                    </h3>
+                  </div>
+                  <span className="bg-goldBrand-500 text-emeraldBrand-950 text-xs font-black px-2.5 py-0.5 rounded-full">
+                    {filtered.length} {isUrdu ? 'آئٹمز' : 'Items'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+                  {filtered.map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isUrdu={isUrdu}
+                      onAddToCart={() => addToCart(product, 1)}
+                      onOpenDetail={() => setSelectedProduct(product)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* Sticky Floating Quick Bag Bar on Mobile Devices */}
+          {cartCount > 0 && (
+            <div className="fixed bottom-16 inset-x-3 z-30 md:hidden animate-in slide-in-from-bottom-3">
+              <div
+                onClick={() => setIsCartOpen(true)}
+                className="bg-gradient-to-r from-emeraldBrand-900 via-emeraldBrand-800 to-emeraldBrand-900 text-goldBrand-200 p-3 rounded-2xl shadow-2xl border-2 border-goldBrand-400 flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-goldBrand-500 text-emeraldBrand-950 flex items-center justify-center font-black text-sm">
+                    🛍️
+                  </div>
+                  <div>
+                    <p className="text-xs font-black leading-none">{cartCount} {isUrdu ? 'پیکٹ شامل ہیں' : 'Packs in Bag'}</p>
+                    <p className="text-[10px] text-goldBrand-300 mt-0.5">{isUrdu ? \`کل: \${totalAmount} روپے\` : \`Total: Rs. \${totalAmount}/-\`}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-black bg-goldBrand-500 text-emeraldBrand-950 px-3 py-1.5 rounded-xl shadow">
+                  <span>{isUrdu ? 'آرڈر کریں' : 'Checkout'}</span>
+                  <span>➔</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fixed Mobile Bottom Navigation Tab Bar */}
+          <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-emeraldBrand-950 text-goldBrand-200 border-t-2 border-goldBrand-500/40 shadow-2xl py-1.5 px-4 flex justify-around items-center">
+            <button
+              onClick={() => {
+                setActiveCategory('all');
+                document.getElementById('menu-view')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="flex flex-col items-center gap-0.5 text-goldBrand-300 hover:text-white"
+            >
+              <span className="text-base">🥟</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'مینو' : 'Menu'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsTrackingOpen(true)}
+              className="flex flex-col items-center gap-0.5 text-emeraldBrand-100 hover:text-white"
+            >
+              <span className="text-base">🛵</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'ٹریک' : 'Track'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsBrochureModalOpen(true)}
+              className="flex flex-col items-center gap-0.5 text-goldBrand-400 hover:text-white"
+            >
+              <span className="text-base">📜</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'بروشر' : 'Card'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="relative flex flex-col items-center gap-0.5 text-goldBrand-300 hover:text-white"
+            >
+              <span className="text-base">🛍️</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'بیگ' : 'Bag'}</span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-2 w-4 h-4 bg-goldBrand-500 text-emeraldBrand-950 rounded-full font-black text-[9px] flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="flex flex-col items-center gap-0.5 text-emeraldBrand-100 hover:text-white"
+            >
+              <span className="text-base">🤖</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'AI اسسٹنٹ' : 'AI Help'}</span>
+            </button>
+          </nav>
+
+          {/* Footer Component */}
+          <Footer settings={settings} isUrdu={isUrdu} onOpenAdmin={() => setIsAdminOpen(true)} />
+
+          {/* ================= MODALS & POPUPS ================= */}
+
+          {/* Product Detail Modal */}
+          {selectedProduct && (
+            <ProductDetailModal
+              product={selectedProduct}
+              isUrdu={isUrdu}
+              onClose={() => setSelectedProduct(null)}
+              onAddToCart={(qty) => {
+                addToCart(selectedProduct, qty);
+                setSelectedProduct(null);
+              }}
+            />
+          )}
+
+          {/* Official Brochure Menu Card Image Lightbox Modal with Full-Fit & Zoom */}
+          {isBrochureModalOpen && (
+            <div
+              onClick={() => setIsBrochureModalOpen(false)}
+              className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 cursor-pointer"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="relative bg-white rounded-3xl max-w-2xl w-full sm:w-auto overflow-hidden shadow-2xl border-2 border-goldBrand-400 p-3 sm:p-4 animate-in zoom-in-95 cursor-default flex flex-col items-center max-h-[95vh]"
+              >
+                {/* Header with Title and Close Button */}
+                <div className="w-full flex justify-between items-center pb-2.5 border-b border-goldBrand-400/40 shrink-0 gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📜</span>
+                    <div>
+                      <h3 className="font-extrabold text-xs sm:text-sm text-emeraldBrand-950 font-serifBrand">
+                        {isUrdu ? 'نیو حیدری نمکو اینڈ فروزن - بروشر مینو کارڈ' : 'New Hyderi Nimco & Frozen — Official Menu Card'}
+                      </h3>
+                      <p className="text-[10px] text-gray-500">{isUrdu ? '۵۴ آئٹمز، مکمل ریٹس اور تفصیلات' : 'Complete 54 Items & Rates List'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="/images/hyderi_brochure_menu.jpg"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 bg-parchment-100 hover:bg-parchment-200 text-emeraldBrand-900 border border-goldBrand-400/60 rounded-xl text-[11px] font-bold"
+                      title="Open full size in new tab"
+                    >
+                      🔍 {isUrdu ? 'بڑا دیکھیں' : 'Full Size'}
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsBrochureModalOpen(false)}
+                      className="w-8 h-8 rounded-full bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 font-black flex items-center justify-center text-sm shadow-md"
+                      title="Close"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Centered Image with Perfect Full Fit */}
+                <div className="overflow-auto max-h-[80vh] w-full flex items-center justify-center p-1 bg-parchment-100 rounded-2xl border border-goldBrand-400/40 my-2">
+                  <img
+                    src="/images/hyderi_brochure_menu.jpg"
+                    alt="Official Menu Card"
+                    className="max-h-[76vh] w-auto object-contain rounded-xl shadow-md transition-transform duration-300"
+                  />
+                </div>
+
+                {/* Bottom Close Button */}
+                <div className="w-full flex justify-between items-center pt-2 border-t border-goldBrand-400/30 text-xs shrink-0">
+                  <span className="text-[11px] text-gray-500 font-urdu">{isUrdu ? 'بند کرنے کے لیے باہر کلک کریں' : 'Click outside to close'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsBrochureModalOpen(false)}
+                    className="px-5 py-1.5 bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 rounded-xl font-bold shadow-sm"
+                  >
+                    {isUrdu ? 'بند کریں' : 'Close'}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Shopping Cart Drawer Modal */}
+          {isCartOpen && (
+            <CartDrawer
+              isOpen={isCartOpen}
+              isUrdu={isUrdu}
+              onClose={() => setIsCartOpen(false)}
+              cart={cart}
+              onUpdateQuantity={updateQuantity}
+              onRemoveItem={removeItem}
+              subtotal={subtotal}
+              deliveryFee={deliveryFee}
+              totalAmount={totalAmount}
+              isFree={isFree}
+              freeLimit={freeLimit}
+              onProceedCheckout={() => {
+                setIsCartOpen(false);
+                setIsCheckoutOpen(true);
+              }}
+            />
+          )}
+
+          {/* Professional Digital Checkout Modal (No COD) */}
+          {isCheckoutOpen && (
+            <CheckoutModal
+              isOpen={isCheckoutOpen}
+              isUrdu={isUrdu}
+              onClose={() => setIsCheckoutOpen(false)}
+              cart={cart}
+              subtotal={subtotal}
+              deliveryFee={deliveryFee}
+              totalAmount={totalAmount}
+              settings={settings}
+              onOrderComplete={(order) => {
+                setCompletedOrder(order);
+                setCart([]);
+                setIsCheckoutOpen(false);
+                if (window.confetti) {
+                  window.confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+                }
+              }}
+            />
+          )}
+
+          {/* Order Success Modal */}
+          {completedOrder && (
+            <OrderSuccessModal
+              order={completedOrder}
+              isUrdu={isUrdu}
+              onClose={() => setCompletedOrder(null)}
+              settings={settings}
+            />
+          )}
+
+          {/* Order Tracking Modal */}
+          {isTrackingOpen && (
+            <OrderTrackingModal
+              isOpen={isTrackingOpen}
+              isUrdu={isUrdu}
+              onClose={() => setIsTrackingOpen(false)}
+            />
+          )}
+
+          {/* Floating AI Chat Assistant Button */}
+          {!isChatOpen && (
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 bg-gradient-to-r from-emeraldBrand-900 via-emeraldBrand-950 to-emeraldBrand-900 hover:from-emeraldBrand-800 hover:to-emeraldBrand-900 text-goldBrand-200 pl-3.5 pr-4.5 py-2.5 sm:py-3 rounded-full shadow-2xl flex items-center gap-2.5 border-2 border-goldBrand-400 transition-all hover:scale-108 active:scale-95 group shadow-emeraldBrand-950/40"
+              title="AI Customer Assistant"
+            >
+              <div className="relative">
+                <span className="text-xl">🤖</span>
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full ring-2 ring-white animate-ping"></span>
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-black leading-none text-goldBrand-300">{isUrdu ? 'حیدری AI اسسٹنٹ' : 'Hyderi AI Assistant'}</p>
+                <p className="text-[9px] text-emeraldBrand-100 font-bold leading-none mt-0.5">{isUrdu ? 'فوری مینو اور مدد' : 'Instant Menu & Help'}</p>
+              </div>
+            </button>
+          )}
+
+          {/* Hyderi AI Customer Assistant Chatbot Modal */}
+          <HyderiAIChatbot
+            isOpen={isChatOpen}
+            isUrdu={isUrdu}
+            onClose={() => setIsChatOpen(false)}
+            settings={settings}
+            onSelectCategory={(cat) => {
+              setActiveCategory(cat);
+              document.getElementById('menu-view')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            onOpenTracking={() => setIsTrackingOpen(true)}
+            onOpenCheckout={() => setIsCartOpen(true)}
+          />
+
+          {/* Discreet Admin Portal */}
+          {isAdminOpen && (
+            <AdminPortal
+              isOpen={isAdminOpen}
+              products={products}
+              settings={settings}
+              onClose={() => setIsAdminOpen(false)}
+              onRefreshProducts={loadProducts}
+              onRefreshSettings={loadSettings}
+            />
+          )}
+
+        </div>
+      );
+    }
+
+    // Product Card Component
+    function ProductCard({ product, isUrdu, onAddToCart, onOpenDetail }) {
+      const [added, setAdded] = useState(false);
+
+      const handleAdd = (e) => {
+        e.stopPropagation();
+        onAddToCart();
+        setAdded(true);
+        setTimeout(() => setAdded(false), 1200);
+      };
+
+      const title = isUrdu ? (product.nameUrdu || product.name) : product.name;
+      const category = isUrdu ? (product.categoryLabelUrdu || product.categoryLabel) : (product.categoryLabel || product.category);
+      const pack = isUrdu ? (product.packQuantityUrdu || product.packQuantity) : product.packQuantity;
+
+      return (
+        <div
+          onClick={onOpenDetail}
+          className="group bg-white rounded-3xl border-2 border-goldBrand-400/40 hover:border-goldBrand-500 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden cursor-pointer hover:-translate-y-1"
+        >
+          {/* Card Top Food Photo */}
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-parchment-200">
+            <img
+              src={product.image}
+              alt={title}
+              className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
+              loading="lazy"
+            />
+            {product.badge && (
+              <div className="absolute top-2.5 left-2.5 bg-emeraldBrand-950 text-goldBrand-300 text-[10px] font-black px-2.5 py-1 rounded-lg border border-goldBrand-400/60 shadow uppercase tracking-wider">
+                {isUrdu ? (product.badgeUrdu || product.badge) : product.badge}
+              </div>
+            )}
+            <div className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-xs text-goldBrand-200 text-[10px] font-black px-2 py-0.5 rounded-lg border border-goldBrand-400/40">
+              {pack}
+            </div>
+          </div>
+
+          {/* Card Body */}
+          <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 bg-gradient-to-b from-white to-parchment-50">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emeraldBrand-700">
+                {category}
+              </span>
+              <h3 className="font-extrabold text-xs sm:text-sm text-emeraldBrand-950 line-clamp-1 group-hover:text-emeraldBrand-700 transition-colors">
+                {title}
+              </h3>
+              <p className="text-gray-500 text-[11px] font-urdu line-clamp-1 mt-0.5">
+                {product.nameUrdu}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-goldBrand-400/20">
+              <div>
+                <span className="text-[9px] text-gray-500 block uppercase font-bold">{isUrdu ? 'قیمت' : 'Price'}</span>
+                <span className="text-sm sm:text-base font-black text-emeraldBrand-950 font-mono">
+                  Rs. {product.price}/-
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAdd}
+                className={\`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 flex items-center gap-1 \${
+                  added
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-emeraldBrand-800 hover:bg-emeraldBrand-900 text-goldBrand-200 hover:text-goldBrand-100 border border-goldBrand-500/40'
+                }\`}
+              >
+                <span>{added ? '✓' : '+'}</span>
+                <span className="hidden sm:inline">{added ? (isUrdu ? 'شامل ہوگیا' : 'Added') : (isUrdu ? 'بیگ' : 'Add')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Product Detail Modal Component with Prominent Back & Close Buttons
+    function ProductDetailModal({ product, isUrdu, onClose, onAddToCart }) {
+      const [qty, setQty] = useState(1);
+
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [onClose]);
+
+      return (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-2 border-goldBrand-400 animate-in zoom-in-95 cursor-default flex flex-col max-h-[90vh]"
+          >
+            {/* Top Dedicated Navigation / Back Bar */}
+            <div className="bg-emeraldBrand-950 text-white px-4 py-3 flex items-center justify-between border-b-2 border-goldBrand-500/40 shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emeraldBrand-900 hover:bg-emeraldBrand-800 text-goldBrand-200 hover:text-white text-xs font-black border border-goldBrand-500/40 transition-all active:scale-95 shadow-sm"
+              >
+                <span>←</span>
+                <span>{isUrdu ? 'مینو پر واپس جائیں' : 'Back to Menu'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-goldBrand-500 hover:bg-goldBrand-400 text-emeraldBrand-950 font-black flex items-center justify-center text-sm shadow-md transition-transform hover:scale-110 active:scale-95"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable Modal Body */}
+            <div className="overflow-y-auto flex-1">
+              <div className="relative aspect-[16/10] w-full bg-parchment-200">
+                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                {product.badge && (
+                  <span className="absolute bottom-3 left-3 bg-emeraldBrand-950 text-goldBrand-300 text-xs font-black px-3 py-1 rounded-xl border border-goldBrand-400 shadow">
+                    {isUrdu ? (product.badgeUrdu || product.badge) : product.badge}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-4">
+                <div>
+                  <span className="text-xs font-bold text-emeraldBrand-700 uppercase tracking-wider">{product.categoryLabel}</span>
+                  <h2 className="text-xl font-black text-emeraldBrand-950 font-serifBrand">{isUrdu ? (product.nameUrdu || product.name) : product.name}</h2>
+                  <p className="text-sm text-gray-500 font-urdu">{product.nameUrdu}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-xl font-black text-emeraldBrand-950 font-mono">Rs. {product.price}/-</span>
+                    <span className="text-xs font-bold bg-parchment-200 text-emeraldBrand-900 px-2.5 py-1 rounded-lg border border-goldBrand-400/40">
+                      {isUrdu ? (product.packQuantityUrdu || product.packQuantity) : product.packQuantity}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-parchment-100 p-3.5 rounded-2xl border border-goldBrand-400/40 text-xs space-y-1.5 text-gray-700">
+                  <h4 className="font-bold text-emeraldBrand-950 flex items-center gap-1.5">
+                    <span>🔥</span>
+                    <span>{isUrdu ? 'فرائی کرنے کی ہدایات' : 'Cooking Instructions'}</span>
+                  </h4>
+                  <p className="leading-relaxed">
+                    {isUrdu ? 'فریزر سے نکال کر بغیر ڈیفراسٹ کیے درمیانی آنچ پر ۴ سے ۵ منٹ تک سنہری اور کرسپی ہونے تک تلیں۔' : 'Deep fry frozen directly from freezer in medium-hot oil for 4-5 minutes until golden and crispy. Do not defrost.'}
+                  </p>
+                </div>
+
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  {isUrdu ? (product.descriptionUrdu || product.description) : product.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom Sticky Action Bar */}
+            <div className="p-4 bg-parchment-50 border-t border-goldBrand-400/30 flex items-center justify-between gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-3 bg-white hover:bg-parchment-200 text-gray-700 font-bold text-xs rounded-xl border border-gray-300 transition-colors"
+              >
+                {isUrdu ? 'بند کریں' : 'Close'}
+              </button>
+
+              <div className="flex items-center border border-goldBrand-400/60 rounded-xl bg-white p-1">
+                <button onClick={() => setQty(q => Math.max(1, q - 1))} className="w-8 h-8 font-black text-emeraldBrand-900 hover:bg-parchment-200 rounded-lg">
+                  -
+                </button>
+                <span className="w-8 text-center font-bold font-mono text-sm">{qty}</span>
+                <button onClick={() => setQty(q => q + 1)} className="w-8 h-8 font-black text-emeraldBrand-900 hover:bg-parchment-200 rounded-lg">
+                  +
+                </button>
+              </div>
+
+              <button
+                onClick={() => onAddToCart(qty)}
+                className="flex-1 py-3 bg-emeraldBrand-800 hover:bg-emeraldBrand-900 text-goldBrand-200 font-black text-xs sm:text-sm rounded-xl shadow-lg border border-goldBrand-500/40 transition-all active:scale-95"
+              >
+                {isUrdu ? \`بیگ میں ڈالیں (Rs. \${product.price * qty}/-)\` : \`Add to Bag (Rs. \${product.price * qty}/-)\`}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // Shopping Cart Drawer Component
+    function CartDrawer({ isOpen, isUrdu, onClose, cart, onUpdateQuantity, onRemoveItem, subtotal, deliveryFee, totalAmount, isFree, freeLimit, onProceedCheckout }) {
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-black/75 backdrop-blur-xs flex justify-end">
+          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between border-l-2 border-goldBrand-400 animate-in slide-in-from-right duration-300">
+            
+            {/* Header */}
+            <div className="p-4 bg-emeraldBrand-950 text-white flex items-center justify-between border-b border-goldBrand-500/40">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">🛍️</span>
+                <div>
+                  <h3 className="font-extrabold text-sm text-goldBrand-300">{isUrdu ? 'آپ کا شاپنگ بیگ' : 'Your Shopping Bag'}</h3>
+                  <p className="text-[10px] text-emeraldBrand-100">{cart.length} {isUrdu ? 'مختلف آئٹمز' : 'Unique Items'}</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-emeraldBrand-900 text-goldBrand-300 hover:text-white flex items-center justify-center font-bold">
+                ✕
+              </button>
+            </div>
+
+            {/* Free Delivery Meter */}
+            <div className="bg-parchment-100 p-3 border-b border-goldBrand-400/30 text-xs">
+              <div className="flex justify-between font-bold text-[11px] mb-1">
+                <span className="text-emeraldBrand-950">{isFree ? (isUrdu ? '🎉 مفت ڈیلیوری فعال ہے!' : '🎉 Free Delivery Unlocked!') : (isUrdu ? \`فری ڈیلیوری کے لیے مزید \${freeLimit - subtotal} روپے\` : \`Add Rs. \${freeLimit - subtotal} for FREE Delivery\`)}</span>
+                <span className="text-goldBrand-700">Rs. {freeLimit}/-</span>
+              </div>
+              <div className="w-full h-2 bg-parchment-300 rounded-full overflow-hidden">
+                <div className="h-full bg-emeraldBrand-800 transition-all duration-500" style={{ width: \`\${Math.min(100, (subtotal / freeLimit) * 100)}%\` }}></div>
+              </div>
+            </div>
+
+            {/* Items List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-gray-100">
+              {cart.length === 0 ? (
+                <div className="py-16 text-center text-gray-400 space-y-3">
+                  <span className="text-4xl block">🥟</span>
+                  <p className="text-xs font-bold">{isUrdu ? 'آپ کا بیگ خالی ہے' : 'Your bag is empty'}</p>
+                  <p className="text-[11px]">{isUrdu ? 'مینو سے لذیذ سموسے اور رولز شامل کریں۔' : 'Add fresh samosas & rolls from the brochure menu.'}</p>
+                </div>
+              ) : (
+                cart.map(item => (
+                  <div key={item.id} className="pt-3 first:pt-0 flex items-center justify-between gap-3 text-xs">
+                    <img src={item.image} alt={item.name} className="w-14 h-14 rounded-xl object-cover border border-goldBrand-400/40 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-emeraldBrand-950 truncate">{isUrdu ? (item.nameUrdu || item.name) : item.name}</h4>
+                      <p className="text-[10px] text-gray-500">{item.packQuantity} • <span className="font-bold text-emeraldBrand-800">Rs. {item.price}/-</span></p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center border border-goldBrand-400/60 rounded-lg bg-parchment-50">
+                          <button onClick={() => onUpdateQuantity(item.id, item.quantity - 1)} className="px-2 py-0.5 text-xs font-bold text-emeraldBrand-900">-</button>
+                          <span className="px-2 font-mono font-bold">{item.quantity}</span>
+                          <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="px-2 py-0.5 text-xs font-bold text-emeraldBrand-900">+</button>
+                        </div>
+                        <button onClick={() => onRemoveItem(item.id)} className="text-red-600 hover:text-red-800 text-[11px] font-bold">
+                          {isUrdu ? 'حذف' : 'Remove'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-black text-emeraldBrand-950 font-mono">Rs. {item.price * item.quantity}/-</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer Summary */}
+            {cart.length > 0 && (
+              <div className="p-4 bg-parchment-50 border-t border-goldBrand-400/40 space-y-3">
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between text-gray-600">
+                    <span>{isUrdu ? 'سب ٹوٹل:' : 'Subtotal:'}</span>
+                    <span className="font-mono font-bold">Rs. {subtotal}/-</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>{isUrdu ? 'ڈیلیوری چارجز:' : 'Delivery Fee:'}</span>
+                    <span className="font-mono font-bold text-emeraldBrand-800">{isFree ? (isUrdu ? 'مفت (FREE)' : 'FREE') : \`Rs. \${deliveryFee}/-\`}</span>
+                  </div>
+                  <div className="flex justify-between font-black text-sm text-emeraldBrand-950 pt-1.5 border-t border-gray-200">
+                    <span>{isUrdu ? 'کل رقم:' : 'Total Amount:'}</span>
+                    <span className="font-mono text-base text-emeraldBrand-900">Rs. {totalAmount}/-</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={onProceedCheckout}
+                  className="w-full py-3.5 bg-gradient-to-r from-emeraldBrand-800 to-emeraldBrand-950 hover:from-emeraldBrand-900 hover:to-emeraldBrand-950 text-goldBrand-200 font-black text-xs sm:text-sm rounded-2xl shadow-xl border border-goldBrand-400 flex items-center justify-center gap-2 active:scale-98"
+                >
+                  <span>{isUrdu ? \`آن لائن چیک آؤٹ (\${totalAmount} روپے)\` : \`Proceed to Pre-Paid Checkout (Rs. \${totalAmount}/-)\`}</span>
+                  <span>➔</span>
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    }
+
+    // Professional Digital Checkout Modal (No COD)
+    function CheckoutModal({ isOpen, isUrdu, onClose, cart, subtotal, deliveryFee, totalAmount, settings, onOrderComplete }) {
+      const [step, setStep] = useState(1);
+      const [customer, setCustomer] = useState({
+        fullName: '', phone: '', area: KARACHI_AREAS[0].en, address: '', notes: ''
+      });
+      const [paymentMethod, setPaymentMethod] = useState('cod');
+      const [senderName, setSenderName] = useState('');
+      const [tid, setTid] = useState('');
+      const [slipBase64, setSlipBase64] = useState(null);
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const [errorMsg, setErrorMsg] = useState('');
+
+      if (!isOpen) return null;
+
+      const handleNext = () => {
+        setErrorMsg('');
+        if (step === 1) {
+          if (!customer.fullName.trim() || !customer.phone.trim() || !customer.address.trim()) {
+            setErrorMsg(isUrdu ? 'براہ کرم تمام لازمی فیلڈز (نام، فون اور پتہ) پر کریں۔' : 'Please fill all required fields (Name, Phone, Address).');
+            return;
+          }
+          setStep(2);
+        } else if (step === 2) {
+          if (paymentMethod !== 'cod') {
+            if (!senderName.trim() || !tid.trim()) {
+              setErrorMsg(isUrdu ? 'براہ کرم ادائیگی بھیجنے والے کا نام اور Transaction ID (TID) درج کریں۔' : 'Please enter Sender Name and Transaction ID (TID).');
+              return;
+            }
+          }
+          setStep(3);
+        }
+      };
+
+      const handleSubmit = async () => {
+        setIsSubmitting(true);
+        setErrorMsg('');
+        try {
+          const payload = {
+            customer,
+            items: cart,
+            subtotal,
+            deliveryFee,
+            totalAmount,
+            paymentMethod,
+            senderAccountName: senderName,
+            transactionId: tid,
+            paymentSlipBase64: slipBase64,
+            notes: customer.notes
+          };
+
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data.success && data.order) {
+            onOrderComplete(data.order);
+          } else {
+            setErrorMsg(data.message || 'Order submission failed.');
+          }
+        } catch (e) {
+          setErrorMsg('Could not submit order to server.');
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+
+      const currentAcc = settings.paymentAccounts ? settings.paymentAccounts[paymentMethod] : null;
+
+      return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="relative bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border-2 border-goldBrand-400 animate-in zoom-in-95">
+            
+            {/* Header */}
+            <div className="p-4 sm:p-5 bg-emeraldBrand-950 text-white flex items-center justify-between border-b border-goldBrand-500/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-goldBrand-500 text-emeraldBrand-950 flex items-center justify-center font-black text-lg">
+                  🔒
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-extrabold text-base sm:text-lg text-goldBrand-300">{isUrdu ? 'کارپوریٹ ڈیجیٹل آن لائن چیک آؤٹ' : 'Enterprise Digital Checkout'}</h2>
+                    <span className="bg-emerald-500/30 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-400/30">
+                      {isUrdu ? '۱۰۰٪ پری پیڈ' : '100% Pre-Paid'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emeraldBrand-100">{isUrdu ? 'بینک ٹرانسفر، راست اور موبائل والیٹ بلنگ' : 'Official Bank Wire & Mobile Wallet Billing System'}</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-emeraldBrand-900 text-goldBrand-300 hover:text-white flex items-center justify-center font-bold">
+                ✕
+              </button>
+            </div>
+
+            {/* Steps indicator */}
+            <div className="bg-parchment-100 px-6 py-2.5 border-b border-goldBrand-400/30 flex items-center justify-between text-xs font-bold text-gray-700">
+              <span className={step >= 1 ? 'text-emeraldBrand-950' : 'text-gray-400'}>{isUrdu ? '۱. ڈیلیوری معلومات' : '1. Delivery Info'}</span>
+              <span>➔</span>
+              <span className={step >= 2 ? 'text-emeraldBrand-950' : 'text-gray-400'}>{isUrdu ? '۲. بینک و والیٹ پیمنٹ' : '2. Bank / Wallet Pay'}</span>
+              <span>➔</span>
+              <span className={step >= 3 ? 'text-emeraldBrand-950' : 'text-gray-400'}>{isUrdu ? '۳. تصدیق و آرڈر' : '3. Verification'}</span>
+            </div>
+
+            {errorMsg && (
+              <div className="mx-6 mt-4 p-3 rounded-xl bg-red-50 text-red-700 text-xs font-bold border border-red-200">
+                ⚠️ {errorMsg}
+              </div>
+            )}
+
+            <div className="p-6 max-h-[65vh] overflow-y-auto">
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-bold text-emeraldBrand-950 text-sm">{isUrdu ? 'کراچی ڈیلیوری منزل' : 'Karachi Delivery Destination'}</h3>
+                    <p className="text-xs text-gray-500">{isUrdu ? 'کولڈ باکس ایکسپریس ڈیلیوری کے لیے درست معلومات درج کریں۔' : 'Provide accurate details for temperature-controlled express dispatch.'}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">{isUrdu ? 'مکمل نام *' : 'Full Name *'}</label>
+                      <input
+                        type="text"
+                        value={customer.fullName}
+                        onChange={(e) => setCustomer({ ...customer, fullName: e.target.value })}
+                        placeholder={isUrdu ? "محمد علی" : "e.g. Muhammad Ali"}
+                        className="w-full px-3.5 py-2.5 bg-parchment-50 border rounded-xl text-sm outline-none focus:border-emeraldBrand-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">{isUrdu ? 'واٹس ایپ فون نمبر *' : 'WhatsApp Phone Number *'}</label>
+                      <input
+                        type="tel"
+                        value={customer.phone}
+                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                        placeholder="03001234567"
+                        className="w-full px-3.5 py-2.5 bg-parchment-50 border rounded-xl text-sm outline-none focus:border-emeraldBrand-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">{isUrdu ? 'کراچی کا علاقہ / سیکٹر *' : 'Karachi Area / Sector *'}</label>
+                      <select
+                        value={customer.area}
+                        onChange={(e) => setCustomer({ ...customer, area: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-parchment-50 border rounded-xl text-sm outline-none font-medium"
+                      >
+                        {KARACHI_AREAS.map(a => <option key={a.en} value={a.en}>{isUrdu ? a.ur : a.en}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">{isUrdu ? 'گھر نمبر، گلی اور بلاک *' : 'House / Flat / Street Address *'}</label>
+                      <input
+                        type="text"
+                        value={customer.address}
+                        onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+                        placeholder={isUrdu ? "مکان نمبر، اسٹریٹ، بلاک" : "House #, Street name, Block"}
+                        className="w-full px-3.5 py-2.5 bg-parchment-50 border rounded-xl text-sm outline-none focus:border-emeraldBrand-800"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-4">
+                  <div className="bg-emeraldBrand-950 text-white p-4 rounded-2xl border border-goldBrand-400">
+                    <span className="text-[10px] uppercase font-black text-goldBrand-400">{isUrdu ? 'کل واجب الادا رقم' : 'Total Payable Amount'}</span>
+                    <h3 className="text-2xl font-black text-goldBrand-200 font-mono">Rs. {totalAmount}/-</h3>
+                    <p className="text-[11px] text-emeraldBrand-100 mt-1">
+                      {isUrdu ? 'ادائیگی کا طریقہ منتخب کریں۔ آپ کیش آن ڈیلیوری (COD)، میزان بینک یا ایزی پیسہ استعمال کر سکتے ہیں۔' : 'Choose payment method: Cash on Delivery (COD), Meezan Bank, or EasyPaisa.'}
+                    </p>
+                  </div>
+
+                  {/* Payment Channel Selector */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {[
+                      { id: 'cod', label: 'Cash on Delivery', labelUrdu: 'کیش آن ڈیلیوری (COD)', icon: '💵', desc: isUrdu ? 'پارسل ملنے پر کیش دیں' : 'Pay Cash to Rider' },
+                      { id: 'bankTransfer', label: 'Meezan Bank', labelUrdu: 'میزان بینک (ارسلان)', icon: '🏦', desc: 'Title: ARSALAN' },
+                      { id: 'easypaisa', label: 'EasyPaisa', labelUrdu: 'ایزی پیسہ (ارسلان)', icon: '📱', desc: '0336-2438422' }
+                    ].map(ch => (
+                      <button
+                        key={ch.id}
+                        type="button"
+                        onClick={() => setPaymentMethod(ch.id)}
+                        className={\`p-3.5 rounded-2xl border text-xs font-bold text-center transition-all flex flex-col items-center justify-center gap-1 \${
+                          paymentMethod === ch.id
+                            ? 'bg-emeraldBrand-900 text-goldBrand-200 border-goldBrand-400 shadow-md font-black ring-2 ring-goldBrand-400/50'
+                            : 'bg-parchment-50 text-gray-700 hover:bg-parchment-100 border-gray-200'
+                        }\`}
+                      >
+                        <span className="text-2xl">{ch.icon}</span>
+                        <span className="font-extrabold text-sm">{isUrdu ? ch.labelUrdu : ch.label}</span>
+                        <span className="text-[10px] text-gray-400">{ch.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* COD Selected Info */}
+                  {paymentMethod === 'cod' && (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-500/40 text-xs space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-900 font-black text-sm">
+                        <span>💵</span>
+                        <span>{isUrdu ? 'کیش آن ڈیلیوری (COD) منتخب ہے' : 'Cash on Delivery (COD) Selected'}</span>
+                      </div>
+                      <p className="text-emerald-800 leading-relaxed">
+                        {isUrdu
+                          ? \`آپ کو پیشگی کوئی رقم بھیجنے کی ضرورت نہیں ہے۔ جب رائیڈر آپ کے پتے پر پارسل لے کر آئے گا، تب آپ نقد رقم (\${totalAmount} روپے) ادا کر دیجیے گا۔\`
+                          : \`No advance transfer required. Pay Rs. \${totalAmount}/- cash in hand to the delivery rider when your order arrives.\`}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Meezan Bank Account Box */}
+                  {paymentMethod === 'bankTransfer' && (
+                    <div className="p-4 rounded-2xl bg-parchment-100 border-2 border-goldBrand-400/60 text-xs space-y-2">
+                      <div className="flex justify-between border-b border-goldBrand-400/30 pb-1.5">
+                        <span className="text-gray-600 font-bold">{isUrdu ? 'بینک کا نام:' : 'Bank Name:'}</span>
+                        <span className="font-black text-emeraldBrand-950 text-sm">Meezan Bank Limited</span>
+                      </div>
+                      <div className="flex justify-between border-b border-goldBrand-400/30 pb-1.5">
+                        <span className="text-gray-600 font-bold">{isUrdu ? 'اکاؤنٹ ٹائٹل:' : 'Account Title:'}</span>
+                        <span className="font-black text-emeraldBrand-950 text-sm">ARSALAN</span>
+                      </div>
+                      <div className="flex justify-between border-b border-goldBrand-400/30 pb-1.5">
+                        <span className="text-gray-600 font-bold">{isUrdu ? 'اکاؤنٹ نمبر:' : 'Account #:'}</span>
+                        <span className="font-mono font-black text-emeraldBrand-900 text-sm tracking-wider">01870100080247</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 pt-1">
+                        {isUrdu ? 'میزان بینک ایپ یا کسی بھی بینک ایپ سے رقم ٹرانسفر کر کے نیچے TID اور رسید درج کریں۔' : 'Transfer via Meezan Bank or any banking app, then enter Sender Name and TID below.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* EasyPaisa Account Box */}
+                  {paymentMethod === 'easypaisa' && (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-500/40 text-xs space-y-2">
+                      <div className="flex justify-between border-b border-emerald-200 pb-1.5">
+                        <span className="text-gray-600 font-bold">{isUrdu ? 'پیمنٹ ایپ:' : 'App:'}</span>
+                        <span className="font-black text-emerald-900 text-sm">EasyPaisa</span>
+                      </div>
+                      <div className="flex justify-between border-b border-emerald-200 pb-1.5">
+                        <span className="text-gray-600 font-bold">{isUrdu ? 'اکاؤنٹ ٹائٹل:' : 'Account Title:'}</span>
+                        <span className="font-black text-emerald-900 text-sm">Arsalan Arsalan</span>
+                      </div>
+                      <div className="flex justify-between border-b border-emerald-200 pb-1.5">
+                        <span className="text-gray-600 font-bold">{isUrdu ? 'ایزی پیسہ موبائل نمبر:' : 'EasyPaisa Mobile #:'}</span>
+                        <span className="font-mono font-black text-emerald-800 text-sm tracking-wider">0336-2438422</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 pt-1">
+                        {isUrdu ? 'ایزی پیسہ ایپ سے رقم ٹرانسفر کر کے نیچے TID اور رسید درج کریں۔' : 'Transfer via EasyPaisa app, then enter Sender Name and TID below.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Proof Inputs (Only when bank transfer or easypaisa) */}
+                  {paymentMethod !== 'cod' && (
+                    <div className="space-y-3 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{isUrdu ? 'بھیجنے والے کا اکاؤنٹ نام *' : 'Sender Account Name *'}</label>
+                          <input
+                            type="text"
+                            value={senderName}
+                            onChange={(e) => setSenderName(e.target.value)}
+                            placeholder="e.g. Ali Khan"
+                            className="w-full px-3.5 py-2.5 bg-parchment-50 border rounded-xl text-sm outline-none focus:border-emeraldBrand-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{isUrdu ? 'ٹرانزیکشن ID (TID) *' : 'Transaction ID (TID) *'}</label>
+                          <input
+                            type="text"
+                            value={tid}
+                            onChange={(e) => setTid(e.target.value)}
+                            placeholder="e.g. 184920492"
+                            className="w-full px-3.5 py-2.5 bg-parchment-50 border rounded-xl text-sm outline-none focus:border-emeraldBrand-800"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Slip Upload */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">{isUrdu ? 'رسید کی تصویر (اسکرین شاٹ)' : 'Payment Slip Screenshot (Optional)'}</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setSlipBase64(reader.result);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emeraldBrand-900 file:text-goldBrand-200 hover:file:bg-emeraldBrand-800 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-4 text-xs">
+                  <div className="p-4 bg-parchment-100 rounded-2xl border border-goldBrand-400 space-y-2">
+                    <h4 className="font-bold text-emeraldBrand-950 border-b pb-1 text-sm">{isUrdu ? 'آرڈر کا خلاصہ' : 'Order Summary & Receipt Preview'}</h4>
+                    <div className="space-y-1">
+                      {cart.map((it, idx) => (
+                        <div key={idx} className="flex justify-between text-gray-700">
+                          <span><b>{it.quantity}x</b> {it.name} ({it.packQuantity})</span>
+                          <span className="font-mono font-bold">Rs. {it.price * it.quantity}/-</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t pt-1.5 space-y-1">
+                      <div className="flex justify-between text-gray-600"><span>{isUrdu ? 'سب ٹوٹل:' : 'Subtotal:'}</span><span className="font-mono font-bold">Rs. {subtotal}/-</span></div>
+                      <div className="flex justify-between text-gray-600"><span>{isUrdu ? 'ڈیلیوری:' : 'Delivery:'}</span><span className="font-mono font-bold">{deliveryFee === 0 ? 'FREE' : \`Rs. \${deliveryFee}/-\`}</span></div>
+                      <div className="flex justify-between font-black text-sm text-emeraldBrand-950 pt-1 border-t"><span>{isUrdu ? 'کل ادا شدہ رقم:' : 'Total Amount:'}</span><span className="font-mono text-base text-emeraldBrand-900">Rs. {totalAmount}/-</span></div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-emeraldBrand-950 text-white space-y-1">
+                    <p className="font-bold text-goldBrand-300">📍 {customer.fullName} • {customer.phone}</p>
+                    <p className="text-gray-300">{customer.address}, {customer.area}</p>
+                    <p className="text-goldBrand-400 font-mono text-[11px] pt-1">Payment: {paymentMethod.toUpperCase()} | TID: {tid}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-4 bg-parchment-50 border-t border-gray-200 flex justify-between gap-3">
+              {step > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(s => s - 1)}
+                  className="px-5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-700"
+                >
+                  ← {isUrdu ? 'پیچھے' : 'Back'}
+                </button>
+              ) : <div></div>}
+
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="px-6 py-2.5 bg-emeraldBrand-800 hover:bg-emeraldBrand-900 text-goldBrand-200 rounded-xl text-xs font-bold shadow-md transition-all border border-goldBrand-400/40"
+                >
+                  {step === 1 ? (isUrdu ? 'اگلا مرحلہ: پیمنٹ طریقہ →' : 'Next: Payment Details →') : (isUrdu ? 'اگلا مرحلہ: تصدیق →' : 'Next: Review Order →')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={handleSubmit}
+                  className="flex-1 max-w-sm py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg transition-all"
+                >
+                  {isSubmitting ? (isUrdu ? 'آرڈر جمع ہو رہا ہے...' : 'Submitting...') : (isUrdu ? \`آرڈر کنفرم کریں (\${totalAmount} روپے)\` : \`Confirm Pre-Paid Order (Rs. \${totalAmount}/-)\`)}
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // Order Success Modal
+    function OrderSuccessModal({ order, isUrdu, onClose, settings }) {
+      const [copied, setCopied] = useState(false);
+
+      const copyRef = () => {
+        navigator.clipboard.writeText(order.orderRef);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      };
+
+      const generateWhatsAppLink = () => {
+        const items = order.items.map(i => \`• \${i.nameUrdu || i.name} (\${i.packQuantityUrdu || i.packQuantity}) x \${i.quantity} = Rs. \${i.price * i.quantity}\`).join('%0A');
+        const text = \`*HYDERI NIMCO & FROZEN - ONLINE ORDER*%0A%0A\` +
+          \`*Order Ref:* \${order.orderRef}%0A\` +
+          \`*Customer:* \${order.customer?.fullName}%0A\` +
+          \`*Phone:* \${order.customer?.phone}%0A\` +
+          \`*Area:* \${order.customer?.area}%0A\` +
+          \`*Address:* \${order.customer?.address}%0A%0A\` +
+          \`*ITEMS:*%0A\${items}%0A%0A\` +
+          \`*Subtotal:* Rs. \${order.subtotal}/-%0A\` +
+          \`*Delivery Fee:* Rs. \${order.deliveryFee}/-%0A\` +
+          \`*Total Paid:* Rs. \${order.totalAmount}/-%0A%0A\` +
+          \`*Payment Channel:* \${order.paymentMethod?.toUpperCase()}%0A\` +
+          \`*Sender Name:* \${order.paymentDetails?.senderAccountName}%0A\` +
+          \`*TID:* \${order.paymentDetails?.transactionId}%0A%0A\` +
+          \`_Please dispatch my fresh order!_\`;
+        return \`https://wa.me/\${settings.whatsapp}?text=\${text}\`;
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-2 border-goldBrand-400 animate-in zoom-in-95">
+            <div className="bg-emeraldBrand-950 text-white p-6 text-center border-b border-goldBrand-400">
+              <div className="w-14 h-14 rounded-full bg-goldBrand-500 text-emeraldBrand-950 flex items-center justify-center mx-auto mb-2 text-2xl font-bold shadow-lg">
+                ✓
+              </div>
+              <span className="bg-emerald-500/30 text-goldBrand-300 text-xs font-black uppercase px-3 py-1 rounded-full border border-goldBrand-400/40">
+                {isUrdu ? (order.paymentMethod === 'cod' ? 'کیش آن ڈیلیوری آرڈر موصول' : 'آرڈر موصول اور تصدیق') : (order.paymentMethod === 'cod' ? 'Cash on Delivery Confirmed' : 'Order Submitted')}
+              </span>
+              <h2 className="text-2xl font-black text-goldBrand-300 mt-2 font-serifBrand">{isUrdu ? 'آپ کے آرڈر کا بہت شکریہ!' : 'Thank You for Your Order!'}</h2>
+              <p className="text-xs text-emeraldBrand-100 mt-1">{isUrdu ? 'آپ کا آرڈر نارتھ ناظم آباد برانچ میں پیک کیا جا رہا ہے۔' : 'Your order is queued in our North Nazimabad kitchen.'}</p>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto text-xs">
+              {/* Automatic Shop Alert Notification Badge */}
+              <div className="bg-emerald-50 border-2 border-emerald-400/60 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-emerald-950 shadow-sm">
+                <span className="text-2xl">🔔</span>
+                <div>
+                  <p className="font-black text-emerald-950">
+                    {isUrdu ? 'دکان والے کو فوری الرٹ پہنچ گیا!' : 'Shop Owner Alerted Instantly!'}
+                  </p>
+                  <p className="text-[11px] text-emerald-800 mt-0.5">
+                    {isUrdu
+                      ? 'اس آرڈر کی مکمل تفصیل دکان کے نمبر (0336-2438422) پر واٹس ایپ کر دی گئی ہے۔'
+                      : 'Complete order receipt automatically dispatched to shop owner (0336-2438422).'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between bg-parchment-100 p-3.5 rounded-2xl border border-goldBrand-400">
+                <div>
+                  <span className="text-[10px] text-emeraldBrand-900 uppercase font-bold">{isUrdu ? 'آرڈر ٹریکنگ ریفرنس نمبر' : 'Order Tracking Ref'}</span>
+                  <p className="font-mono font-black text-lg text-emeraldBrand-950">{order.orderRef}</p>
+                </div>
+                <button onClick={copyRef} className="bg-white hover:bg-parchment-200 text-gray-700 px-3 py-1.5 rounded-xl font-bold border border-goldBrand-400/60">
+                  {copied ? (isUrdu ? '✓ کاپی ہوگیا' : '✓ Copied') : (isUrdu ? 'کاپی کریں' : 'Copy')}
+                </button>
+              </div>
+
+              <div className="border border-goldBrand-400/40 rounded-2xl p-4 bg-parchment-50 space-y-2">
+                <h4 className="font-bold text-emeraldBrand-950 border-b pb-1">{isUrdu ? 'رسید کی تفصیل' : 'Itemized Receipt'}</h4>
+                {order.items.map((it, idx) => (
+                  <div key={idx} className="flex justify-between text-gray-700">
+                    <span><b>{it.quantity}x</b> {isUrdu ? (it.nameUrdu || it.name) : it.name} ({it.packQuantity})</span>
+                    <span className="font-bold font-mono">Rs. {it.price * it.quantity}/-</span>
+                  </div>
+                ))}
+                <div className="border-t pt-1 space-y-1">
+                  <div className="flex justify-between text-gray-600"><span>{isUrdu ? 'سب ٹوٹل:' : 'Subtotal:'}</span><span className="font-mono">Rs. {order.subtotal}/-</span></div>
+                  <div className="flex justify-between text-gray-600"><span>{isUrdu ? 'ڈیلیوری:' : 'Delivery:'}</span><span className="font-mono">{order.deliveryFee === 0 ? 'FREE' : \`Rs. \${order.deliveryFee}/-\`}</span></div>
+                  <div className="flex justify-between font-black text-sm text-emeraldBrand-950 pt-1 border-t"><span>{isUrdu ? 'کل رقم:' : 'Total Amount:'}</span><span className="font-mono text-emeraldBrand-900">Rs. {order.totalAmount}/-</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 border-t border-goldBrand-400/40 bg-parchment-50 space-y-2">
+              <a
+                href={generateWhatsAppLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-2"
+              >
+                <span>💬 {isUrdu ? 'دکان کے واٹس ایپ پر آرڈر بھیجیں (0336-2438422)' : 'Send Order to Shop WhatsApp (0336-2438422)'}</span>
+              </a>
+
+              <div className="flex gap-2">
+                <button onClick={() => window.print()} className="flex-1 py-2 bg-white border border-gray-300 rounded-xl font-bold text-gray-700">
+                  🖨️ {isUrdu ? 'رسید پرنٹ کریں' : 'Print Invoice'}
+                </button>
+                <button onClick={onClose} className="flex-1 py-2 bg-emeraldBrand-900 text-goldBrand-200 rounded-xl font-bold">
+                  {isUrdu ? 'مکمل' : 'Done'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Order Tracking Modal
+    function OrderTrackingModal({ isOpen, isUrdu, onClose }) {
+      const [ref, setRef] = useState('');
+      const [order, setOrder] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+
+      const handleSearch = async (e) => {
+        e.preventDefault();
+        if (!ref.trim()) return;
+        setLoading(true);
+        setError('');
+        setOrder(null);
+        try {
+          const res = await fetch(\`/api/orders/\${encodeURIComponent(ref.trim())}\`);
+          const data = await res.json();
+          if (data.success && data.order) {
+            setOrder(data.order);
+          } else {
+            setError(isUrdu ? 'آرڈر ریفرنس نہیں ملا۔' : 'Order reference not found.');
+          }
+        } catch (err) {
+          setError(isUrdu ? 'سرور سے رابطہ نہ ہو سکا۔' : 'Could not connect to tracking server.');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border-2 border-goldBrand-400 animate-in zoom-in-95">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-extrabold text-base text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
+                <span>🛵</span> {isUrdu ? 'اپنا آرڈر ٹریک کریں' : 'Track Your Order'}
+              </h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-700 font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                type="text"
+                value={ref}
+                onChange={(e) => setRef(e.target.value.toUpperCase())}
+                placeholder="HYD-123456"
+                className="flex-1 px-4 py-2.5 bg-parchment-50 border rounded-xl text-sm font-mono uppercase outline-none focus:border-emeraldBrand-800"
+              />
+              <button type="submit" className="px-5 py-2.5 bg-emeraldBrand-800 hover:bg-emeraldBrand-900 text-goldBrand-200 rounded-xl text-xs font-bold">
+                {loading ? (isUrdu ? 'تلاش ہو رہا ہے...' : 'Searching...') : (isUrdu ? 'ٹریک کریں' : 'Track')}
+              </button>
+            </form>
+
+            {error && <p className="text-xs text-red-600 font-bold bg-red-50 p-2 rounded-lg">{error}</p>}
+
+            {order && (
+              <div className="space-y-3 pt-2 text-xs">
+                <div className="bg-parchment-100 p-4 rounded-2xl border border-goldBrand-400">
+                  <div className="flex justify-between font-bold">
+                    <span>{isUrdu ? 'آرڈر:' : 'Order:'} {order.orderRef}</span>
+                    <span className="text-emeraldBrand-900 font-mono">Rs. {order.totalAmount}/-</span>
+                  </div>
+                  <p className="text-gray-600 mt-1">{isUrdu ? 'اسٹیٹس:' : 'Status:'} <b className="text-emeraldBrand-800 uppercase">{order.status.replace('_', ' ')}</b></p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Professional AI Customer Assistant Chatbot (Hyderi AI)
+    function HyderiAIChatbot({ isOpen, isUrdu, onClose, settings, onSelectCategory, onOpenTracking, onOpenCheckout }) {
+      const [messages, setMessages] = useState([
+        {
+          sender: 'ai',
+          text: isUrdu
+            ? 'السلام علیکم! نیو حیدری نمکو اینڈ فروزن فوڈز (۱۹۷۰) میں خوش آمدید 🥟✨\\n\\nمیں آپ کا ورچوئل AI اسسٹنٹ ہوں۔ میں آپ کو سموسے، اسپرنگ رولز، کباب، موموز، منی پیزا اور نمکو کی قیمتوں، پکانے کے طریقے اور آن لائن آرڈر میں فوری مدد دے سکتا ہوں۔ آپ کیا جاننا چاہتے ہیں؟'
+            : 'Assalam-o-Alaikum & Welcome to New Hyderi Nimco & Frozen (Since 1970)! 🥟✨\\n\\nI am your AI Assistant. How can I help you with our brochure menu items, pack quantities, cooking instructions, or online pre-payments today?',
+          suggestions: isUrdu
+            ? ['🥟 سموسے اور قیمتیں', '🌯 اسپرنگ رولز', '🍢 کباب اور موموز', '💳 پیمنٹ کا طریقہ', '🛵 ڈیلیوری چارجز', '🔥 فرائی کرنے کی ہدایات']
+            : ['🥟 Samosas & Prices', '🌯 Spring Rolls', '🍢 Kababs & Momos', '💳 Payment Methods', '🛵 Delivery Rates', '🔥 Frying Instructions']
+        }
+      ]);
+      const [input, setInput] = useState('');
+      const [loading, setLoading] = useState(false);
+      const messagesEndRef = React.useRef(null);
+
+      const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+
+      useEffect(() => {
+        if (isOpen) scrollToBottom();
+      }, [messages, isOpen]);
+
+      const sendMessage = async (textToSend) => {
+        const text = (textToSend || input).trim();
+        if (!text || loading) return;
+
+        const userMsg = { sender: 'user', text };
+        setMessages(prev => [...prev, userMsg]);
+        if (!textToSend) setInput('');
+        setLoading(true);
+
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setMessages(prev => [
+              ...prev,
+              {
+                sender: 'ai',
+                text: data.reply,
+                suggestions: data.suggestions || [],
+                action: data.action
+              }
+            ]);
+
+            if (data.action === 'filter_samosa' && onSelectCategory) onSelectCategory('samosa');
+            if (data.action === 'filter_roll' && onSelectCategory) onSelectCategory('roll');
+            if (data.action === 'filter_kabab' && onSelectCategory) onSelectCategory('kabab');
+            if (data.action === 'filter_nimco' && onSelectCategory) onSelectCategory('nimco');
+            if (data.action === 'open_tracker' && onOpenTracking) onOpenTracking();
+            if (data.action === 'scroll_menu') {
+              document.getElementById('menu-view')?.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        } catch (err) {
+          setMessages(prev => [
+            ...prev,
+            {
+              sender: 'ai',
+              text: isUrdu
+                ? 'معذرت، ابھی رابطہ نہیں ہو سکا۔ برائے مہربانی واٹس ایپ 0336-2438422 پر رابطہ فرمائیں۔'
+                : 'Could not connect to AI service. Please contact our WhatsApp hotline at 0336-2438422.',
+              suggestions: []
+            }
+          ]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 max-w-sm sm:max-w-md w-[calc(100vw-2rem)] h-[550px] max-h-[85vh] bg-white rounded-3xl shadow-2xl border-2 border-goldBrand-400 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
+          
+          {/* Header */}
+          <div className="bg-gradient-to-r from-emeraldBrand-950 to-emeraldBrand-900 text-white p-4 flex items-center justify-between border-b border-goldBrand-500/40 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-2xl bg-goldBrand-500 text-emeraldBrand-950 flex items-center justify-center text-xl shadow-md font-black">
+                  🤖
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-emeraldBrand-950 rounded-full animate-pulse"></span>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-extrabold text-sm text-goldBrand-300">Hyderi AI Assistant</h3>
+                  <span className="bg-goldBrand-500/20 text-goldBrand-300 text-[9px] font-black px-1.5 py-0.2 rounded border border-goldBrand-500/30">ONLINE</span>
+                </div>
+                <p className="text-[10px] text-emeraldBrand-100">Hyderi Nimco & Frozen — 24/7 AI Agent</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-emeraldBrand-900 text-goldBrand-300 hover:text-white flex items-center justify-center font-bold text-xs"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Messages Feed */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-parchment-50 text-xs">
+            {messages.map((m, idx) => (
+              <div key={idx} className={\`flex flex-col \${m.sender === 'user' ? 'items-end' : 'items-start'}\`}>
+                <div
+                  className={\`max-w-[85%] p-3.5 rounded-2xl leading-relaxed whitespace-pre-line shadow-xs \${
+                    m.sender === 'user'
+                      ? 'bg-emeraldBrand-900 text-goldBrand-200 rounded-br-xs font-semibold'
+                      : 'bg-white text-gray-800 border border-goldBrand-400/40 rounded-bl-xs'
+                  }\`}
+                >
+                  {m.text}
+                </div>
+
+                {/* Suggestion Prompt Chips */}
+                {m.suggestions && m.suggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 max-w-[90%]">
+                    {m.suggestions.map((sug, sIdx) => (
+                      <button
+                        key={sIdx}
+                        onClick={() => sendMessage(sug)}
+                        className="px-2.5 py-1 bg-parchment-100 hover:bg-parchment-200 border border-goldBrand-400/60 text-emeraldBrand-950 font-bold rounded-xl text-[10px] transition-all hover:scale-105 active:scale-95 shadow-2xs"
+                      >
+                        {sug}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex items-center gap-1.5 p-3 bg-white border border-goldBrand-400/40 rounded-2xl max-w-[40%] text-gray-400">
+                <span className="w-2 h-2 bg-emeraldBrand-800 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-emeraldBrand-800 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                <span className="w-2 h-2 bg-emeraldBrand-800 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Footer */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
+            className="p-3 bg-white border-t border-goldBrand-400/30 flex items-center gap-2 shrink-0"
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={isUrdu ? "کوئی بھی سوال پوچھیں (مثال: سموسہ کے ریٹ؟)..." : "Ask anything (e.g. Samosa prices, payment, delivery)..."}
+              className="flex-1 px-3.5 py-2.5 bg-parchment-50 border border-goldBrand-400/40 rounded-xl text-xs outline-none focus:border-emeraldBrand-800 focus:bg-white transition-all"
+            />
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="p-2.5 bg-emeraldBrand-800 hover:bg-emeraldBrand-900 disabled:opacity-50 text-goldBrand-200 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center shrink-0 border border-goldBrand-400"
+            >
+              <span>🚀</span>
+            </button>
+          </form>
+        </div>
+      );
+    }
+
+    // Enterprise Dual-Role Admin Portal (SuperAdmin & Store Owner with Sales Dashboard)
+    function AdminPortal({ isOpen, products, settings, onClose, onRefreshProducts, onRefreshSettings }) {
+      const [authRole, setAuthRole] = useState(null);
+      const [loginMode, setLoginMode] = useState('manager');
+      const [pin, setPin] = useState('');
+      const [error, setError] = useState('');
+      const [tab, setTab] = useState('sales');
+      const [orders, setOrders] = useState([]);
+      const [slipModal, setSlipModal] = useState(null);
+
+      // WhatsApp Simulator State
+      const [waSimInput, setWaSimInput] = useState('');
+      const [waSimLog, setWaSimLog] = useState([
+        { sender: 'customer', text: 'Assalam o Alaikum, mujhe samosa aur roll ki price list chahiye' },
+        {
+          sender: 'bot',
+          text: 'وعلیکم السلام! نیو حیدری نمکو اینڈ فروزن فوڈز میں خوش آمدید 🥟✨\\n\\n🥟 **ہمارے مشہور خستہ سموسے:**\\n• Chicken Vonton (12 pcs) — Rs. 240/-\\n• Aaloo One Bite (24 pcs) — Rs. 350/-\\n• Chicken One Bite (24 pcs) — Rs. 400/-\\n• Chicken Cheese Crispy (24 pcs) — Rs. 500/-\\n\\n🌯 **اسپرنگ رولز:**\\n• Chicken Spring Roll (24 pcs) — Rs. 500/-\\n• Malai Boti Roll (12 pcs) — Rs. 500/-\\n\\n━━━━━━━━━━━━━━━━━━━━\\n🥟 *HYDERI NIMCO & FROZEN*\\n📍 Shop # 20, 21, Burhani Bagh, North Nazimabad, Karachi'
+        }
+      ]);
+      const [waSimLoading, setWaSimLoading] = useState(false);
+
+      const handleSimulateWhatsApp = async (e) => {
+        e.preventDefault();
+        if (!waSimInput.trim() || waSimLoading) return;
+
+        const customerMsg = waSimInput.trim();
+        setWaSimLog(prev => [...prev, { sender: 'customer', text: customerMsg }]);
+        setWaSimInput('');
+        setWaSimLoading(true);
+
+        try {
+          const res = await fetch('/api/whatsapp/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: customerMsg })
+          });
+          const data = await res.json();
+          if (data.success && data.autoReply) {
+            setWaSimLog(prev => [...prev, { sender: 'bot', text: data.autoReply.message }]);
+          }
+        } catch (e) {
+          setWaSimLog(prev => [...prev, { sender: 'bot', text: 'WhatsApp AI Response Error' }]);
+        } finally {
+          setWaSimLoading(false);
+        }
+      };
+
+      // Product Add/Edit Form State
+      const [showAddProd, setShowAddProd] = useState(false);
+      const [editProd, setEditProd] = useState(null);
+      const [prodForm, setProdForm] = useState({
+        name: '', nameUrdu: '', category: 'samosa', packQuantity: '12 pcs', price: '', image: '', description: '', badge: '', isAvailable: true
+      });
+
+      // Store Settings Form State (SuperAdmin Only)
+      const [settingsForm, setSettingsForm] = useState({ ...settings });
+
+      // Real Live WhatsApp Pairing State
+      const [waStatus, setWaStatus] = useState({ status: 'initializing', qr: null, phone: null });
+      const [waDisconnecting, setWaDisconnecting] = useState(false);
+
+      useEffect(() => {
+        if (tab !== 'whatsapp') return;
+        let active = true;
+
+        const fetchStatus = () => {
+          fetch('/api/whatsapp/status')
+            .then(res => res.json())
+            .then(data => {
+              if (active && data.success) {
+                setWaStatus(data);
+              }
+            })
+            .catch(() => {});
+        };
+
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 3000);
+        return () => {
+          active = false;
+          clearInterval(interval);
+        };
+      }, [tab]);
+
+      const handleWaDisconnect = async () => {
+        if (!confirm('Are you sure you want to disconnect WhatsApp AI? You will need to re-scan the QR code.')) return;
+        setWaDisconnecting(true);
+        try {
+          const res = await fetch('/api/whatsapp/disconnect', { method: 'POST' });
+          const data = await res.json();
+          if (data.success) {
+            setWaStatus({ status: 'initializing', qr: null, phone: null });
+          }
+        } catch (e) {
+          alert('Failed to disconnect');
+        } finally {
+          setWaDisconnecting(false);
+        }
+      };
+
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        try {
+          const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin, role: loginMode })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setAuthRole(data.role || (pin === '7860' ? 'superadmin' : 'manager'));
+            setTab('sales');
+            fetchOrders();
+          } else {
+            setError(data.message || 'Invalid PIN');
+          }
+        } catch (err) {
+          if (pin === '7860') {
+            setAuthRole('superadmin');
+            setTab('sales');
+            fetchOrders();
+          } else if (pin === '1970') {
+            setAuthRole('manager');
+            setTab('sales');
+            fetchOrders();
+          } else {
+            setError('Invalid PIN. Developer SuperAdmin: 7860 | Store Owner: 1970');
+          }
+        }
+      };
+
+      const fetchOrders = async () => {
+        try {
+          const res = await fetch('/api/orders');
+          const data = await res.json();
+          if (data.success) setOrders(data.orders || []);
+        } catch (e) {}
+      };
+
+      const updateOrderStatus = async (id, status) => {
+        try {
+          await fetch(\`/api/orders/\${id}/status\`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+          });
+          fetchOrders();
+        } catch (e) {}
+      };
+
+      const handleDeleteOrder = async (id) => {
+        if (!confirm('Delete this order?')) return;
+        try {
+          await fetch(\`/api/orders/\${id}\`, { method: 'DELETE' });
+          fetchOrders();
+        } catch (e) {}
+      };
+
+      const handleSaveProduct = async (e) => {
+        e.preventDefault();
+        try {
+          const url = editProd ? \`/api/products/\${editProd.id}\` : '/api/products';
+          const method = editProd ? 'PUT' : 'POST';
+          await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(prodForm)
+          });
+          setShowAddProd(false);
+          setEditProd(null);
+          onRefreshProducts();
+        } catch (e) {
+          setShowAddProd(false);
+          onRefreshProducts();
+        }
+      };
+
+      const handleDeleteProduct = async (id) => {
+        if (!confirm('Delete this item?')) return;
+        try {
+          await fetch(\`/api/products/\${id}\`, { method: 'DELETE' });
+          onRefreshProducts();
+        } catch (e) {}
+      };
+
+      const handleSaveSettings = async (e) => {
+        e.preventDefault();
+        try {
+          const res = await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settingsForm)
+          });
+          const data = await res.json();
+          if (data.success) {
+            alert('Settings Saved Successfully!');
+            if (onRefreshSettings) onRefreshSettings();
+          }
+        } catch (e) {
+          alert('Failed to save settings.');
+        }
+      };
+
+      // Sales Analytics Computations
+      const totalRevenue = orders.reduce((sum, ord) => sum + (ord.totalAmount || 0), 0);
+      const verifiedOrders = orders.filter(o => o.status !== 'pending_verification');
+      const verifiedRevenue = verifiedOrders.reduce((sum, ord) => sum + (ord.totalAmount || 0), 0);
+      const pendingRevenue = orders.filter(o => o.status === 'pending_verification').reduce((sum, ord) => sum + (ord.totalAmount || 0), 0);
+      const avgOrderValue = orders.length > 0 ? Math.round(totalRevenue / orders.length) : 0;
+
+      const itemSalesMap = {};
+      orders.forEach(ord => {
+        if (ord.items) {
+          ord.items.forEach(it => {
+            const key = it.name;
+            if (!itemSalesMap[key]) {
+              itemSalesMap[key] = { name: it.name, nameUrdu: it.nameUrdu, image: it.image, quantity: 0, revenue: 0 };
+            }
+            itemSalesMap[key].quantity += (it.quantity || 1);
+            itemSalesMap[key].revenue += (it.price * (it.quantity || 1));
+          });
+        }
+      });
+      const topSellingItems = Object.values(itemSalesMap).sort((a, b) => b.quantity - a.quantity).slice(0, 5);
+
+      const paymentBreakdown = {
+        bankTransfer: orders.filter(o => o.paymentMethod === 'bankTransfer' || o.paymentMethod === 'bankTransfer2').length,
+        easypaisa: orders.filter(o => o.paymentMethod === 'easypaisa').length,
+        jazzcash: orders.filter(o => o.paymentMethod === 'jazzcash').length
+      };
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6">
+          <div className="relative bg-white rounded-3xl max-w-6xl w-full h-[92vh] overflow-hidden shadow-2xl flex flex-col border-2 border-goldBrand-400">
+            
+            {/* Header with Role Badge */}
+            <div className="p-3.5 sm:p-4 bg-emeraldBrand-950 text-white flex items-center justify-between border-b border-goldBrand-500/40 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-goldBrand-500 text-emeraldBrand-950 flex items-center justify-center text-lg font-black shadow-md">
+                  {authRole === 'superadmin' ? '👑' : '🔒'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-extrabold text-sm sm:text-base text-goldBrand-300 font-serifBrand">Hyderi Control & Management Portal</h2>
+                    {authRole && (
+                      <span className={\`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider \${
+                        authRole === 'superadmin' ? 'bg-goldBrand-400 text-emeraldBrand-950' : 'bg-emerald-500 text-white'
+                      }\`}>
+                        {authRole === 'superadmin' ? '👑 Super Admin (Developer)' : '👨‍💼 Store Owner Mode'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-emeraldBrand-100">Hyderi Nimco & Frozen — North Nazimabad, Karachi</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {authRole && (
+                  <button
+                    onClick={() => {
+                      setAuthRole(null);
+                      setPin('');
+                    }}
+                    className="text-xs bg-emeraldBrand-900 hover:bg-emeraldBrand-800 text-goldBrand-300 px-3 py-1.5 rounded-xl font-bold transition-colors border border-goldBrand-500/30"
+                  >
+                    Logout
+                  </button>
+                )}
+                <button onClick={onClose} className="w-8 h-8 rounded-full bg-emeraldBrand-900 text-goldBrand-300 hover:text-white flex items-center justify-center font-bold">
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Authentication Screen */}
+            {!authRole ? (
+              <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-parchment-100 overflow-y-auto">
+                <div className="max-w-md w-full bg-white p-6 sm:p-8 rounded-3xl shadow-xl border-2 border-goldBrand-400 space-y-5">
+                  <div className="text-center space-y-1">
+                    <div className="w-14 h-14 bg-emeraldBrand-950 text-goldBrand-300 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-goldBrand-400 shadow-md">
+                      🔐
+                    </div>
+                    <h3 className="text-xl font-black text-emeraldBrand-950 font-serifBrand">Protected Portal Login</h3>
+                    <p className="text-xs text-gray-500">Select your role and enter authorized access PIN</p>
+                  </div>
+
+                  {/* Dual Role Selector Tabs */}
+                  <div className="grid grid-cols-2 gap-2 bg-parchment-200 p-1 rounded-2xl border border-goldBrand-400/40">
+                    <button
+                      type="button"
+                      onClick={() => { setLoginMode('manager'); setPin(''); setError(''); }}
+                      className={\`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 \${
+                        loginMode === 'manager' ? 'bg-emeraldBrand-900 text-goldBrand-200 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                      }\`}
+                    >
+                      <span>👨‍💼</span>
+                      <span>Store Owner</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLoginMode('superadmin'); setPin(''); setError(''); }}
+                      className={\`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 \${
+                        loginMode === 'superadmin' ? 'bg-goldBrand-500 text-emeraldBrand-950 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                      }\`}
+                    >
+                      <span>👑</span>
+                      <span>Developer Admin</span>
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleLogin} className="space-y-3">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[11px] font-bold text-gray-700">
+                          {loginMode === 'superadmin' ? 'Developer SuperAdmin Master PIN' : 'Store Owner / Manager PIN'}
+                        </label>
+                        <span className="text-[10px] text-gray-400 font-mono font-bold">
+                          {loginMode === 'superadmin' ? 'Default: 7860' : 'Default: 1970'}
+                        </span>
+                      </div>
+                      <input
+                        type="password"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value)}
+                        placeholder={loginMode === 'superadmin' ? "Enter Master PIN (7860)" : "Enter Owner PIN (1970)"}
+                        className="w-full text-center text-2xl tracking-widest font-mono font-bold py-3 bg-parchment-50 border rounded-2xl outline-none focus:border-emeraldBrand-800 transition-all"
+                        autoFocus
+                      />
+                    </div>
+
+                    {error && (
+                      <div className="p-2.5 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200 text-center">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="w-full py-3.5 bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 rounded-2xl font-black text-xs sm:text-sm shadow-lg transition-all border border-goldBrand-400 active:scale-98"
+                    >
+                      {loginMode === 'superadmin' ? '👑 Unlock Super Admin Portal' : '👨‍💼 Unlock Store Owner Dashboard'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ) : (
+              /* Authenticated Portal Interface */
+              <div className="flex-1 flex flex-col overflow-hidden bg-parchment-100">
+                
+                {/* Navigation Tabs */}
+                <div className="bg-white border-b border-goldBrand-400/40 px-4 sm:px-6 py-2.5 flex justify-between items-center flex-wrap gap-2 shrink-0">
+                  <div className="flex gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
+                    <button
+                      onClick={() => setTab('sales')}
+                      className={\`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all \${
+                        tab === 'sales' ? 'bg-emeraldBrand-900 text-goldBrand-200 shadow-sm font-black' : 'bg-parchment-50 text-gray-700 hover:bg-parchment-200'
+                      }\`}
+                    >
+                      <span>📊</span>
+                      <span>Sales Dashboard</span>
+                    </button>
+
+                    <button
+                      onClick={() => setTab('orders')}
+                      className={\`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all \${
+                        tab === 'orders' ? 'bg-emeraldBrand-900 text-goldBrand-200 shadow-sm font-black' : 'bg-parchment-50 text-gray-700 hover:bg-parchment-200'
+                      }\`}
+                    >
+                      <span>📦</span>
+                      <span>Customer Orders ({orders.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => setTab('products')}
+                      className={\`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all \${
+                        tab === 'products' ? 'bg-emeraldBrand-900 text-goldBrand-200 shadow-sm font-black' : 'bg-parchment-50 text-gray-700 hover:bg-parchment-200'
+                      }\`}
+                    >
+                      <span>🥟</span>
+                      <span>Menu Catalog ({products.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => setTab('whatsapp')}
+                      className={\`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all \${
+                        tab === 'whatsapp' ? 'bg-emeraldBrand-900 text-goldBrand-200 shadow-sm font-black' : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-300'
+                      }\`}
+                    >
+                      <span>🤖</span>
+                      <span>WhatsApp AI Bot</span>
+                    </button>
+
+                    {authRole === 'superadmin' && (
+                      <button
+                        onClick={() => setTab('settings')}
+                        className={\`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all \${
+                          tab === 'settings' ? 'bg-emeraldBrand-900 text-goldBrand-200 shadow-sm font-black' : 'bg-goldBrand-100 text-goldBrand-900 hover:bg-goldBrand-200 border border-goldBrand-400'
+                        }\`}
+                      >
+                        <span>⚙️</span>
+                        <span>Bank & Store Settings</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {tab === 'products' && authRole === 'superadmin' && (
+                    <button
+                      onClick={() => {
+                        setEditProd(null);
+                        setProdForm({ name: '', nameUrdu: '', category: 'samosa', packQuantity: '12 pcs', price: '', image: '', description: '', badge: '', isAvailable: true });
+                        setShowAddProd(true);
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1"
+                    >
+                      <span>+</span>
+                      <span>Add New Product</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Tab Views Content */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6">
+                  
+                  {/* 1. SALES ANALYTICS DASHBOARD */}
+                  {tab === 'sales' && (
+                    <div className="space-y-6">
+                      
+                      {/* Metric KPI Cards */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-goldBrand-400/40 shadow-xs space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-gray-500">
+                            <span>Total Gross Sales</span>
+                            <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">💰</span>
+                          </div>
+                          <p className="text-xl sm:text-2xl font-black text-emeraldBrand-950 font-mono">Rs. {totalRevenue.toLocaleString()}/-</p>
+                          <p className="text-[10px] text-emerald-600 font-bold">100% Pre-Paid Direct Online</p>
+                        </div>
+
+                        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-goldBrand-400/40 shadow-xs space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-gray-500">
+                            <span>Total Orders</span>
+                            <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">📦</span>
+                          </div>
+                          <p className="text-xl sm:text-2xl font-black text-emeraldBrand-950 font-mono">{orders.length}</p>
+                          <p className="text-[10px] text-gray-400 font-bold">{verifiedOrders.length} Verified & Dispatched</p>
+                        </div>
+
+                        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-goldBrand-400/40 shadow-xs space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-gray-500">
+                            <span>Average Order Value</span>
+                            <span className="p-1.5 rounded-lg bg-parchment-200 text-goldBrand-700">🏷️</span>
+                          </div>
+                          <p className="text-xl sm:text-2xl font-black text-emeraldBrand-950 font-mono">Rs. {avgOrderValue.toLocaleString()}/-</p>
+                          <p className="text-[10px] text-goldBrand-700 font-bold">Per Online Customer</p>
+                        </div>
+
+                        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-goldBrand-400/40 shadow-xs space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-gray-500">
+                            <span>Pending Verification</span>
+                            <span className="p-1.5 rounded-lg bg-amber-50 text-amber-700">⏳</span>
+                          </div>
+                          <p className="text-xl sm:text-2xl font-black text-amber-700 font-mono">Rs. {pendingRevenue.toLocaleString()}/-</p>
+                          <p className="text-[10px] text-gray-400 font-bold">{orders.filter(o => o.status === 'pending_verification').length} awaiting slip check</p>
+                        </div>
+                      </div>
+
+                      {/* Top Selling Dishes & Payment Breakdown */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        {/* Top Selling Items Leaderboard */}
+                        <div className="lg:col-span-2 bg-white rounded-3xl border border-goldBrand-400/40 p-4 sm:p-5 shadow-xs space-y-3">
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <h4 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
+                              <span>🏆</span>
+                              <span>Top Selling Menu Items</span>
+                            </h4>
+                            <span className="text-[11px] font-bold text-gray-400">By Units Sold</span>
+                          </div>
+
+                          {topSellingItems.length === 0 ? (
+                            <p className="py-8 text-center text-gray-400 text-xs font-bold">Sales data will appear here as orders are placed.</p>
+                          ) : (
+                            <div className="space-y-2.5">
+                              {topSellingItems.map((item, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-parchment-50 text-xs">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <span className="w-5 font-black text-gray-400">#{idx + 1}</span>
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-emeraldBrand-950 truncate">{item.name}</p>
+                                      <p className="text-[10px] text-gray-500">{item.nameUrdu}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="font-black text-emeraldBrand-800">{item.quantity} Packs</p>
+                                    <p className="text-[10px] text-goldBrand-700 font-bold font-mono">Rs. {item.revenue.toLocaleString()}/-</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Payment Method Distribution */}
+                        <div className="bg-white rounded-3xl border border-goldBrand-400/40 p-4 sm:p-5 shadow-xs space-y-3">
+                          <div className="border-b pb-2">
+                            <h4 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
+                              <span>💳</span>
+                              <span>Payment Channels</span>
+                            </h4>
+                          </div>
+
+                          <div className="space-y-3 text-xs pt-1">
+                            <div className="space-y-1">
+                              <div className="flex justify-between font-bold text-gray-700">
+                                <span>🏦 Direct Bank (Meezan / HBL)</span>
+                                <span>{paymentBreakdown.bankTransfer} orders</span>
+                              </div>
+                              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emeraldBrand-800" style={{ width: \`\${orders.length ? (paymentBreakdown.bankTransfer / orders.length) * 100 : 0}%\` }}></div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between font-bold text-gray-700">
+                                <span>📱 EasyPaisa Wallet</span>
+                                <span>{paymentBreakdown.easypaisa} orders</span>
+                              </div>
+                              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-600" style={{ width: \`\${orders.length ? (paymentBreakdown.easypaisa / orders.length) * 100 : 0}%\` }}></div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between font-bold text-gray-700">
+                                <span>📱 JazzCash Wallet</span>
+                                <span>{paymentBreakdown.jazzcash} orders</span>
+                              </div>
+                              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-goldBrand-500" style={{ width: \`\${orders.length ? (paymentBreakdown.jazzcash / orders.length) * 100 : 0}%\` }}></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* 2. CUSTOMER ORDERS MANAGEMENT */}
+                  {tab === 'orders' && (
+                    <div className="space-y-3">
+                      {orders.length === 0 ? (
+                        <div className="bg-white p-12 text-center rounded-3xl border border-goldBrand-400/40 space-y-2">
+                          <span className="text-3xl">📦</span>
+                          <p className="text-gray-500 font-bold text-xs">No customer orders recorded in ledger yet.</p>
+                        </div>
+                      ) : (
+                        orders.map(ord => (
+                          <div key={ord.id} className="bg-white p-4 sm:p-5 rounded-3xl border border-goldBrand-400/40 shadow-xs space-y-3 text-xs">
+                            <div className="flex justify-between items-start flex-wrap gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-black text-sm sm:text-base text-emeraldBrand-950">{ord.orderRef}</span>
+                                  <span className="text-[10px] text-gray-400 font-bold">• {new Date(ord.createdAt || Date.now()).toLocaleTimeString()}</span>
+                                </div>
+                                <p className="font-bold text-gray-800 text-sm mt-0.5">{ord.customer?.fullName} • 📞 {ord.customer?.phone}</p>
+                                <p className="text-gray-500">📍 {ord.customer?.address}, {ord.customer?.area}</p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={ord.status}
+                                  onChange={(e) => updateOrderStatus(ord.id, e.target.value)}
+                                  className="font-bold text-xs bg-parchment-50 border border-goldBrand-400/60 p-2 rounded-xl outline-none focus:border-emeraldBrand-800"
+                                >
+                                  <option value="pending_verification">⏳ Pending Verification</option>
+                                  <option value="payment_verified">✅ Payment Verified</option>
+                                  <option value="preparing">🍳 In Kitchen (Packing)</option>
+                                  <option value="out_for_delivery">🛵 Out For Delivery</option>
+                                  <option value="completed">🎉 Delivered & Done</option>
+                                </select>
+
+                                {authRole === 'superadmin' && (
+                                  <button
+                                    onClick={() => handleDeleteOrder(ord.id)}
+                                    className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 font-bold text-sm"
+                                    title="Delete Order"
+                                  >
+                                    🗑️
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Payment details strip */}
+                            <div className="bg-emeraldBrand-950 text-white p-3 rounded-2xl flex justify-between items-center flex-wrap gap-2 border border-goldBrand-400/40">
+                              <div>
+                                <span className="text-goldBrand-400 text-[10px] uppercase font-bold">Payment Method: <b>{ord.paymentMethod?.toUpperCase()}</b></span>
+                                <p className="text-goldBrand-200 font-bold">Sender: {ord.paymentDetails?.senderAccountName} | TID: {ord.paymentDetails?.transactionId}</p>
+                              </div>
+                              {ord.paymentDetails?.paymentSlipUrl && (
+                                <button
+                                  onClick={() => setSlipModal(ord.paymentDetails.paymentSlipUrl)}
+                                  className="bg-goldBrand-500 hover:bg-goldBrand-400 text-emeraldBrand-950 font-black px-3 py-1.5 rounded-lg text-xs"
+                                >
+                                  📄 View Slip
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex justify-between items-center font-bold text-gray-700 pt-2 border-t flex-wrap gap-2">
+                              <span className="text-gray-600">Items: {ord.items?.map(i => \`\${i.name} (x\${i.quantity})\`).join(', ')}</span>
+                              <span className="text-emeraldBrand-950 text-base font-black font-mono">Rs. {ord.totalAmount}/-</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. MENU CATALOG */}
+                  {tab === 'products' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                      {products.map(p => (
+                        <div key={p.id} className="bg-white rounded-3xl border border-goldBrand-400/40 p-3 flex flex-col justify-between text-xs space-y-2.5 shadow-xs">
+                          <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-parchment-200">
+                            <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                            <div className="absolute top-2 right-2 bg-black/70 text-goldBrand-300 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                              {p.packQuantity}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <span className="text-emeraldBrand-700 font-bold uppercase text-[9px]">{p.category}</span>
+                            <h4 className="font-bold text-emeraldBrand-950 line-clamp-1">{p.name}</h4>
+                            <p className="text-gray-500 text-[11px] font-urdu truncate">{p.nameUrdu}</p>
+                            <p className="text-emeraldBrand-900 font-black text-sm mt-1 font-mono">Rs. {p.price}/-</p>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 border-t text-xs">
+                            <button
+                              onClick={() => {
+                                setEditProd(p);
+                                setProdForm(p);
+                                setShowAddProd(true);
+                              }}
+                              className="font-bold text-emeraldBrand-900 hover:text-emeraldBrand-700 bg-parchment-100 px-3 py-1 rounded-lg border border-goldBrand-400/40"
+                            >
+                              Edit Details
+                            </button>
+
+                            {authRole === 'superadmin' && (
+                              <button onClick={() => handleDeleteProduct(p.id)} className="font-bold text-red-600 hover:underline">
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 4. WHATSAPP AI AUTO-RESPONDER & SIMULATOR */}
+                  {tab === 'whatsapp' && (
+                    <div className="space-y-6 max-w-4xl">
+                      <div className="bg-white p-5 rounded-3xl border border-goldBrand-400/40 shadow-xs space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-xl shadow-md">
+                              📱
+                            </div>
+                            <div>
+                              <h3 className="text-base font-black text-emeraldBrand-950 font-serifBrand">WhatsApp AI Automated Customer Service</h3>
+                              <p className="text-xs text-gray-500">Auto-replies to customer WhatsApp messages with prices, recipes, bank details, & order taking</p>
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black">
+                            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span>
+                            <span>ACTIVE 24/7</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Live WhatsApp Bot Simulator */}
+                        <div className="bg-[#0b141a] text-white rounded-3xl overflow-hidden shadow-2xl flex flex-col h-[480px] border border-gray-800">
+                          <div className="bg-[#202c33] p-3.5 flex items-center gap-3 border-b border-[#2a3942]">
+                            <div className="w-9 h-9 rounded-full bg-emerald-700 flex items-center justify-center text-lg">
+                              🥟
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-xs truncate text-goldBrand-300">Hyderi WhatsApp AI Auto-Bot</h4>
+                              <p className="text-[10px] text-emerald-400 font-semibold">online • auto-responder</p>
+                            </div>
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs bg-[radial-gradient(#1f2c34_1px,transparent_1px)] [background-size:16px_16px]">
+                            {waSimLog.map((item, idx) => (
+                              <div key={idx} className={\`flex flex-col \${item.sender === 'customer' ? 'items-end' : 'items-start'}\`}>
+                                <div
+                                  className={\`max-w-[85%] p-3 rounded-2xl whitespace-pre-line text-xs shadow-md leading-relaxed \${
+                                    item.sender === 'customer'
+                                      ? 'bg-[#005c4b] text-white rounded-br-xs'
+                                      : 'bg-[#202c33] text-gray-100 rounded-bl-xs border border-[#2a3942]'
+                                  }\`}
+                                >
+                                  {item.text}
+                                </div>
+                              </div>
+                            ))}
+                            {waSimLoading && (
+                              <div className="text-gray-400 text-[11px] italic">WhatsApp AI is typing...</div>
+                            )}
+                          </div>
+
+                          <form onSubmit={handleSimulateWhatsApp} className="p-2.5 bg-[#202c33] flex gap-2 border-t border-[#2a3942]">
+                            <input
+                              type="text"
+                              value={waSimInput}
+                              onChange={(e) => setWaSimInput(e.target.value)}
+                              placeholder="Type customer message to test WhatsApp AI..."
+                              className="flex-1 px-3.5 py-2 bg-[#2a3942] text-white placeholder-gray-400 rounded-xl text-xs outline-none"
+                            />
+                            <button
+                              type="submit"
+                              disabled={waSimLoading || !waSimInput.trim()}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all"
+                            >
+                              Send
+                            </button>
+                          </form>
+                        </div>
+
+                        {/* WhatsApp Device Pairing QR Code & Live Status */}
+                        <div className="bg-white rounded-3xl border border-goldBrand-400/40 p-5 space-y-4 text-xs flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between border-b pb-3">
+                              <h4 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
+                                <span>📲</span>
+                                <span>WhatsApp Phone Pairing (Real-Time Multi-Device)</span>
+                              </h4>
+                              <span className={\`text-[10px] font-black px-2.5 py-0.5 rounded-full \${
+                                waStatus.status === 'connected'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-goldBrand-100 text-goldBrand-900'
+                              }\`}>
+                                {waStatus.status === 'connected' ? '🟢 LIVE CONNECTED' : 'AWAITING SCAN'}
+                              </span>
+                            </div>
+
+                            <p className="text-gray-500 text-[11px] mt-2 leading-relaxed">
+                              Shop ke mobile number (<b className="text-gray-900">{settings.phone1 || '0325-2747343'}</b>) se WhatsApp open karein aur camera se scan karein. AI auto-responder foran activate ho jayega.
+                            </p>
+                          </div>
+
+                          {/* Dynamic State Rendering */}
+                          {waStatus.status === 'connected' ? (
+                            <div className="bg-gradient-to-br from-emerald-900 via-emeraldBrand-950 to-emerald-900 text-white p-5 rounded-2xl border-2 border-emerald-400 flex flex-col items-center text-center space-y-3 shadow-lg">
+                              <div className="w-12 h-12 rounded-full bg-emerald-500/30 text-emerald-300 flex items-center justify-center text-2xl animate-pulse">
+                                🤖
+                              </div>
+                              <div>
+                                <h4 className="font-black text-sm sm:text-base text-goldBrand-300">WhatsApp AI Connected & Active!</h4>
+                                <p className="text-xs text-emerald-100 mt-1">
+                                  Linked Number: <b className="font-mono text-white text-sm">+{waStatus.phone}</b>
+                                </p>
+                                <p className="text-[10px] text-gray-300 mt-1">
+                                  Customer jab bhi is number par WhatsApp karega, Hyderi AI khud bakhud reply karega.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleWaDisconnect}
+                                disabled={waDisconnecting}
+                                className="mt-1 px-4 py-2 bg-red-800/80 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all border border-red-500/40 active:scale-95"
+                              >
+                                {waDisconnecting ? 'Unlinking...' : 'Disconnect / Unlink Device'}
+                              </button>
+                            </div>
+                          ) : waStatus.qr ? (
+                            <div className="bg-emeraldBrand-950 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-4 border border-goldBrand-500/40 shadow-inner">
+                              <div className="p-2 bg-white rounded-xl shadow-md shrink-0 flex items-center justify-center">
+                                <img
+                                  src={waStatus.qr}
+                                  alt="Live WhatsApp Pairing QR Code"
+                                  className="w-40 h-40 object-contain rounded-lg"
+                                />
+                              </div>
+
+                              <div className="space-y-2 text-[11px] min-w-0">
+                                <div className="flex items-center gap-1.5 text-xs text-goldBrand-300 font-bold">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                  <span>Official WhatsApp QR Code</span>
+                                </div>
+                                <ol className="list-decimal list-inside space-y-1.5 text-emeraldBrand-100 font-medium">
+                                  <li>Shop phone me <b>WhatsApp</b> kholein</li>
+                                  <li><b>⋮ Menu</b> ya <b>Settings</b> ➔ <b>Linked Devices</b> dabayein</li>
+                                  <li><b>Link a Device</b> daba kar ye QR Code scan karein!</li>
+                                </ol>
+                                <div className="pt-1 text-[10px] text-emerald-400 font-bold">
+                                  ✓ Multi-Device Handshake auto-negotiating
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-emeraldBrand-950 text-white p-8 rounded-2xl border border-goldBrand-500/40 flex flex-col items-center justify-center text-center space-y-3">
+                              <div className="w-8 h-8 border-3 border-goldBrand-400 border-t-transparent rounded-full animate-spin"></div>
+                              <p className="text-xs text-goldBrand-200 font-bold">Connecting to WhatsApp Multi-Device Server...</p>
+                              <p className="text-[10px] text-emeraldBrand-100">Generating live handshake QR code. Please wait 3-5 seconds.</p>
+                            </div>
+                          )}
+
+                          {/* Meta Cloud Webhook Details */}
+                          <div className="border-t pt-3 space-y-2">
+                            <div className="flex justify-between items-center text-[10px] text-gray-500">
+                              <span>Meta Cloud API Webhook:</span>
+                              <span className="font-mono font-bold text-gray-800">/api/whatsapp/webhook</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] text-gray-500">
+                              <span>Verify Token:</span>
+                              <span className="font-mono font-bold text-emerald-700">hyderi_whatsapp_token_786</span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 5. STORE & BANK SETTINGS (SUPERADMIN ONLY) */}
+                  {tab === 'settings' && authRole === 'superadmin' && (
+                    <div className="bg-white rounded-3xl border border-goldBrand-400/40 p-6 shadow-xs max-w-3xl space-y-6">
+                      <div>
+                        <h3 className="text-lg font-black text-emeraldBrand-950 font-serifBrand">⚙️ Store & Payment Accounts Configuration</h3>
+                        <p className="text-xs text-gray-500">Update Meezan Bank, HBL, Raast, EasyPaisa, JazzCash, delivery rates and PINs</p>
+                      </div>
+
+                      <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="font-bold block mb-1">Store Name</label>
+                            <input
+                              type="text"
+                              value={settingsForm.storeName || ''}
+                              onChange={(e) => setSettingsForm({ ...settingsForm, storeName: e.target.value })}
+                              className="w-full px-3 py-2 bg-parchment-50 border rounded-xl"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold block mb-1">WhatsApp Hotline</label>
+                            <input
+                              type="text"
+                              value={settingsForm.whatsapp || ''}
+                              onChange={(e) => setSettingsForm({ ...settingsForm, whatsapp: e.target.value })}
+                              className="w-full px-3 py-2 bg-parchment-50 border rounded-xl"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="font-bold block mb-1">Standard Delivery Fee (Rs.)</label>
+                            <input
+                              type="number"
+                              value={settingsForm.deliveryFee || 150}
+                              onChange={(e) => setSettingsForm({ ...settingsForm, deliveryFee: Number(e.target.value) })}
+                              className="w-full px-3 py-2 bg-parchment-50 border rounded-xl"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold block mb-1">Free Delivery Above (Rs.)</label>
+                            <input
+                              type="number"
+                              value={settingsForm.freeDeliveryAbove || 2500}
+                              onChange={(e) => setSettingsForm({ ...settingsForm, freeDeliveryAbove: Number(e.target.value) })}
+                              className="w-full px-3 py-2 bg-parchment-50 border rounded-xl"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Bank Accounts Settings */}
+                        <div className="border-t pt-4 space-y-3">
+                          <h4 className="font-bold text-emeraldBrand-950 text-sm">🏦 Bank Account & Digital Wallet Numbers</h4>
+                          
+                          <div>
+                            <label className="font-bold block mb-0.5">Meezan Bank IBAN</label>
+                            <input
+                              type="text"
+                              value={settingsForm.paymentAccounts?.bankTransfer?.iban || ''}
+                              onChange={(e) => setSettingsForm({
+                                ...settingsForm,
+                                paymentAccounts: {
+                                  ...settingsForm.paymentAccounts,
+                                  bankTransfer: { ...settingsForm.paymentAccounts?.bankTransfer, iban: e.target.value }
+                                }
+                              })}
+                              className="w-full px-3 py-2 bg-parchment-50 border rounded-xl"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="font-bold block mb-0.5">EasyPaisa Account Number</label>
+                              <input
+                                type="text"
+                                value={settingsForm.paymentAccounts?.easypaisa?.accountNumber || ''}
+                                onChange={(e) => setSettingsForm({
+                                  ...settingsForm,
+                                  paymentAccounts: {
+                                    ...settingsForm.paymentAccounts,
+                                    easypaisa: { ...settingsForm.paymentAccounts?.easypaisa, accountNumber: e.target.value }
+                                  }
+                                })}
+                                className="w-full px-3 py-2 bg-parchment-50 border rounded-xl"
+                              />
+                            </div>
+                            <div>
+                              <label className="font-bold block mb-0.5">JazzCash Account Number</label>
+                              <input
+                                type="text"
+                                value={settingsForm.paymentAccounts?.jazzcash?.accountNumber || ''}
+                                onChange={(e) => setSettingsForm({
+                                  ...settingsForm,
+                                  paymentAccounts: {
+                                    ...settingsForm.paymentAccounts,
+                                    jazzcash: { ...settingsForm.paymentAccounts?.jazzcash, accountNumber: e.target.value }
+                                  }
+                                })}
+                                className="w-full px-3 py-2 bg-parchment-50 border rounded-xl"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full py-3 bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 rounded-xl font-bold shadow-md transition-all border border-goldBrand-400"
+                        >
+                          Save Master Settings
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+
+            {/* Slip Viewer Lightbox */}
+            {slipModal && (
+              <div onClick={() => setSlipModal(null)} className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 cursor-pointer">
+                <img src={slipModal} alt="Slip" className="max-h-[85vh] rounded-2xl object-contain shadow-2xl" />
+              </div>
+            )}
+
+            {/* Product Add/Edit Modal */}
+            {showAddProd && (
+              <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl text-xs max-h-[90vh] overflow-y-auto border-2 border-goldBrand-400">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <h3 className="font-bold text-sm text-emeraldBrand-950">{editProd ? 'Edit Product' : 'Add New Product'}</h3>
+                    <button onClick={() => setShowAddProd(false)} className="text-gray-400 hover:text-gray-700 font-bold">✕</button>
+                  </div>
+                  <form onSubmit={handleSaveProduct} className="space-y-2.5">
+                    <div>
+                      <label className="font-bold block mb-0.5">English Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={prodForm.name}
+                        onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })}
+                        placeholder="e.g. Chicken Cheese Samosa"
+                        className="w-full px-3 py-2 bg-parchment-50 border rounded-xl outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold block mb-0.5">Urdu Name (اردو نام) *</label>
+                      <input
+                        type="text"
+                        value={prodForm.nameUrdu || ''}
+                        onChange={(e) => setProdForm({ ...prodForm, nameUrdu: e.target.value })}
+                        placeholder="مثال: چکن چیز سموسہ"
+                        className="w-full px-3 py-2 bg-parchment-50 border rounded-xl outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="font-bold block mb-0.5">Category *</label>
+                        <select
+                          value={prodForm.category}
+                          onChange={(e) => setProdForm({ ...prodForm, category: e.target.value })}
+                          className="w-full px-3 py-2 bg-parchment-50 border rounded-xl outline-none"
+                        >
+                          <option value="samosa">Samosa</option>
+                          <option value="roll">Roll</option>
+                          <option value="kabab">Kabab & Momos</option>
+                          <option value="pizza">Mini Pizza</option>
+                          <option value="special">Other Special</option>
+                          <option value="nimco">Hyderi Nimco</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="font-bold block mb-0.5">Pack Quantity *</label>
+                        <input
+                          type="text"
+                          required
+                          value={prodForm.packQuantity}
+                          onChange={(e) => setProdForm({ ...prodForm, packQuantity: e.target.value })}
+                          placeholder="12 pcs / 24 pcs / 1 kg"
+                          className="w-full px-3 py-2 bg-parchment-50 border rounded-xl outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="font-bold block mb-0.5">Price (Rs.) *</label>
+                        <input
+                          type="number"
+                          required
+                          value={prodForm.price}
+                          onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })}
+                          placeholder="450"
+                          className="w-full px-3 py-2 bg-parchment-50 border rounded-xl outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold block mb-0.5">Badge Tag</label>
+                        <input
+                          type="text"
+                          value={prodForm.badge || ''}
+                          onChange={(e) => setProdForm({ ...prodForm, badge: e.target.value })}
+                          placeholder="e.g. Best Seller"
+                          className="w-full px-3 py-2 bg-parchment-50 border rounded-xl outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-bold block mb-1">Product Image (تصویر منتخب کریں یا اپ لوڈ کریں)</label>
+                      <div className="bg-parchment-50 border border-gray-200 rounded-2xl p-3 space-y-2.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 h-16 rounded-xl bg-parchment-200 border overflow-hidden shrink-0 flex items-center justify-center">
+                            {prodForm.image ? (
+                              <img src={prodForm.image} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xl text-gray-400">📷</span>
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <span className="font-bold text-gray-800 text-[11px] block">Upload Image File (کمپیوٹر / موبائل سے تصویر منتخب کریں)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setProdForm(prev => ({
+                                      ...prev,
+                                      imageBase64: reader.result,
+                                      image: reader.result
+                                    }));
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="mt-1 text-xs text-gray-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emeraldBrand-900 file:text-goldBrand-200 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-2">
+                          <label className="text-[10px] font-bold text-gray-500 block mb-0.5">OR Image URL (یا ویب لنک درج کریں)</label>
+                          <input
+                            type="text"
+                            value={prodForm.image || ''}
+                            onChange={(e) => setProdForm({ ...prodForm, image: e.target.value, imageBase64: null })}
+                            placeholder="https://... or /images/..."
+                            className="w-full px-3 py-1.5 bg-white border rounded-xl text-xs outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button type="submit" className="w-full py-3 bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 font-bold rounded-xl mt-2 shadow-md transition-all border border-goldBrand-400">
+                      {editProd ? 'Update Product Details' : 'Save New Product'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    }
+
+    // Footer Component (Matching Luxury Emerald & Gold Theme)
+    function Footer({ settings, isUrdu, onOpenAdmin }) {
+      return (
+        <footer className="bg-emeraldBrand-950 text-white pt-12 pb-8 border-t-4 border-goldBrand-500">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-10 border-b border-emeraldBrand-800">
+              
+              {/* Brand Overview */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <HyderiLogoEmblem size="large" />
+                  <div>
+                    <h3 className="font-black text-lg text-goldBrand-300 font-serifBrand">HYDERI</h3>
+                    <p className="text-xs text-goldBrand-200 font-bold uppercase tracking-wider">{isUrdu ? 'نمکو اینڈ فروزن فوڈز' : 'Nimco & Frozen Foods'}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-emeraldBrand-100 leading-relaxed font-urdu">
+                  {settings.sloganUrdu || 'نمکو بھی، فروزن بھی، معیار بھی، ذائقہ بھی'}
+                </p>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  {isUrdu ? '۱۹۷۰ سے کراچی کا سب سے قابل اعتماد فوڈ برانڈ: مشہور خستہ ون بائٹ سموسے، اسپرنگ رولز، شامی کباب، منی پیزا اور حیدری نمکو۔' : 'Serving Karachi since 1970 with delicious crispy 1-bite samosas, spring rolls, shami kababs, mini pizzas, and authentic freshly prepared Nimco.'}
+                </p>
+              </div>
+
+              {/* Branch & Contact Info */}
+              <div className="space-y-2 text-xs text-gray-300">
+                <h4 className="font-bold text-goldBrand-300 uppercase text-xs tracking-wider">{isUrdu ? 'برانچ کا پتہ اور رابطہ' : 'Branch & Official Contact'}</h4>
+                <p className="text-goldBrand-100">📍 {settings.address}</p>
+                <p className="text-goldBrand-300 font-bold">
+                  🌐 <a href="https://hyderinimco-frozen.com" target="_blank" rel="noopener noreferrer" className="hover:underline">https://hyderinimco-frozen.com</a>
+                </p>
+                <div className="space-y-1 font-mono text-[11px] pt-1">
+                  <p>💬 <a href={\`https://wa.me/\${settings.whatsapp || '923252747343'}\`} target="_blank" rel="noopener noreferrer" className="text-goldBrand-300 hover:underline">0325-2747343</a> (Official WhatsApp Order)</p>
+                  <p>📞 <a href="tel:03362438422" className="text-goldBrand-300 hover:underline">0336-2438422</a> (Mobile)</p>
+                  <p>☎️ <a href="tel:02136625698" className="text-goldBrand-300 hover:underline">021-36625698</a> (Shop PTCL)</p>
+                </div>
+                <p className="text-[11px] text-emeraldBrand-100 pt-1">🕒 {isUrdu ? 'پیر تا اتوار: صبح ۱۰:۰۰ تا رات ۱۱:۰۰' : 'Mon - Sun: 10:00 AM - 11:00 PM'}</p>
+              </div>
+
+              {/* Digital Billing */}
+              <div className="space-y-2 text-xs text-gray-300">
+                <h4 className="font-bold text-goldBrand-300 uppercase text-xs tracking-wider">{isUrdu ? '۱۰۰٪ محفوظ ڈیجیٹل بلنگ' : '100% Digital Pre-Payment'}</h4>
+                <p className="text-gray-400">{isUrdu ? 'میزان بینک، ایچ بی ایل، راست، ایزی پیسہ اور جاز کیش کے ذریعے آن لائن ٹرانسفر۔ (کیش آن ڈیلیوری دستیاب نہیں ہے)' : '100% Secure digital transfers via Meezan Bank, HBL, Raast Instant Pay, EasyPaisa & JazzCash. Strictly NO COD.'}</p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="px-2 py-0.5 bg-emeraldBrand-900 border border-goldBrand-500/40 text-[10px] rounded font-bold text-goldBrand-200">🏦 Meezan Bank</span>
+                  <span className="px-2 py-0.5 bg-emeraldBrand-900 border border-goldBrand-500/40 text-[10px] rounded font-bold text-goldBrand-200">🏦 HBL</span>
+                  <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 text-[10px] rounded font-bold">⚡ Raast</span>
+                  <span className="px-2 py-0.5 bg-emerald-900 text-[10px] rounded font-bold">📱 EasyPaisa</span>
+                  <span className="px-2 py-0.5 bg-amber-950 text-amber-300 text-[10px] rounded font-bold">📱 JazzCash</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-400">
+              <p>© {new Date().getFullYear()} Hyderi Nimco & Frozen. Serving Fresh Since 1970.</p>
+              <div className="flex items-center gap-3">
+                <span className="text-goldBrand-300">{isUrdu ? 'نارتھ ناظم آباد کراچی' : 'North Nazimabad Karachi'}</span>
+                {/* Discreet Admin Link */}
+                <button
+                  onClick={onOpenAdmin}
+                  className="text-gray-600 hover:text-goldBrand-400 text-[10px] flex items-center gap-1 transition-colors"
+                  title="Staff Login"
+                >
+                  <span>🔒</span>
+                  <span>Portal</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </footer>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
+`;
+
+fs.writeFileSync(path.join(process.cwd(), 'public', 'index.html'), htmlContent, 'utf8');
+console.log('Successfully wrote luxury theme public/index.html');
