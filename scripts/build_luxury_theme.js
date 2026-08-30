@@ -813,7 +813,7 @@ const htmlContent = `<!DOCTYPE html>
           )}
 
           {/* Fixed Mobile Bottom Navigation Tab Bar */}
-          <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-emeraldBrand-950 text-goldBrand-200 border-t-2 border-goldBrand-500/40 shadow-2xl py-1.5 px-4 flex justify-around items-center">
+          <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-emeraldBrand-950 text-goldBrand-200 border-t-2 border-goldBrand-500/40 shadow-2xl py-1.5 px-3 flex justify-between items-center">
             <button
               onClick={() => {
                 setActiveCategory('all');
@@ -860,6 +860,16 @@ const htmlContent = `<!DOCTYPE html>
             >
               <span className="text-base">🤖</span>
               <span className="text-[9px] font-bold">{isUrdu ? 'AI اسسٹنٹ' : 'AI Help'}</span>
+            </button>
+
+            {/* Mobile Admin Portal Button */}
+            <button
+              onClick={() => setIsAdminOpen(true)}
+              className="flex flex-col items-center gap-0.5 text-goldBrand-400 hover:text-goldBrand-200"
+              title="Admin Portal"
+            >
+              <span className="text-base">🔒</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'پورٹل' : 'Portal'}</span>
             </button>
           </nav>
 
@@ -1012,11 +1022,11 @@ const htmlContent = `<!DOCTYPE html>
             />
           )}
 
-          {/* Floating AI Chat Assistant Button */}
+          {/* Floating AI Chat Assistant Button (Desktop Only, since Mobile has it in bottom nav) */}
           {!isChatOpen && (
             <button
               onClick={() => setIsChatOpen(true)}
-              className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 bg-gradient-to-r from-emeraldBrand-900 via-emeraldBrand-950 to-emeraldBrand-900 hover:from-emeraldBrand-800 hover:to-emeraldBrand-900 text-goldBrand-200 pl-3.5 pr-4.5 py-2.5 sm:py-3 rounded-full shadow-2xl flex items-center gap-2.5 border-2 border-goldBrand-400 transition-all hover:scale-108 active:scale-95 group shadow-emeraldBrand-950/40"
+              className="hidden md:flex fixed bottom-6 right-6 z-40 bg-gradient-to-r from-emeraldBrand-900 via-emeraldBrand-950 to-emeraldBrand-900 hover:from-emeraldBrand-800 hover:to-emeraldBrand-900 text-goldBrand-200 pl-3.5 pr-4.5 py-3 rounded-full shadow-2xl items-center gap-2.5 border-2 border-goldBrand-400 transition-all hover:scale-108 active:scale-95 group shadow-emeraldBrand-950/40"
               title="AI Customer Assistant"
             >
               <div className="relative">
@@ -3290,15 +3300,30 @@ const htmlContent = `<!DOCTYPE html>
 
             </div>
 
-            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-400">
-              <p>© {new Date().getFullYear()} Hyderi Nimco & Frozen. Serving Fresh Since 1970.</p>
-              <div className="flex items-center gap-3">
-                <span className="text-goldBrand-300">{isUrdu ? 'نارتھ ناظم آباد کراچی' : 'North Nazimabad Karachi'}</span>
-                {/* Discreet Admin Link */}
+            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-400 border-t border-emeraldBrand-900/60 mt-6">
+              <div className="text-center sm:text-left space-y-1">
+                <p>© {new Date().getFullYear()} Hyderi Nimco & Frozen. Serving Fresh Since 1970. All Rights Reserved.</p>
+                <p className="text-[11px] text-gray-400">
+                  Designed, Automated & Powered by{' '}
+                  <a
+                    href="https://htmaiautomation.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-goldBrand-300 hover:text-white underline decoration-goldBrand-500 underline-offset-2 transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>⚡ HTM AI Automation</span>
+                  </a>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <span className="text-goldBrand-300 font-bold">{isUrdu ? 'نارتھ ناظم آباد کراچی' : 'North Nazimabad Karachi'}</span>
+                
+                {/* Admin Portal Button */}
                 <button
                   onClick={onOpenAdmin}
-                  className="text-gray-600 hover:text-goldBrand-400 text-[10px] flex items-center gap-1 transition-colors"
-                  title="Staff Login"
+                  className="px-2.5 py-1 bg-emeraldBrand-900 hover:bg-emeraldBrand-800 text-goldBrand-300 border border-goldBrand-500/40 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all shadow-xs"
+                  title="Store Staff & Owner Portal"
                 >
                   <span>🔒</span>
                   <span>Portal</span>
