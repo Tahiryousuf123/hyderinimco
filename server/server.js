@@ -418,8 +418,15 @@ const server = http.createServer(async (req, res) => {
     const filepath = path.join(UPLOADS_DIR, filename);
     if (fs.existsSync(filepath)) {
       const ext = path.extname(filepath).toLowerCase();
-      res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
-      return fs.createReadStream(filepath).pipe(res);
+      fs.readFile(filepath, (err, data) => {
+        if (err) {
+          res.writeHead(500);
+          return res.end('Error loading file');
+        }
+        res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+        res.end(data);
+      });
+      return;
     }
   }
 
@@ -431,11 +438,18 @@ const server = http.createServer(async (req, res) => {
 
   if (fs.existsSync(filePath)) {
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, {
-      'Content-Type': MIME_TYPES[ext] || 'text/html; charset=utf-8',
-      'Access-Control-Allow-Origin': '*'
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        return res.end('Error loading asset');
+      }
+      res.writeHead(200, {
+        'Content-Type': MIME_TYPES[ext] || 'text/html; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(data);
     });
-    return fs.createReadStream(filePath).pipe(res);
+    return;
   }
 
   // Fallback 404
