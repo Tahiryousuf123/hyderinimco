@@ -168,7 +168,7 @@ const server = http.createServer(async (req, res) => {
 
     return sendJson(res, 401, {
       success: false,
-      message: 'Invalid credentials. SuperAdmin PIN: 7860 | Store Owner PIN: 1970'
+      message: 'Invalid authorized PIN code. Access denied.'
     });
   }
 

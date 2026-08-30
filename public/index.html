@@ -2234,7 +2234,7 @@
             setTab('sales');
             fetchOrders();
           } else {
-            setError('Invalid PIN. Developer SuperAdmin: 7860 | Store Owner: 1970');
+            setError('Invalid authorized PIN code. Access denied.');
           }
         }
       };
@@ -2426,15 +2426,12 @@
                         <label className="text-[11px] font-bold text-gray-700">
                           {loginMode === 'superadmin' ? 'Developer SuperAdmin Master PIN' : 'Store Owner / Manager PIN'}
                         </label>
-                        <span className="text-[10px] text-gray-400 font-mono font-bold">
-                          {loginMode === 'superadmin' ? 'Default: 7860' : 'Default: 1970'}
-                        </span>
                       </div>
                       <input
                         type="password"
                         value={pin}
                         onChange={(e) => setPin(e.target.value)}
-                        placeholder={loginMode === 'superadmin' ? "Enter Master PIN (7860)" : "Enter Owner PIN (1970)"}
+                        placeholder="••••"
                         className="w-full text-center text-2xl tracking-widest font-mono font-bold py-3 bg-parchment-50 border rounded-2xl outline-none focus:border-emeraldBrand-800 transition-all"
                         autoFocus
                       />
