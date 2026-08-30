@@ -8,6 +8,17 @@ const htmlContent = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HYDERI NIMCO & FROZEN | Serving Fresh Since 1970 - North Nazimabad Karachi</title>
   
+  <meta name="description" content="Official Store of New Hyderi Nimco & Frozen Foods (Since 1970). Order authentic crispy 1-bite samosas, spring rolls, shami kababs, mini pizzas, nuggets and fresh Nimco in North Nazimabad Karachi with Free Delivery & COD." />
+  <meta name="keywords" content="Hyderi Nimco, Frozen Foods Karachi, 1 Bite Samosa, Spring Roll, Shami Kabab, North Nazimabad, Halal Frozen Snacks" />
+  <meta name="theme-color" content="#09261E" />
+  
+  <!-- OpenGraph / Social Sharing Tags -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://hyderinimco-frozen.com/" />
+  <meta property="og:title" content="HYDERI NIMCO & FROZEN | Since 1970 - Karachi" />
+  <meta property="og:description" content="Crispy 1-Bite Samosas, Spring Rolls, Kababs & Nimco. Cash on Delivery & Free Cold Box Delivery across Karachi!" />
+  <meta property="og:image" content="/images/hyderi_brochure_menu.jpg" />
+
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥟</text></svg>" />
 
@@ -3282,16 +3293,18 @@ const htmlContent = `<!DOCTYPE html>
                 <p className="text-[11px] text-emeraldBrand-100 pt-1">🕒 {isUrdu ? 'پیر تا اتوار: صبح ۱۰:۰۰ تا رات ۱۱:۰۰' : 'Mon - Sun: 10:00 AM - 11:00 PM'}</p>
               </div>
 
-              {/* Digital Billing */}
+              {/* Payment Methods */}
               <div className="space-y-2 text-xs text-gray-300">
-                <h4 className="font-bold text-goldBrand-300 uppercase text-xs tracking-wider">{isUrdu ? '۱۰۰٪ محفوظ ڈیجیٹل بلنگ' : '100% Digital Pre-Payment'}</h4>
-                <p className="text-gray-400">{isUrdu ? 'میزان بینک، ایچ بی ایل، راست، ایزی پیسہ اور جاز کیش کے ذریعے آن لائن ٹرانسفر۔ (کیش آن ڈیلیوری دستیاب نہیں ہے)' : '100% Secure digital transfers via Meezan Bank, HBL, Raast Instant Pay, EasyPaisa & JazzCash. Strictly NO COD.'}</p>
+                <h4 className="font-bold text-goldBrand-300 uppercase text-xs tracking-wider">{isUrdu ? 'آسان اور محفوظ ادائیگی' : 'Safe & Convenient Payment'}</h4>
+                <p className="text-gray-400 leading-relaxed">
+                  {isUrdu 
+                    ? 'کیش آن ڈیلیوری (COD) دستیاب ہے! اس کے علاوہ میزان بینک اور ایزی پیسہ کے ذریعے آن لائن ادائیگی بھی قبول کی جاتی ہے۔' 
+                    : 'Cash on Delivery (COD) available across Karachi! We also accept direct digital transfers via Meezan Bank and EasyPaisa.'}
+                </p>
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="px-2 py-0.5 bg-emeraldBrand-900 border border-goldBrand-500/40 text-[10px] rounded font-bold text-goldBrand-200">🏦 Meezan Bank</span>
-                  <span className="px-2 py-0.5 bg-emeraldBrand-900 border border-goldBrand-500/40 text-[10px] rounded font-bold text-goldBrand-200">🏦 HBL</span>
-                  <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 text-[10px] rounded font-bold">⚡ Raast</span>
-                  <span className="px-2 py-0.5 bg-emerald-900 text-[10px] rounded font-bold">📱 EasyPaisa</span>
-                  <span className="px-2 py-0.5 bg-amber-950 text-amber-300 text-[10px] rounded font-bold">📱 JazzCash</span>
+                  <span className="px-2.5 py-1 bg-emerald-600/30 border border-emerald-400/50 text-[11px] rounded-lg font-bold text-emerald-200">💵 Cash on Delivery (COD)</span>
+                  <span className="px-2.5 py-1 bg-emeraldBrand-900 border border-goldBrand-500/40 text-[11px] rounded-lg font-bold text-goldBrand-200">🏦 Meezan Bank (ARSALAN)</span>
+                  <span className="px-2.5 py-1 bg-emerald-900 border border-emerald-500/40 text-[11px] rounded-lg font-bold text-emerald-300">📱 EasyPaisa (0336-2438422)</span>
                 </div>
               </div>
 
