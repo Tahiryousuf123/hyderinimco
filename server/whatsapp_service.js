@@ -20,6 +20,32 @@ let rawQR = null;
 let connectionStatus = 'initializing'; // 'awaiting_scan', 'connected', 'disconnected'
 let connectedPhone = null;
 
+function getSettings() {
+  try {
+    const p = path.join(__dirname, 'data', 'settings.json');
+    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch (e) {}
+  return { aiAutoReplyEnabled: true };
+}
+
+export function isAiAutoReplyEnabled() {
+  const s = getSettings();
+  return s.aiAutoReplyEnabled !== false;
+}
+
+export function setAiAutoReply(enabled) {
+  try {
+    const p = path.join(__dirname, 'data', 'settings.json');
+    let s = {};
+    if (fs.existsSync(p)) s = JSON.parse(fs.readFileSync(p, 'utf8'));
+    s.aiAutoReplyEnabled = !!enabled;
+    fs.writeFileSync(p, JSON.stringify(s, null, 2), 'utf8');
+    return { success: true, aiAutoReplyEnabled: s.aiAutoReplyEnabled };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 export async function startWhatsAppService() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -106,6 +132,12 @@ export async function startWhatsAppService() {
         const customerPhone = remoteJid.split('@')[0];
         console.log(`📩 [WhatsApp AI] Received message from ${customerPhone}: "${text}"`);
 
+        // Check if AI Agent Auto-Reply is enabled by shop owner
+        if (!isAiAutoReplyEnabled()) {
+          console.log(`⏸️ [WhatsApp AI] AI Auto-Reply is paused by owner. Message not auto-answered.`);
+          continue;
+        }
+
         try {
           // Generate Intelligent Response via Hyderi AI Knowledge Engine
           const aiResponse = handleWhatsAppIncoming(customerPhone, text);
@@ -131,7 +163,8 @@ export function getWhatsAppStatus() {
   return {
     status: connectionStatus,
     qr: latestQR,
-    phone: connectedPhone
+    phone: connectedPhone,
+    aiAutoReplyEnabled: isAiAutoReplyEnabled()
   };
 }
 

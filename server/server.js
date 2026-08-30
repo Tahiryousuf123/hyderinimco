@@ -4,7 +4,7 @@ import path from 'path';
 import url, { fileURLToPath } from 'url';
 import { generateAIResponse } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
-import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder } from './whatsapp_service.js';
+import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled } from './whatsapp_service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -380,6 +380,14 @@ const server = http.createServer(async (req, res) => {
   // 14.8. GET /api/whatsapp/status (Live QR Code & Connection Status)
   if (pathname === '/api/whatsapp/status' && method === 'GET') {
     return sendJson(res, 200, { success: true, ...getWhatsAppStatus() });
+  }
+
+  // 14.85. POST /api/whatsapp/toggle-ai (Turn AI Auto-Reply ON or OFF without unlinking)
+  if (pathname === '/api/whatsapp/toggle-ai' && method === 'POST') {
+    const body = await parseBody(req);
+    const enabled = body.enabled !== undefined ? !!body.enabled : !isAiAutoReplyEnabled();
+    const result = setAiAutoReply(enabled);
+    return sendJson(res, 200, { success: true, ...result });
   }
 
   // 14.9. POST /api/whatsapp/disconnect (Log out & reset session)
