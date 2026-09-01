@@ -171,6 +171,125 @@ function detectLanguage(raw, normalized) {
   return 'roman_urdu';
 }
 
+// Advanced Multi-Item Natural Language Order & Total Bill Parser
+export function parseCustomerOrderList(text, products) {
+  const lines = text.split(/[\n,;+&]|\band\b|\baur\b/i).map(l => l.trim()).filter(Boolean);
+  const foundItems = [];
+  const handledProductIds = new Set();
+
+  // Word-to-number dictionary for Roman Urdu & English
+  const NUM_WORDS = {
+    'ek': 1, 'aik': 1, 'one': 1, '1': 1,
+    'do': 2, 'two': 2, '2': 2,
+    'teen': 3, 'tin': 3, 'three': 3, '3': 3,
+    'char': 4, 'chaar': 4, 'four': 4, '4': 4,
+    'panch': 5, 'paanch': 5, 'five': 5, '5': 5,
+    'chey': 6, 'chhay': 6, 'six': 6, '6': 6,
+    'saat': 7, 'seven': 7, '7': 7,
+    'aath': 8, 'eight': 8, '8': 8,
+    'nau': 9, 'no': 9, 'nine': 9, '9': 9,
+    'das': 10, 'ten': 10, '10': 10
+  };
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    
+    // Check if line contains a quantity (digit or word like '2', '2x', '2 packet', 'do packet')
+    let qty = 1;
+    const qtyMatch = lower.match(/\b(\d+)\s*(?:x|packet|pack|pkt|dabba|dabay|dabbay|dozen|darjan|kg)?\b/i);
+    if (qtyMatch) {
+      qty = parseInt(qtyMatch[1], 10);
+    } else {
+      for (const [nw, val] of Object.entries(NUM_WORDS)) {
+        const wordRegex = new RegExp(`\\b${nw}\\s*(?:x|packet|pack|pkt|dabba|dabay|dabbay)?\\b`, 'i');
+        if (wordRegex.test(lower)) {
+          qty = val;
+          break;
+        }
+      }
+    }
+
+    // Match against products
+    let bestProd = null;
+    let maxMatchLen = 0;
+
+    for (const p of products) {
+      const pNameLower = p.name.toLowerCase();
+      // Tokenize product name
+      const cleanProdName = pNameLower.replace(/chicken|crispy|special|one bite/g, '').trim();
+      
+      let matched = false;
+      if (lower.includes(pNameLower)) {
+        matched = true;
+      } else if (lower.includes('vonton') && pNameLower.includes('vonton')) {
+        matched = true;
+      } else if (lower.includes('cheese samosa') && pNameLower.includes('cheese') && pNameLower.includes('samosa')) {
+        matched = true;
+      } else if (lower.includes('malai boti samosa') && pNameLower.includes('malai boti') && pNameLower.includes('samosa')) {
+        matched = true;
+      } else if (lower.includes('malai boti roll') && pNameLower.includes('malai boti') && pNameLower.includes('roll')) {
+        matched = true;
+      } else if (lower.includes('mayo garlic roll') && pNameLower.includes('mayo') && pNameLower.includes('roll')) {
+        matched = true;
+      } else if (lower.includes('pizza samosa') && pNameLower.includes('pizza') && pNameLower.includes('samosa')) {
+        matched = true;
+      } else if (lower.includes('pizza roll') && pNameLower.includes('pizza') && pNameLower.includes('roll')) {
+        matched = true;
+      } else if (lower.includes('shami') && pNameLower.includes('shami')) {
+        if (lower.includes('beef') && pNameLower.includes('beef')) matched = true;
+        else if (!lower.includes('beef') && pNameLower.includes('chicken') && pNameLower.includes('shami')) matched = true;
+      } else if (lower.includes('chapli') && pNameLower.includes('chapli')) {
+        matched = true;
+      } else if (lower.includes('seekh') && pNameLower.includes('seekh')) {
+        matched = true;
+      } else if (lower.includes('momo') && pNameLower.includes('momo')) {
+        matched = true;
+      } else if (lower.includes('nugget') && pNameLower.includes('nugget')) {
+        matched = true;
+      } else if (lower.includes('cheese ball') && pNameLower.includes('cheese ball')) {
+        matched = true;
+      } else if (lower.includes('hot shot') && pNameLower.includes('hot shot')) {
+        matched = true;
+      } else if (lower.includes('chilos') && pNameLower.includes('chilos')) {
+        matched = true;
+      } else if (lower.includes('donuts') && pNameLower.includes('donuts')) {
+        matched = true;
+      } else if (lower.includes('fries') && pNameLower.includes('fries')) {
+        matched = true;
+      } else if (lower.includes('roll patti') && pNameLower.includes('roll patti')) {
+        matched = true;
+      } else if (lower.includes('samosa patti') && pNameLower.includes('samosa patti')) {
+        matched = true;
+      } else if (lower.includes('samosa') && !lower.includes('roll') && !lower.includes('kabab')) {
+        if (lower.includes('aaloo') && pNameLower.includes('aaloo')) matched = true;
+        else if (lower.includes('qeema') && pNameLower.includes('qeema')) matched = true;
+        else if (pNameLower === 'chicken one bite samosa') matched = true;
+      } else if (lower.includes('roll') && !lower.includes('samosa')) {
+        if (lower.includes('vegetable') && pNameLower.includes('vegetable')) matched = true;
+        else if (pNameLower === 'chicken one bite roll' || pNameLower === 'chicken spring roll') matched = true;
+      } else if (lower.includes('nimco') || lower.includes('nimko')) {
+        if (pNameLower.includes('mix nimco') || pNameLower.includes('special')) matched = true;
+      }
+
+      if (matched && p.name.length > maxMatchLen && !handledProductIds.has(p.id)) {
+        maxMatchLen = p.name.length;
+        bestProd = p;
+      }
+    }
+
+    if (bestProd) {
+      handledProductIds.add(bestProd.id);
+      foundItems.push({
+        product: bestProd,
+        quantity: qty,
+        itemTotal: bestProd.price * qty
+      });
+    }
+  }
+
+  return foundItems;
+}
+
 // Search products by name keywords
 function findMatchingProducts(normalizedQuery, products) {
   const q = normalizedQuery.toLowerCase();
@@ -283,6 +402,51 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
   // -------------------------------------------------------------------------
   // EXECUTION ROUTER:
   // -------------------------------------------------------------------------
+
+  // ROUTE 0-BILL: DYNAMIC MULTI-ITEM ORDER & TOTAL BILL CALCULATOR
+  // Triggered when customer sends a list of items e.g.:
+  // "2 packet chicken samosa aur 1 packet shami kabab total kitne hue"
+  // "1 wonton, 2 cheese samosa, 1 beef shami kitne paise banenge"
+  const parsedItems = parseCustomerOrderList(userMessage, products);
+  const isAskingTotal = hasAny(['total', 'kitne huwe', 'kitne hue', 'kitna bana', 'kitne paise', 'kitne banenge', 'bill', 'hisab', 'batao kitna', 'batao kitne', 'kitna hua']);
+
+  if (parsedItems.length > 0 && (parsedItems.length >= 2 || isAskingTotal || isOrder)) {
+    const subtotal = parsedItems.reduce((sum, item) => sum + item.itemTotal, 0);
+    const isFreeDelivery = subtotal >= 2500;
+    const deliveryFee = isFreeDelivery ? 0 : 150;
+    const grandTotal = subtotal + deliveryFee;
+
+    let itemsBreakdown = parsedItems.map(item => {
+      return `• *${item.quantity}x ${item.product.name}* (${item.product.packQuantity})\n  Rate: Rs. ${item.product.price} × ${item.quantity} = *Rs. ${item.itemTotal}/-*`;
+    }).join('\n');
+
+    let replyMsg = `Ji bilkul bhai! Aapke order ka mukammal hisab aur total bill ye raha: 🧾🥟✨\n\n` +
+      `📋 *Order Items Breakdown:*\n` +
+      `${itemsBreakdown}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `🛒 *Subtotal:* Rs. ${subtotal}/-\n` +
+      `🛵 *Delivery Charges:* ${isFreeDelivery ? '🎉 *FREE* (Order Rs. 2,500+ par Free)' : 'Rs. 150/- (Poore Karachi me)'}\n` +
+      `💰 *Grand Total (Kul Raqam):* *Rs. ${grandTotal}/-*\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    if (isFreeDelivery) {
+      replyMsg += `🎁 *Mubarak ho!* Aapka order Rs. 2,500 se zyada hai is liye poore Karachi me Express Cold Box Delivery bilkul *FREE* hai!\n\n`;
+    } else {
+      const neededForFree = 2500 - subtotal;
+      replyMsg += `💡 *Tip:* Agar aap sirf *Rs. ${neededForFree}/-* ka koi mazeed item shamil kar lein to aapki Rs. 150 delivery fee bhi bilkul *FREE* ho jayegi!\n\n`;
+    }
+
+    replyMsg += `🛵 *Order Book Karne Ke Liye:*\n` +
+      `1. Bas apna *Delivery Address* aur *Naam* yahan bhej dein.\n` +
+      `2. Payment aap *Cash on Delivery (COD)* par bhi kar sakte hain ya *EasyPaisa (0336-2438422 - Arsalan Arsalan)* / *Meezan Bank (01870100080247 - ARSALAN)* me transfer kar sakte hain.\n\n` +
+      `Kya mai ye order aapke liye abhi confirm kar doon?`;
+
+    return {
+      reply: replyMsg,
+      suggestions: ["✅ Confirm Order (COD)", "📱 Pay via EasyPaisa", "🥟 Add More Items"],
+      action: 'scroll_menu'
+    };
+  }
 
   // ROUTE 0: 350+ NEURAL KNOWLEDGE BASE DIRECT HIT
   // If matched a specific customer pattern from the extensive knowledge base
