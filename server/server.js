@@ -56,7 +56,9 @@ const MIME_TYPES = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.xml': 'application/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8'
 };
 
 // Helper to parse JSON body
@@ -116,7 +118,15 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  // ================= API ROUTES ================= //
+  // 0. GET /api/health (Health check & keep-alive ping)
+  if (pathname === '/api/health' && method === 'GET') {
+    return sendJson(res, 200, {
+      status: 'online',
+      service: 'Hyderi Nimco & Frozen Cloud Server',
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString()
+    });
+  }
 
   // 1. GET /api/settings
   if (pathname === '/api/settings' && method === 'GET') {
@@ -472,4 +482,22 @@ server.listen(PORT, () => {
   console.log(`  🌐 Storefront & API: http://localhost:${PORT}`);
   console.log(`========================================================`);
   startWhatsAppService();
+
+  // 24/7 Render Keep-Alive Self-Ping Engine
+  // Prevents Render Free Tier from going to sleep after inactivity
+  const pingUrl = process.env.RENDER_EXTERNAL_URL || 'https://hyderinimco-frozen.com';
+  console.log(`🚀 [KeepAlive] 24/7 Active Ping configured for: ${pingUrl}`);
+  setInterval(() => {
+    try {
+      const urlToPing = `${pingUrl}/api/health`;
+      http.get(urlToPing, (res) => {
+        // success keep-alive
+      }).on('error', () => {
+        // fallback to direct https fetch
+        try {
+          fetch(urlToPing).catch(() => {});
+        } catch (e) {}
+      });
+    } catch (err) {}
+  }, 8 * 60 * 1000); // pings every 8 minutes (Render sleeps at 15 mins)
 });
