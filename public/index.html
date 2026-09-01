@@ -314,7 +314,7 @@
 
       const cartCount = cart.reduce((acc, it) => acc + it.quantity, 0);
       const subtotal = cart.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-      const freeLimit = settings.freeDeliveryAbove || 2500;
+      const freeLimit = settings.freeDeliveryAbove || 5000;
       const isFree = subtotal >= freeLimit;
       const deliveryFee = cart.length === 0 ? 0 : (isFree ? 0 : (settings.deliveryFee || 150));
       const totalAmount = subtotal + deliveryFee;
@@ -333,10 +333,10 @@
                     {isUrdu ? 'کراچی ایکسپریس ڈیلیوری' : 'Karachi Express'}
                   </span>
                   <span className="text-goldBrand-100 font-medium hidden sm:inline">
-                    {isUrdu ? '✨ ۲۵۰۰ روپے سے زائد کے آرڈر پر پورے کراچی میں فری ڈیلیوری! ۱۹۷۰ سے تازہ اور لذیذ ذائقہ۔' : settings.announcement}
+                    {isUrdu ? '✨ ۵۰۰۰ روپے سے زائد کے آرڈر پر پورے کراچی میں فری ڈیلیوری! ۱۹۷۰ سے تازہ اور لذیذ ذائقہ۔' : (settings.announcement || '✨ FREE DELIVERY across Karachi on orders above Rs. 5,000!')}
                   </span>
                   <span className="text-goldBrand-100 font-medium sm:hidden">
-                    {isUrdu ? '۲۵۰۰ روپے پر فری ڈیلیوری!' : 'Free Delivery above Rs. 2,500!'}
+                    {isUrdu ? '۵۰۰۰ روپے پر فری ڈیلیوری!' : 'Free Delivery above Rs. 5,000!'}
                   </span>
                 </div>
 
@@ -859,7 +859,7 @@
                     <span className="flex items-center gap-1"><span>✨</span> 100% Zabiha Halal</span>
                     <span className="flex items-center gap-1"><span>❄️</span> Chilled Cold-Box Dispatch</span>
                     <span className="flex items-center gap-1"><span>💵</span> Cash on Delivery (COD)</span>
-                    <span className="flex items-center gap-1"><span>🛵</span> Free Delivery on Rs. 2,500+</span>
+                    <span className="flex items-center gap-1"><span>🛵</span> Free Delivery on Rs. 5,000+</span>
                   </div>
                 </div>
               </div>
@@ -893,8 +893,8 @@
                     </h5>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       {isUrdu
-                        ? 'روزانہ صبح ۱۰ سے رات ۱۱ بجے تک۔ ۲۵۰۰ روپے کے آرڈر پر پورے کراچی میں ڈیلیوری بالکل فری ہے۔'
-                        : 'Daily 10:00 AM – 11:00 PM. Orders above Rs. 2,500 receive 100% Free Delivery across all Karachi neighborhoods.'}
+                        ? 'روزانہ صبح ۱۰ سے رات ۱۱ بجے تک۔ ۵۰۰۰ روپے کے آرڈر پر پورے کراچی میں ڈیلیوری بالکل فری ہے۔'
+                        : 'Daily 10:00 AM – 11:00 PM. Orders above Rs. 5,000 receive 100% Free Delivery across all Karachi neighborhoods.'}
                     </p>
                   </div>
 

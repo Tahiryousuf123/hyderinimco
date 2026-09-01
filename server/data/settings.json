@@ -13,7 +13,7 @@
   ],
   "address": "Shop # 20, 21, Burhani Bagh, Block-E, Hydri, Karachi",
   "deliveryFee": 150,
-  "freeDeliveryAbove": 2500,
+  "freeDeliveryAbove": 5000,
   "adminPin": "7860",
   "adminPassword": "admin",
   "superAdmin": {
@@ -46,5 +46,5 @@
       "instructions": "EasyPaisa App > Send Money > 03362438422 (Title: Arsalan Arsalan) par raqam bhejein aur TID / slip upload karein."
     }
   },
-  "announcement": "✨ FREE DELIVERY across North Nazimabad & Karachi on orders above Rs. 2,500! Freshly Prepared & Fast Chilled Delivery."
+  "announcement": "✨ FREE DELIVERY across North Nazimabad & Karachi on orders above Rs. 5,000! Freshly Prepared & Fast Chilled Delivery."
 }

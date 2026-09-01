@@ -412,7 +412,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
 
   if (parsedItems.length > 0 && (parsedItems.length >= 2 || isAskingTotal || isOrder)) {
     const subtotal = parsedItems.reduce((sum, item) => sum + item.itemTotal, 0);
-    const isFreeDelivery = subtotal >= 2500;
+    const isFreeDelivery = subtotal >= 5000;
     const deliveryFee = isFreeDelivery ? 0 : 150;
     const grandTotal = subtotal + deliveryFee;
 
@@ -425,14 +425,14 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
       `${itemsBreakdown}\n\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🛒 *Subtotal:* Rs. ${subtotal}/-\n` +
-      `🛵 *Delivery Charges:* ${isFreeDelivery ? '🎉 *FREE* (Order Rs. 2,500+ par Free)' : 'Rs. 150/- (Poore Karachi me)'}\n` +
+      `🛵 *Delivery Charges:* ${isFreeDelivery ? '🎉 *FREE* (Order Rs. 5,000+ par Free)' : 'Rs. 150/- (Poore Karachi me)'}\n` +
       `💰 *Grand Total (Kul Raqam):* *Rs. ${grandTotal}/-*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     if (isFreeDelivery) {
-      replyMsg += `🎁 *Mubarak ho!* Aapka order Rs. 2,500 se zyada hai is liye poore Karachi me Express Cold Box Delivery bilkul *FREE* hai!\n\n`;
+      replyMsg += `🎁 *Mubarak ho!* Aapka order Rs. 5,000 se zyada hai is liye poore Karachi me Express Cold Box Delivery bilkul *FREE* hai!\n\n`;
     } else {
-      const neededForFree = 2500 - subtotal;
+      const neededForFree = 5000 - subtotal;
       replyMsg += `💡 *Tip:* Agar aap sirf *Rs. ${neededForFree}/-* ka koi mazeed item shamil kar lein to aapki Rs. 150 delivery fee bhi bilkul *FREE* ho jayegi!\n\n`;
     }
 
@@ -485,7 +485,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
     return {
       reply: `Ji bhai! Ye lijiye aapke matlooba items ki complete rate list: 🥟✨\n\n` +
         `${list}\n\n` +
-        `✨ *100% Fresh & Frozen:* Cold box me pack ho kar aayega. Rs. 2,500 par Free Delivery hai!\n` +
+        `✨ *100% Fresh & Frozen:* Cold box me pack ho kar aayega. Rs. 5,000 par Free Delivery hai!\n` +
         `Order karne ke liye bas packets ki quantity aur apna delivery address bhej dein, ya Cash on Delivery (COD) par mangwa lein!`,
       suggestions: ["🛒 Order This Item", "🥟 View Full Menu", "💵 Cash on Delivery"],
       action: 'scroll_menu'
@@ -510,7 +510,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
         `• 🍢 *Chicken Shami Kabab:* ${kababPacks} Packets (${kababPacks * 12} pcs) = Rs. ${kababPacks * 600}/-\n` +
         `• 🥜 *Hyderi Special Mix Nimco:* 1 KG (Chai aur snacks ke sath) = Rs. 480/-\n\n` +
         `🎁 *Dawat Special Offer:*\n` +
-        `1. Poore Karachi me Temperature-Controlled Express Delivery bilkul *FREE* hogi!\n` +
+        `1. Poore Karachi me Temperature-Controlled Express Delivery bilkul *FREE* hogi (Rs. 5,000+ orders par)!\n` +
         `2. Sath me Hyderi Special Nimco ka complimentary packet gift milega!\n` +
         `3. Cash on Delivery (COD) ya EasyPaisa/Meezan Bank se payment kar sakte hain.\n\n` +
         `Kya mai ye party package aapke liye confirm kar doon? Apna delivery address aur timing bata dein!`,
@@ -527,7 +527,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
         `1. *Items & Quantity:* Konsay items chahiye aur kitne packets? (e.g. 2 packet Chicken Samosa, 1 packet Roll)\n` +
         `2. *Delivery Address:* Aapka Naam, Phone Number aur Karachi ka area/address.\n` +
         `3. *Payment Choice:* Cash on Delivery (COD) par mangwana hai ya EasyPaisa / Meezan Bank se advance bhejenge?\n\n` +
-        `✨ *Free Delivery:* Agar aapka order Rs. 2,500 ya is se bara hai to poore Karachi me delivery bilkul FREE hai!\n\n` +
+        `✨ *Free Delivery:* Agar aapka order Rs. 5,000 ya is se bara hai to poore Karachi me delivery bilkul FREE hai!\n\n` +
         `Ya aap direct hamari website https://hyderinimco-frozen.com par ja kar bhi order place kar sakte hain. Bataiye aapko kya kya mangwana hai?`,
       suggestions: ["🥟 Chicken Samosay", "🌯 Spring Rolls", "💵 Cash on Delivery"],
       action: 'scroll_menu'
@@ -553,7 +553,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
   if (isBulkOrDiscount) {
     return {
       reply: `Ji bilkul bhai! New Hyderi Nimco & Frozen par bulk, party aur dawat ke orders par special concessions milti hain:\n\n` +
-        `• *100% Free Delivery:* Rs. 2,500 se baray order par poore Karachi me delivery bilkul FREE hai!\n` +
+        `• *100% Free Delivery:* Rs. 5,000 se baray order par poore Karachi me delivery bilkul FREE hai!\n` +
         `• *Bulk / Wholesale Discount:* 10+ packets ya baray catering order par hum customized discount aur complimentary Nimco pack offer karte hain.\n` +
         `• *Payment Flexibility:* Cash on Delivery (COD) bhi available hai aur Meezan Bank / EasyPaisa bhi.\n\n` +
         `Aapko kon kon se items (Samosa, Roll, Kabab) kitni quantity me chahiye? Mujhe batayein, mai aapka special quote tayar kar deta hoon!`,
@@ -614,7 +614,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
         `• 📍 *Coverage:* Poore Karachi me delivery active hai (North Nazimabad, Gulshan, Johar, DHA, Clifton, Malir, Gulberg, FB Area, PECHS, Nazimabad wagera).\n` +
         `• ⏱️ *Timing:* Rozana subah **10:00 AM se raat 11:00 PM** tak.\n` +
         `• 🚀 *Speed:* North Nazimabad aur qareebi ilaqon me 30 se 45 minute, baki Karachi me same-day temperature-controlled cold box me dispatch hota hai taake items fresh aur frozen rahein.\n` +
-        `• ✨ *FREE Delivery:* **Rs. 2,500** ya is se baray order par poore Karachi me delivery bilkul **FREE** hai! (Aam delivery fee sirf Rs. 150/- hai).\n` +
+        `• ✨ *FREE Delivery:* **Rs. 5,000** ya is se baray order par poore Karachi me delivery bilkul **FREE** hai! (Aam delivery fee sirf Rs. 150/- hai).\n` +
         `• 💵 *Cash on Delivery (COD) Available!*`,
       suggestions: ["✨ Free Delivery Check", "📍 Send My Location", "🛒 Order Now"],
       action: null
@@ -668,7 +668,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
   const isPureGreeting = words.length <= 2 && hasAny(['hi', 'hello', 'salam', 'assalam', 'aoa', 'hey', 'adaab']);
   if (isPureGreeting) {
     return {
-      reply: `Walaikum Assalam bhai! New Hyderi Nimco & Frozen Foods (Since 1970) me welcome! 🥟✨\n\nHamari taraf se aapki kya khidmat kar sakte hain? Aapko kya chahiye?\n\nAap mujh se:\n• 🥟 *Menu & Rates:* Samosay, Rolls, Kababs, Pizzas ya Nimco ke rates\n• 🛒 *Order:* Direct home delivery order book karwana\n• 💵 *Payment:* Cash on Delivery (COD) ya EasyPaisa / Meezan Bank\n• 🎁 *Party & Dawat:* Bulk discount aur guests estimation\n• 🛵 *Free Delivery:* Rs. 2,500 par poore Karachi me Free Delivery\n\njo bhi chahein pooch sakte hain! Bataiye hum aapki kaise madad kar sakte hain ya aapko kya chahiye?`,
+      reply: `Walaikum Assalam bhai! New Hyderi Nimco & Frozen Foods (Since 1970) me welcome! 🥟✨\n\nHamari taraf se aapki kya khidmat kar sakte hain? Aapko kya chahiye?\n\nAap mujh se:\n• 🥟 *Menu & Rates:* Samosay, Rolls, Kababs, Pizzas ya Nimco ke rates\n• 🛒 *Order:* Direct home delivery order book karwana\n• 💵 *Payment:* Cash on Delivery (COD) ya EasyPaisa / Meezan Bank\n• 🎁 *Party & Dawat:* Bulk discount aur guests estimation\n• 🛵 *Free Delivery:* Rs. 5,000 par poore Karachi me Free Delivery\n\njo bhi chahein pooch sakte hain! Bataiye hum aapki kaise madad kar sakte hain ya aapko kya chahiye?`,
       suggestions: ["🥟 Samosay & Rolls", "🎁 Bulk Discounts", "💵 Cash on Delivery", "🛒 Order Kaise Karein"],
       action: null
     };
@@ -676,7 +676,7 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
 
   // ROUTE O: COMPREHENSIVE INTELLIGENT AGENT ASSISTANT (Never a dumb bot error!)
   return {
-    reply: `Ji bhai! New Hyderi Nimco & Frozen (Since 1970) me aapko khushamdeed 🥟✨\n\nHamari taraf se aapki kya khidmat kar sakte hain? Aapko kya chahiye?\n\nHamare paas taaza frozen Samosay (13 types), Spring Rolls (13 types), Shami & Seekh Kababs (11 types), Mini Pizzas, Nuggets aur Authentic Nimco dastiyab hain.\n\n• *Order Karne Ke Liye:* Aap yahan WhatsApp par items aur delivery address likh kar bhej dein ya website https://hyderinimco-frozen.com se direct book karein.\n• *Payment:* Cash on Delivery (COD) bhi hai aur EasyPaisa (0336-2438422 - Arsalan Arsalan) / Meezan Bank (01870100080247 - ARSALAN) bhi!\n• *Free Delivery:* Rs. 2,500 par poore Karachi me Free Cold Box Delivery hai.\n\nBataiye hum aapki kaise madad kar sakte hain ya aapko kya chahiye? Mai foran service deta hoon!`,
+    reply: `Ji bhai! New Hyderi Nimco & Frozen (Since 1970) me aapko khushamdeed 🥟✨\n\nHamari taraf se aapki kya khidmat kar sakte hain? Aapko kya chahiye?\n\nHamare paas taaza frozen Samosay (13 types), Spring Rolls (13 types), Shami & Seekh Kababs (11 types), Mini Pizzas, Nuggets aur Authentic Nimco dastiyab hain.\n\n• *Order Karne Ke Liye:* Aap yahan WhatsApp par items aur delivery address likh kar bhej dein ya website https://hyderinimco-frozen.com se direct book karein.\n• *Payment:* Cash on Delivery (COD) bhi hai aur EasyPaisa (0336-2438422 - Arsalan Arsalan) / Meezan Bank (01870100080247 - ARSALAN) bhi!\n• *Free Delivery:* Rs. 5,000 par poore Karachi me Free Cold Box Delivery hai.\n\nBataiye hum aapki kaise madad kar sakte hain ya aapko kya chahiye? Mai foran service deta hoon!`,
     suggestions: ["🛒 Order Book Karna Hai", "💳 Payment Details", "🍗 Rates & Menu", "🛵 Delivery Areas"],
     action: null
   };
