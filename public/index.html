@@ -837,116 +837,90 @@
               </div>
             )}
 
-            {/* SEO Organic Articles, Food Guides & Karachi Typo Keyword Cloud */}
-            <section className="mt-14 pt-10 border-t-2 border-goldBrand-400/40 space-y-8">
+            {/* Luxury Brand Heritage & Gourmet FAQs (High Authority SEO & Clean Luxury Look) */}
+            <section className="mt-16 pt-12 border-t border-goldBrand-400/40 space-y-10">
               
-              {/* Heading */}
-              <div className="text-center space-y-2 max-w-3xl mx-auto">
-                <span className="px-3 py-1 bg-goldBrand-200 text-emeraldBrand-950 rounded-full text-xs font-black uppercase tracking-wider border border-goldBrand-400">
-                  {isUrdu ? '🌟 کراچی کی پسندیدہ نمکو اور فروزن فوڈز' : '🌟 Karachi Gourmet Guides & Stories'}
-                </span>
-                <h3 className="text-xl sm:text-2xl font-black text-emeraldBrand-950 font-serifBrand">
-                  {isUrdu ? 'حیدری نمکو اور فروزن فوڈز کیوں کراچی میں نمبر ۱ ہیں؟' : 'Why New Hyderi Nimco & Frozen is Karachi’s Premier Taste Since 1970'}
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                  {isUrdu 
-                    ? '۱۹۷۰ سے برہانی باغ، بلاک ای، حیدری، نارتھ ناظم آباد میں قائم: خستہ سموسے، لذیز رولز اور حیدری کی خاص نمکو کی مستند روایات۔' 
-                    : 'Serving North Nazimabad and all Karachi for over 50 years. Authentic handmade recipes with 100% Shariah-compliant Zabiha Halal chicken and beef.'}
-                </p>
+              {/* Refined Brand Crest Banner */}
+              <div className="bg-gradient-to-br from-emeraldBrand-950 via-emeraldBrand-900 to-emeraldBrand-950 rounded-3xl p-6 sm:p-10 text-white border-2 border-goldBrand-400/60 shadow-xl relative overflow-hidden">
+                <div className="max-w-3xl mx-auto text-center space-y-4 relative z-10">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-goldBrand-500/20 border border-goldBrand-500/40 text-goldBrand-300 text-xs font-bold uppercase tracking-widest">
+                    <span>👑</span>
+                    <span>{isUrdu ? '۱۹۷۰ سے کراچی کا معتبر نام' : 'Karachi’s Traditional Gourmet Standard Since 1970'}</span>
+                  </div>
+                  <h3 className="text-xl sm:text-3xl font-black text-goldBrand-200 font-serifBrand tracking-wide">
+                    {isUrdu ? 'خلوص، خالص ذائقہ اور اعلیٰ ترین معیار' : 'Handcrafted Heritage • Uncompromised Quality'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-emeraldBrand-100 leading-relaxed font-light">
+                    {isUrdu
+                      ? 'نیو حیدری نمکو اینڈ فروزن فوڈز نارتھ ناظم آباد برہانی باغ میں نصف صدی سے کراچی والوں کی خدمت کر رہا ہے۔ ہمارے مشہور ون بائٹ سموسے، کرسپی اسپرنگ رولز، سیخ و شامی کباب اور روزانہ تازہ بنی نمکو ۱۰۰٪ حلال اور حفظان صحت کے سخت اصولوں پر تیار کی جاتی ہیں۔'
+                      : 'From the heart of Burhani Bagh, North Nazimabad, New Hyderi Nimco & Frozen Foods has set the benchmark for genuine Karachi snacks. Every samosa patti, chicken filling, and fresh batch of Nimco reflects 50+ years of culinary devotion.'}
+                  </p>
+                  <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-goldBrand-300">
+                    <span className="flex items-center gap-1"><span>✨</span> 100% Zabiha Halal</span>
+                    <span className="flex items-center gap-1"><span>❄️</span> Chilled Cold-Box Dispatch</span>
+                    <span className="flex items-center gap-1"><span>💵</span> Cash on Delivery (COD)</span>
+                    <span className="flex items-center gap-1"><span>🛵</span> Free Delivery on Rs. 2,500+</span>
+                  </div>
+                </div>
               </div>
 
-              {/* 3 SEO Editorial Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                
-                {/* Article 1: One-Bite Samosa vs Regular */}
-                <article className="bg-white rounded-3xl p-5 border border-goldBrand-400/50 shadow-xs space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <span className="text-2xl">🥟</span>
-                    <h4 className="font-extrabold text-sm text-emeraldBrand-950 font-serifBrand">
-                      {isUrdu ? 'حیدری کے مشہور ون بائٹ سموسے کا راز' : 'Karachi’s Famous 1-Bite Samosa: Crispy, Light & Addictive'}
-                    </h4>
+              {/* Elegant Interactive Customer FAQs (Clean Luxury Accordion Style) */}
+              <div className="max-w-4xl mx-auto space-y-4">
+                <div className="text-center space-y-1 mb-6">
+                  <span className="text-goldBrand-700 text-xs font-bold uppercase tracking-widest">{isUrdu ? 'اکثر پوچھے گئے سوالات' : 'Help & Information'}</span>
+                  <h4 className="text-xl font-black text-emeraldBrand-950 font-serifBrand">
+                    {isUrdu ? 'آرڈر اور پراڈکٹس کے متعلق رہنمائی' : 'Frequently Asked Questions'}
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div className="bg-white p-5 rounded-2xl border border-goldBrand-400/40 shadow-xs space-y-2">
+                    <h5 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2">
+                      <span className="text-goldBrand-600">🥟</span>
+                      <span>{isUrdu ? 'ون بائٹ سموسے اور رولز تلنے کا صحیح طریقہ؟' : 'How to fry Samosas & Rolls perfectly?'}</span>
+                    </h5>
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      {isUrdu 
-                        ? 'عام سموسوں کے برعکس حیدری کے ون بائٹ سموسے کم تیل جذب کرتے ہیں اور اندر سے چکن اور پنیر کی بھرمار ہوتی ہے۔ چائے اور دعوت کی ہر محفل کی جان!' 
-                        : 'Unlike heavy commercial samosas, New Hyderi 1-Bite Samosas are crafted with ultra-thin patti that locks in real juicy shredded chicken without soaking oil.'}
+                      {isUrdu
+                        ? 'فروزن سموسوں کو ڈی فروسٹ مت کریں! فریزر سے نکال کر براہ راست درمیانی گرم تیل میں ۴ سے ۵ منٹ سنہری ہونے تک تلیں۔'
+                        : 'Never thaw or defrost! Fry directly from the freezer in medium-hot oil for 4–5 minutes for ultimate golden crunch.'}
                     </p>
                   </div>
-                  <div className="pt-2 border-t text-[11px] text-emerald-700 font-bold flex items-center justify-between">
-                    <span>{isUrdu ? 'ریٹس: صرف ۳۵۰ تا ۵۰۰ روپے' : 'Rates: Rs. 350 - 500 (24 pcs)'}</span>
-                    <button onClick={() => { setActiveCategory('samosa'); document.getElementById('menu-view')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:underline text-goldBrand-700 font-black">
-                      {isUrdu ? 'سموسہ مینو ➔' : 'View Samosas ➔'}
-                    </button>
-                  </div>
-                </article>
 
-                {/* Article 2: Hyderi vs Tasty Nimco Comparison */}
-                <article className="bg-white rounded-3xl p-5 border border-goldBrand-400/50 shadow-xs space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <span className="text-2xl">🏆</span>
-                    <h4 className="font-extrabold text-sm text-emeraldBrand-950 font-serifBrand">
-                      {isUrdu ? 'حیدری نمکو بمقابلہ ٹیسٹی نمکو: اصل ذائقہ کون سا؟' : 'Hyderi Nimco vs Tasty Nimco: Authentic Heritage Taste'}
-                    </h4>
+                  <div className="bg-white p-5 rounded-2xl border border-goldBrand-400/40 shadow-xs space-y-2">
+                    <h5 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2">
+                      <span className="text-goldBrand-600">🛵</span>
+                      <span>{isUrdu ? 'کراچی میں ڈیلیوری کے اوقات اور چارجز؟' : 'Karachi Delivery Timings & Free Delivery?'}</span>
+                    </h5>
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      {isUrdu 
-                        ? 'کراچی میں نمکو کے متلاشی افراد اب حیدری نمکو کی خاص مکس، سیو اور موٹھ دال کو ترجیح دیتے ہیں کیونکہ یہ روزانہ تازہ اور ہلکے مصالحے سے تیار ہوتی ہے۔' 
-                        : 'Looking for the best nimco delivery in Karachi? While foodies often search for Tasty Nimco, New Hyderi Nimco offers daily fresh-fried batch crunch with zero preservative aftertaste.'}
+                      {isUrdu
+                        ? 'روزانہ صبح ۱۰ سے رات ۱۱ بجے تک۔ ۲۵۰۰ روپے کے آرڈر پر پورے کراچی میں ڈیلیوری بالکل فری ہے۔'
+                        : 'Daily 10:00 AM – 11:00 PM. Orders above Rs. 2,500 receive 100% Free Delivery across all Karachi neighborhoods.'}
                     </p>
                   </div>
-                  <div className="pt-2 border-t text-[11px] text-emerald-700 font-bold flex items-center justify-between">
-                    <span>{isUrdu ? 'روزانہ تازہ نمکو' : 'Fresh Daily Batches'}</span>
-                    <button onClick={() => { setActiveCategory('special'); document.getElementById('menu-view')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:underline text-goldBrand-700 font-black">
-                      {isUrdu ? 'نمکو مینو ➔' : 'Explore Nimco ➔'}
-                    </button>
-                  </div>
-                </article>
 
-                {/* Article 3: Fast Chilled Delivery across Karachi */}
-                <article className="bg-white rounded-3xl p-5 border border-goldBrand-400/50 shadow-xs space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <span className="text-2xl">🛵</span>
-                    <h4 className="font-extrabold text-sm text-emeraldBrand-950 font-serifBrand">
-                      {isUrdu ? 'پورے کراچی میں محفوظ کولڈ باکس ڈیلیوری' : 'Chilled Cold Box Delivery: Delivered 100% Frozen'}
-                    </h4>
+                  <div className="bg-white p-5 rounded-2xl border border-goldBrand-400/40 shadow-xs space-y-2">
+                    <h5 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2">
+                      <span className="text-goldBrand-600">💳</span>
+                      <span>{isUrdu ? 'ادائیگی کے کون سے طریقے دستیاب ہیں؟' : 'What payment options do you accept?'}</span>
+                    </h5>
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      {isUrdu 
-                        ? 'نارتھ ناظم آباد سے کلفٹن، ڈی ایچ اے، گلشن، جوہر اور ملیر تک: ہمارے رائیڈرز آئس کولڈ بکس میں ڈیلیور کرتے ہیں تاکہ راستے میں کوئی آئٹم پگھلے نہیں۔' 
-                        : 'Our temperature-controlled cold box delivery ensures your Samosas, Spring Rolls and Kababs arrive rock-frozen at your doorstep. Cash on Delivery (COD) available!'}
+                      {isUrdu
+                        ? 'کیش آن ڈیلیوری (COD) دستیاب ہے! اس کے علاوہ ایزی پیسہ (0336-2438422) اور میزان بینک میں آن لائن ٹرانسفر بھی کر سکتے ہیں۔'
+                        : 'Cash on Delivery (COD) is fully available, along with direct online transfers via EasyPaisa and Meezan Bank.'}
                     </p>
                   </div>
-                  <div className="pt-2 border-t text-[11px] text-emerald-700 font-bold flex items-center justify-between">
-                    <span>{isUrdu ? '۲۵۰۰ پر فری ڈیلیوری' : 'Free on Rs. 2,500+'}</span>
-                    <button onClick={() => setIsCartOpen(true)} className="hover:underline text-goldBrand-700 font-black">
-                      {isUrdu ? 'ابھی آرڈر کریں ➔' : 'Order Now ➔'}
-                    </button>
+
+                  <div className="bg-white p-5 rounded-2xl border border-goldBrand-400/40 shadow-xs space-y-2">
+                    <h5 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2">
+                      <span className="text-goldBrand-600">❄️</span>
+                      <span>{isUrdu ? 'فروزن آئٹمز کی ایکسپائری کتنی ہوتی ہے؟' : 'Shelf Life & Freezer Storage?'}</span>
+                    </h5>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {isUrdu
+                        ? 'ڈیپ فریزر میں ۳ ماہ تک ذائقہ اور تازگی بالکل برقرار رہتی ہے۔ بغیر کسی کیمیکل یا پریزرویٹیو کے۔'
+                        : 'Items stay 100% fresh in deep freeze for up to 3 months without any artificial preservatives.'}
+                    </p>
                   </div>
-                </article>
-
-              </div>
-
-              {/* Comprehensive SEO Search Keyword Tag Cloud (Catches Every Customer Search Variant & Typo) */}
-              <div className="bg-parchment-200/80 rounded-3xl p-5 border border-goldBrand-400/40 text-left space-y-2.5">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>🔍 Popular Food Searches in Karachi (مقبول ترین سرچ الفاظ):</span>
-                </p>
-                <div className="flex flex-wrap gap-1.5 text-[11px] text-gray-700">
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Tasty Nimco Karachi</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Hyderi Nimco</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Hydri Nimko</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Haidri Nimco North Nazimabad</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">1 Bite Samosa Delivery</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">One Bite Samosay</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Chicken Cheese Samosa</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Spring Rolls Frozen</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Shami Kabab Ready to Fry</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Momos Delivery Karachi</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Peshawari Chapli Kabab</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Kids School Lunch Nuggets</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Dawat Party Catering Samosa</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Cash on Delivery Frozen Karachi</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Frozen Food North Nazimabad</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">Tasty Nimco Alternative</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">حیدری نمکو کراچی</span>
-                  <span className="bg-white px-2.5 py-1 rounded-lg border border-goldBrand-400/30">فروزن سموسے ہوم ڈیلیوری</span>
                 </div>
               </div>
 
