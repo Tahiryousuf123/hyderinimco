@@ -4115,10 +4115,12 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
         const method = currentEditProd ? 'PUT' : 'POST';
 
-        let realImage = prodForm.imageBase64 || prodForm.image;
+        let realImage = window._pendingUploadedImage || prodForm.imageBase64 || prodForm.image;
         if ((!realImage || typeof realImage !== 'string' || realImage.includes('Custom File')) && currentEditProd) {
           realImage = currentEditProd.image;
         }
+
+        window._pendingUploadedImage = null;
 
         const updatedProd = {
           ...prodForm,
