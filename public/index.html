@@ -4088,21 +4088,36 @@
 
       const handleSaveProduct = async (e) => {
         e.preventDefault();
+        const updatedProd = {
+          id: editProd ? editProd.id : 'prod-' + Date.now(),
+          ...prodForm
+        };
+
+        // 1. Instant Optimistic UI Update (0.01s Instant Feedback!)
+        setShowAddProd(false);
+        setEditProd(null);
+
+        setProducts(prev => {
+          let next;
+          if (editProd) {
+            next = prev.map(p => p.id === editProd.id ? { ...p, ...updatedProd } : p);
+          } else {
+            next = [updatedProd, ...prev];
+          }
+          try { localStorage.setItem('hyderi_custom_products', JSON.stringify(next)); } catch (err) {}
+          return next;
+        });
+
+        // 2. Background Server Sync (Non-blocking)
         try {
-          const url = editProd ? `/api/products/${editProd.id}` : '/api/products';
+          const url = editProd ? '/api/products/' + editProd.id : '/api/products';
           const method = editProd ? 'PUT' : 'POST';
-          await fetch(url, {
+          fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(prodForm)
-          });
-          setShowAddProd(false);
-          setEditProd(null);
-          onRefreshProducts();
-        } catch (e) {
-          setShowAddProd(false);
-          onRefreshProducts();
-        }
+          }).catch(() => {});
+        } catch (err) {}
       };
 
       const handleDeleteProduct = async (id) => {
