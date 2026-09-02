@@ -158,7 +158,8 @@ const htmlContent = `<!DOCTYPE html>
     const { useState, useEffect, useMemo } = React;
 
     const CATEGORIES = [
-      { id: 'all', label: 'All Menu', labelUrdu: 'تمام مینو (۵۴ آئٹمز)', icon: '✨' },
+      { id: 'all', label: 'All Menu', labelUrdu: 'تمام مینو (۵۷ آئٹمز)', icon: '✨' },
+      { id: 'deals', label: 'SUPER DEALS', labelUrdu: 'بچت ڈیلز (۳ اسپیشل آفرز)', icon: '🔥' },
       { id: 'samosa', label: 'SAMOSA', labelUrdu: 'سموسے (۱۳ آئٹمز)', icon: '🥟' },
       { id: 'roll', label: 'ROLL', labelUrdu: 'رول (۱۳ آئٹمز)', icon: '🌯' },
       { id: 'kabab', label: 'KABAB', labelUrdu: 'کباب اور موموز (۱۱ آئٹمز)', icon: '🍢' },
@@ -1227,11 +1228,12 @@ const htmlContent = `<!DOCTYPE html>
       const title = isUrdu ? (product.nameUrdu || product.name) : product.name;
       const category = isUrdu ? (product.categoryLabelUrdu || product.categoryLabel) : (product.categoryLabel || product.category);
       const pack = isUrdu ? (product.packQuantityUrdu || product.packQuantity) : product.packQuantity;
+      const isDeal = product.isDeal || product.category === "deals";
 
       return (
         <div
           onClick={onOpenDetail}
-          className="group bg-white rounded-3xl border-2 border-goldBrand-400/40 hover:border-goldBrand-500 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden cursor-pointer hover:-translate-y-1"
+          className={"group bg-white rounded-3xl border-2 " + (isDeal ? "border-goldBrand-500 ring-2 ring-goldBrand-400/30" : "border-goldBrand-400/40 hover:border-goldBrand-500") + " shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden cursor-pointer hover:-translate-y-1"}
         >
           {/* Card Top Food Photo */}
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-parchment-200">

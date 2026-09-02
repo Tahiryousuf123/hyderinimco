@@ -290,24 +290,44 @@ export function parseCustomerOrderList(text, products) {
   return foundItems;
 }
 
-// Search products by name keywords
+// Search products & categories dynamically
 function findMatchingProducts(normalizedQuery, products) {
-  const q = normalizedQuery.toLowerCase();
-  return products.filter(p => {
+  const q = normalizedQuery.toLowerCase().trim();
+
+  // Category Level Requests
+  if (['roll', 'rolls', 'spring roll', 'spring rolls'].includes(q) || (q.includes('roll') && !q.includes('malai') && !q.includes('mayo') && !q.includes('pizza') && !q.includes('patti') && !q.includes('one bite') && !q.includes('cheese') && !q.includes('chinese') && !q.includes('tikka') && !q.includes('fajita'))) {
+    return { isCategory: true, title: 'Fresh Spring Rolls (13 Varieties)', items: products.filter(p => p.category === 'roll') };
+  }
+  if (['samosa', 'samosay', 'samose', 'samosas'].includes(q) || (q.includes('samosa') && !q.includes('malai') && !q.includes('cheese') && !q.includes('pizza') && !q.includes('one bite') && !q.includes('patti') && !q.includes('vonton') && !q.includes('qeema') && !q.includes('aaloo') && !q.includes('chaat') && !q.includes('chinese') && !q.includes('corn'))) {
+    return { isCategory: true, title: 'Fresh Samosay (13 Varieties)', items: products.filter(p => p.category === 'samosa') };
+  }
+  if (['kabab', 'kababs', 'kebab', 'kebabs'].includes(q)) {
+    return { isCategory: true, title: 'Shami, Seekh & Chapli Kababs (11 Varieties)', items: products.filter(p => p.category === 'kabab') };
+  }
+  if (['pizza', 'pizzas', 'mini pizza', 'mini pizzas'].includes(q)) {
+    return { isCategory: true, title: 'Mini Pizzas (2 Varieties)', items: products.filter(p => p.category === 'pizza') };
+  }
+  if (['deal', 'deals', 'combo', 'combos', 'offer', 'offers', 'bachat deal', 'package'].some(k => q.includes(k))) {
+    return { isCategory: true, title: '🔥 Super Saver Combos & Deals (Free Delivery Included!)', items: products.filter(p => p.category === 'deals') };
+  }
+  if (['nimco', 'nimko', 'namkeen'].includes(q)) {
+    return { isCategory: true, title: 'Authentic Nimco Varieties (Since 1970)', items: products.filter(p => p.category === 'special' && p.name.toLowerCase().includes('nimco')) };
+  }
+
+  // Specific Flavor & Item Match
+  const items = products.filter(p => {
     const nameEn = p.name.toLowerCase();
     const nameUr = (p.nameUrdu || '').toLowerCase();
-    const words = nameEn.split(' ');
-    // Direct substring or token match
     if (q.includes(nameEn) || nameEn.includes(q)) return true;
-    // Check specific iconic keywords
-    if (q.includes('vonton') && nameEn.includes('vonton')) return true;
-    if (q.includes('one bite') && nameEn.includes('one bite')) return true;
+    if (nameUr && (q.includes(nameUr) || nameUr.includes(q))) return true;
     if (q.includes('malai boti') && nameEn.includes('malai boti')) return true;
     if (q.includes('mayo garlic') && nameEn.includes('mayo garlic')) return true;
     if (q.includes('pizza samosa') && nameEn.includes('pizza samosa')) return true;
+    if (q.includes('pizza roll') && nameEn.includes('pizza roll')) return true;
     if (q.includes('shami') && nameEn.includes('shami')) return true;
     if (q.includes('chapli') && nameEn.includes('chapli')) return true;
     if (q.includes('seekh') && nameEn.includes('seekh')) return true;
+    if (q.includes('vonton') && nameEn.includes('vonton')) return true;
     if (q.includes('momos') && nameEn.includes('momos')) return true;
     if (q.includes('nugget') && nameEn.includes('nuggets')) return true;
     if (q.includes('cheese ball') && nameEn.includes('cheese ball')) return true;
@@ -318,6 +338,8 @@ function findMatchingProducts(normalizedQuery, products) {
     if (q.includes('puri') && nameEn.includes('puri')) return true;
     return false;
   });
+
+  return { isCategory: false, title: 'Items', items };
 }
 
 export function generateAIResponse(userMessage, conversationHistory = []) {
@@ -332,7 +354,8 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
   // 1. DYNAMIC INDIVIDUAL PRODUCT RATE MATCHING
   // If customer asks for a specific item e.g. "momos kitne ke hain", "nuggets ka rate", "shami kabab price", "vonton", "pizza"
   // ==========================================
-  const matchedProds = findMatchingProducts(normalized, products);
+  const matchedCatalog = findMatchingProducts(normalized, products);
+  const matchedProds = matchedCatalog.items || [];
   const isAskingPrice = hasAny(['price', 'rate', 'kitne', 'kitna', 'cost', 'qeemat', 'keemat', 'batao', 'chahiye']);
 
   // ==========================================
@@ -479,17 +502,30 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
     };
   }
 
-  // ROUTE B: SPECIFIC PRODUCT PRICE / VARIETY INQUIRY (e.g. "momos kitne ke hain", "nuggets", "shami kabab")
-  if (matchedProds.length > 0 && isAskingPrice && !isParty) {
-    const list = matchedProds.map(p => `• *${p.name}* (${p.packQuantity}) - Rs. ${p.price}/-\n  _${p.description}_`).join('\n\n');
-    return {
-      reply: `Ji bhai! Ye lijiye aapke matlooba items ki complete rate list: 🥟✨\n\n` +
-        `${list}\n\n` +
-        `✨ *100% Fresh & Frozen:* Cold box me pack ho kar aayega. Rs. 5,000 par Free Delivery hai!\n` +
-        `Order karne ke liye bas packets ki quantity aur apna delivery address bhej dein, ya Cash on Delivery (COD) par mangwa lein!`,
-      suggestions: ["🛒 Order This Item", "🥟 View Full Menu", "💵 Cash on Delivery"],
-      action: 'scroll_menu'
-    };
+  // ROUTE B: SPECIFIC PRODUCT OR CATEGORY INQUIRY (e.g. "malai boti", "roll", "samosa", "shami", "momos kitne ke hain")
+  if (matchedCatalog && matchedCatalog.items && matchedCatalog.items.length > 0 && !isParty) {
+    if (matchedCatalog.isCategory) {
+      const list = matchedCatalog.items.map(p => `• *${p.name}* (${p.packQuantity}) — *Rs. ${p.price}/-*`).join('\n');
+      return {
+        reply: `Ji bhai! Ye lijiye New Hyderi Nimco & Frozen ki *${matchedCatalog.title}* ki complete rate list: 🥟✨\n\n` +
+          `${list}\n\n` +
+          `✨ *100% Halal & Fresh Frozen:* Temperature-controlled cold box me deliver hotay hain.\n` +
+          `🛵 *Free Delivery:* Rs. 5,000 par poore Karachi me Delivery FREE!\n\n` +
+          `Aap batayein in me se kon sa item aur kitne packets deliver karwane hain? COD (Cash on Delivery) par mangwane ke liye address bhej dein!`,
+        suggestions: ["🛒 Order Book Karna Hai", "🥟 Aur Samosay Dekhein", "💵 Cash on Delivery"],
+        action: 'scroll_menu'
+      };
+    } else {
+      const list = matchedCatalog.items.map(p => `• *${p.name}* (${p.packQuantity}) — *Rs. ${p.price}/-*\n  _${p.description}_`).join('\n\n');
+      return {
+        reply: `Ji bhai! Ye lijiye aapke matlooba items ki complete rate list: 🥟✨\n\n` +
+          `${list}\n\n` +
+          `✨ *100% Fresh & Frozen:* Cold box me pack ho kar aayega. Rs. 5,000 par Free Delivery hai!\n\n` +
+          `Order book karne ke liye bas packets ki taadad aur apna delivery address bhej dein, ya Cash on Delivery (COD) par mangwa lein!`,
+        suggestions: ["🛒 Order This Item", "🥟 View Full Menu", "💵 Cash on Delivery"],
+        action: 'scroll_menu'
+      };
+    }
   }
 
   // ROUTE C: PARTY / DAWAT / MEHMAN CALCULATION (e.g. "20 logon ki dawat hai", "50 bandon ke liye")
