@@ -5064,17 +5064,43 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                               accept="image/*"
                               onChange={(e) => {
                                 const file = e.target.files[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setProdForm(prev => ({
-                                      ...prev,
-                                      imageBase64: reader.result,
-                                      image: reader.result
-                                    }));
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
+                                if (!file) return;
+
+                                const img = new Image();
+                                const objectUrl = URL.createObjectURL(file);
+                                img.onload = () => {
+                                  const canvas = document.createElement('canvas');
+                                  const maxDim = 600;
+                                  let width = img.width;
+                                  let height = img.height;
+
+                                  if (width > height) {
+                                    if (width > maxDim) {
+                                      height = Math.round((height * maxDim) / width);
+                                      width = maxDim;
+                                    }
+                                  } else {
+                                    if (height > maxDim) {
+                                      width = Math.round((width * maxDim) / height);
+                                      height = maxDim;
+                                    }
+                                  }
+
+                                  canvas.width = width;
+                                  canvas.height = height;
+                                  const ctx = canvas.getContext('2d');
+                                  ctx.drawImage(img, 0, 0, width, height);
+
+                                  const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+                                  URL.revokeObjectURL(objectUrl);
+
+                                  setProdForm(prev => ({
+                                    ...prev,
+                                    imageBase64: compressedBase64,
+                                    image: compressedBase64
+                                  }));
+                                };
+                                img.src = objectUrl;
                               }}
                               className="mt-1 text-xs text-gray-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emeraldBrand-900 file:text-goldBrand-200 cursor-pointer"
                             />
