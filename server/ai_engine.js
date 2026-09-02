@@ -371,8 +371,9 @@ BRAND INFO & CONTACT:
 - Website: https://hyderinimco-frozen.com
 
 DELIVERY & PAYMENTS:
-- Free Delivery: Poore Karachi me Rs. 5,000 ya us se zyada ke orders par Temperature-Controlled Express Delivery 100% FREE hai!
-- Standard Delivery Fee: Rs. 150 for orders below Rs. 5,000.
+- Free Delivery: Poore Karachi (except Bahria Town) me Rs. 5,000 ya us se zyada ke orders par Temperature-Controlled Express Delivery 100% FREE hai!
+- Standard Karachi Delivery Fee: Rs. 150 for orders below Rs. 5,000.
+- BAHRIA TOWN KARACHI DELIVERY: Bahria Town Karachi me bhi delivery AVAILABLE hai! Special Temperature-Controlled Cold Box Rider ke zariye deliver hotay hain. Bahria Town ke delivery charges Rs. 1,500 se Rs. 2,000 tak hotay hain.
 - Payment Options: Cash on Delivery (COD), EasyPaisa (0336-2438422 - Title: Arsalan Arsalan), Meezan Bank (01870100080247 - Title: ARSALAN).
 
 SUPER SAVER COMBOS & DEALS:
@@ -548,6 +549,20 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
       reply: replyMsg,
       suggestions: ["✅ Confirm Order (COD)", "📱 Pay via EasyPaisa", "🥟 Add More Items"],
       action: 'scroll_menu'
+    };
+  }
+
+  // ROUTE BAHRIA: BAHRIA TOWN KARACHI DELIVERY & CHARGES
+  if (hasAny(['bahria', 'bahria town', 'bahria city'])) {
+    return {
+      reply: `Ji bilkul bhai! Hyderi Nimco & Frozen ki delivery *Bahria Town Karachi* me bhi bilkul dastiyab hai! 🚚📦✨\n\n` +
+        `🧊 *Bahria Town Express Chilled Delivery Details:*\n` +
+        `• Bahria Town ke liye hum special Temperature-Controlled Cold Box me fresh frozen items rider ke zariye bhejte hain taake raste me items frozen & fresh rahein.\n` +
+        `• 💰 *Delivery Charges:* Distance aur express chilled packing ki wajah se Bahria Town ke delivery charges *Rs. 1,500 se Rs. 2,000/-* tak hotay hain.\n\n` +
+        `💳 *Payment Options:* Cash on Delivery (COD), EasyPaisa (0336-2438422 - Title: Arsalan Arsalan) ya Meezan Bank (01870100080247 - Title: ARSALAN).\n\n` +
+        `Order book karne ke liye apne required items, packets ki taadad aur Bahria Town ka Precinct / Villa number bhej dein! 🥟✨`,
+      suggestions: ["🛒 Order Book Karna Hai", "💳 EasyPaisa Details", "🥟 View Menu"],
+      action: null
     };
   }
 
