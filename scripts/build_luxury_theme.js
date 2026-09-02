@@ -4105,14 +4105,15 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
         const method = currentEditProd ? 'PUT' : 'POST';
 
-        const finalImage = (prodForm.imageBase64 && prodForm.imageBase64.startsWith('data:image')) 
-          ? prodForm.imageBase64 
-          : (prodForm.image && prodForm.image !== '✓ Custom File Uploaded' ? prodForm.image : '');
+        let realImage = prodForm.imageBase64 || prodForm.image;
+        if ((!realImage || typeof realImage !== 'string' || realImage.includes('Custom File')) && currentEditProd) {
+          realImage = currentEditProd.image;
+        }
 
         const updatedProd = {
-          id: targetId,
           ...prodForm,
-          image: finalImage || prodForm.image
+          id: targetId,
+          image: realImage
         };
 
         setShowAddProd(false);
@@ -4136,7 +4137,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           await fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(prodForm)
+            body: JSON.stringify(updatedProd)
           });
           if (onRefreshProducts) onRefreshProducts();
         } catch (err) {
@@ -5131,7 +5132,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                           <input
                             type="text"
                             disabled={!!(prodForm.image && prodForm.image.startsWith('data:image'))}
-                            value={prodForm.image && prodForm.image.startsWith('data:image') ? '✓ Custom File Uploaded' : (prodForm.image || '')}
+                            value={prodForm.image && prodForm.image.startsWith('data:image') ? '' : (prodForm.image || '')}
                             onChange={(e) => {
                               const val = e.target.value;
                               setProdForm(prev => ({
@@ -5140,8 +5141,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                                 imageBase64: val.startsWith('data:image') ? val : null
                               }));
                             }}
-                            placeholder="https://... or /images/..."
-                            className="w-full px-3 py-1.5 bg-white border rounded-xl text-xs outline-none disabled:bg-gray-100 disabled:text-emerald-800 disabled:font-bold"
+                            placeholder={prodForm.image && prodForm.image.startsWith('data:image') ? '✓ Custom Local File Selected' : 'https://... or /images/...'}
+                            className="w-full px-3 py-1.5 bg-white border rounded-xl text-xs outline-none disabled:bg-emerald-50 disabled:text-emerald-800 disabled:font-bold"
                           />
                         </div>
                       </div>
