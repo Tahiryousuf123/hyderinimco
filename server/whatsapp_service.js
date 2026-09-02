@@ -105,23 +105,12 @@ export async function startWhatsAppService() {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-        console.log(`⚠️ [WhatsApp Service] Connection closed (code: ${statusCode}). Reconnecting: ${shouldReconnect}`);
-        
-        connectionStatus = 'disconnected';
-        latestQR = null;
-        rawQR = null;
-        connectedPhone = null;
+        console.log(`⚠️ [WhatsApp Service] Connection closed (code: ${statusCode}). Auto-reconnecting in 3s...`);
 
-        if (shouldReconnect) {
-          setTimeout(() => startWhatsAppService(), 4000);
-        } else {
-          console.log('❌ Logged out of WhatsApp. Cleaning session...');
-          try {
-            fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-          } catch (e) {}
-          setTimeout(() => startWhatsAppService(), 2000);
-        }
+        connectionStatus = 'disconnected';
+
+        // Always auto-reconnect using saved session keys without wiping AUTH_DIR
+        setTimeout(() => startWhatsAppService(), 3000);
       } else if (connection === 'open') {
         connectionStatus = 'connected';
         latestQR = null;
