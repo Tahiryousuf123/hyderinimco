@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
-const htmlContent = `<!DOCTYPE html>
+const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Persistence -->
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
