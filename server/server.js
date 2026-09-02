@@ -220,10 +220,7 @@ const server = http.createServer(async (req, res) => {
     
     let imageUrl = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
     const rawImg = body.imageBase64 || body.image || body.imageUrl;
-    if (rawImg && typeof rawImg === 'string' && rawImg.startsWith('data:image')) {
-      const saved = saveBase64Image(rawImg);
-      if (saved) imageUrl = saved;
-    } else if (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('data:image')) {
+    if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
       imageUrl = rawImg;
     }
 
@@ -262,10 +259,7 @@ const server = http.createServer(async (req, res) => {
 
     let finalImage = products[idx].image;
     const rawImg = body.imageBase64 || body.image || body.imageUrl;
-    if (rawImg && typeof rawImg === 'string' && rawImg.startsWith('data:image')) {
-      const saved = saveBase64Image(rawImg);
-      if (saved) finalImage = saved;
-    } else if (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('data:image')) {
+    if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
       finalImage = rawImg;
     }
 
