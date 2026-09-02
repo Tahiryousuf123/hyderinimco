@@ -2,7 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import url, { fileURLToPath } from 'url';
-import { generateAIResponse } from './ai_engine.js';
+import { generateAIResponse, generateAIResponseAsync } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled } from './whatsapp_service.js';
 
@@ -340,7 +340,7 @@ const server = http.createServer(async (req, res) => {
     const body = await parseBody(req);
     const message = body.message || '';
     const history = body.history || [];
-    const aiResult = generateAIResponse(message, history);
+    const aiResult = await generateAIResponseAsync(message, history);
     return sendJson(res, 200, { success: true, ...aiResult });
   }
 
@@ -374,7 +374,7 @@ const server = http.createServer(async (req, res) => {
       messageText = body.message || body.text || '';
     }
 
-    const autoReply = handleWhatsAppIncoming(from, messageText);
+    const autoReply = await handleWhatsAppIncoming(from, messageText);
     return sendJson(res, 200, { success: true, autoReply });
   }
 
@@ -383,7 +383,7 @@ const server = http.createServer(async (req, res) => {
     const body = await parseBody(req);
     const from = body.from || '923362438422';
     const messageText = body.message || 'Assalam o Alaikum';
-    const autoReply = handleWhatsAppIncoming(from, messageText);
+    const autoReply = await handleWhatsAppIncoming(from, messageText);
     return sendJson(res, 200, { success: true, autoReply });
   }
 

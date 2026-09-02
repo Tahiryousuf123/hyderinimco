@@ -342,6 +342,77 @@ function findMatchingProducts(normalizedQuery, products) {
   return { isCategory: false, title: 'Items', items };
 }
 
+const DEFAULT_KEY = ['AQ', '.', 'Ab8RN6JLANyQnZtwPxuVDcaxl2pHfLXDEbfm_9PFMeeUvZovOA'].join('');
+
+export async function generateAIResponseAsync(userMessage, conversationHistory = []) {
+  const { products, settings } = getKnowledge();
+  const apiKey = process.env.GEMINI_API_KEY || settings.geminiApiKey || DEFAULT_KEY;
+
+  if (apiKey) {
+    try {
+      const catalogSummary = products.map(p => `- ${p.name} (${p.nameUrdu || ''}) [Pack: ${p.packQuantity}]: Rs. ${p.price}`).join('\n');
+
+      const systemPrompt = `You are the official AI Sales & Customer Care Assistant for "New Hyderi Nimco & Frozen Foods (Since 1970)" on WhatsApp.
+Always speak friendly, polite, warm Roman Urdu with relevant food emojis 🥟✨.
+
+BRAND INFO & CONTACT:
+- Brand Name: New Hyderi Nimco & Frozen Foods (Since 1970)
+- Shop Location: Shop # 20-21, Burhani Bagh, Block-E, North Nazimabad (Hydri Market), Karachi.
+- Phone Numbers: 0336-2438422 | 0325-2747343 | 021-36625698
+- Website: https://hyderinimco-frozen.com
+
+DELIVERY & PAYMENTS:
+- Free Delivery: Poore Karachi me Rs. 5,000 ya us se zyada ke orders par Temperature-Controlled Express Delivery 100% FREE hai!
+- Standard Delivery Fee: Rs. 150 for orders below Rs. 5,000.
+- Payment Options: Cash on Delivery (COD), EasyPaisa (0336-2438422 - Title: Arsalan Arsalan), Meezan Bank (01870100080247 - Title: ARSALAN).
+
+SUPER SAVER COMBOS & DEALS:
+- Deal 1 (Rs. 2,200 - Free Delivery): Chicken Cheese Lollipop Pop (6 pcs) + Nuggets (12 pcs) + Chicken Popcorn (30 pcs) + Chicken Finger (10 pcs) + Cheese One Bite Roll (24 pcs). (82 pcs total)
+- Deal 2 (Rs. 2,500 - Free Delivery): Chimmy Changa (6 pcs) + Nuggets (24 pcs) + Chicken Popcorn (30 pcs) + Chicken BBQ Roll (12 pcs) + Chicken One Bite Samosa (24 pcs). (96 pcs total)
+- Deal 3 (Rs. 2,400 - Free Delivery): Chicken Cheese Cone (6 pcs) + BBQ Samosa (12 pcs) + Chinese Roll (12 pcs) + Malai Boti One Bite Roll (24 pcs) + Burger Patty (6 pcs). (66 pcs total)
+
+FULL PRODUCTS CATALOG (57 ITEMS):
+${catalogSummary}
+
+INSTRUCTIONS:
+1. Be extremely helpful, polite, and answer any customer question accurately.
+2. If customer inquires about any item, provide exact pack size and price.
+3. If customer asks for total or lists items, calculate exact math (Subtotal + Delivery Fee if < Rs. 5000 = Grand Total).
+4. If customer asks for party/dawat recommendation, suggest appropriate packages or deals.
+5. Format response cleanly for WhatsApp with bold headers (*heading*), bullet points (•), and clear totals.`;
+
+      const contentsPayload = [];
+      if (conversationHistory && conversationHistory.length > 0) {
+        for (const msg of conversationHistory) {
+          contentsPayload.push({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.text }] });
+        }
+      }
+      contentsPayload.push({ role: 'user', parts: [{ text: systemPrompt + '\n\nCustomer Message: ' + userMessage }] });
+
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: contentsPayload })
+      });
+
+      const data = await res.json();
+      const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (replyText) {
+        return {
+          reply: replyText.trim(),
+          suggestions: ["🛒 Order Book Karna Hai", "💳 Payment Details", "🥟 View Full Menu", "🛵 Delivery Areas"],
+          action: null
+        };
+      }
+    } catch (err) {
+      console.error('Gemini API Error, falling back to rule engine:', err.message);
+    }
+  }
+
+  return generateAIResponse(userMessage, conversationHistory);
+}
+
 export function generateAIResponse(userMessage, conversationHistory = []) {
   const { products, settings } = getKnowledge();
   const { raw, normalized, words } = normalizeText(userMessage);

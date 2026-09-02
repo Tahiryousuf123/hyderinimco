@@ -139,8 +139,8 @@ export async function startWhatsAppService() {
         }
 
         try {
-          // Generate Intelligent Response via Hyderi AI Knowledge Engine
-          const aiResponse = handleWhatsAppIncoming(customerPhone, text);
+          // Generate Intelligent Response via Hyderi AI Knowledge Engine (Google Gemini 3.6 Flash)
+          const aiResponse = await handleWhatsAppIncoming(customerPhone, text);
           const replyText = aiResponse?.message || 'Assalam o Alaikum! Hyderi Nimco & Frozen me khushamdeed.';
 
           // Send auto-reply back to the customer on WhatsApp

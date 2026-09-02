@@ -1,12 +1,12 @@
 // WhatsApp AI Auto-Responder Engine for New Hyderi Nimco & Frozen
-import { generateAIResponse } from './ai_engine.js';
+import { generateAIResponseAsync } from './ai_engine.js';
 
-export function handleWhatsAppIncoming(from, messageText) {
+export async function handleWhatsAppIncoming(from, messageText) {
   const cleanFrom = from.replace(/[^0-9]/g, '');
   const rawMsg = (messageText || '').trim();
 
-  // Call the core Hyderi AI Knowledge Engine
-  const aiResult = generateAIResponse(rawMsg);
+  // Call the core Hyderi AI Knowledge Engine (Powered by Google Gemini 3.6 Flash)
+  const aiResult = await generateAIResponseAsync(rawMsg);
 
   // Format response for WhatsApp (bolding, spacing, and brand signatures)
   let whatsappFormatted = aiResult.reply;
