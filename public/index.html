@@ -4092,6 +4092,8 @@
         const currentEditProd = editProd;
         const targetId = currentEditProd ? currentEditProd.id : 'prod-' + Date.now();
         const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
+        const method = currentEditProd ? 'PUT' : 'POST';
+
         const finalImage = (prodForm.imageBase64 && prodForm.imageBase64.startsWith('data:image')) 
           ? prodForm.imageBase64 
           : (prodForm.image && prodForm.image !== '✓ Custom File Uploaded' ? prodForm.image : '');
@@ -5066,41 +5068,47 @@
                                 const file = e.target.files[0];
                                 if (!file) return;
 
-                                const img = new Image();
-                                const objectUrl = URL.createObjectURL(file);
-                                img.onload = () => {
-                                  const canvas = document.createElement('canvas');
-                                  const maxDim = 600;
-                                  let width = img.width;
-                                  let height = img.height;
-
-                                  if (width > height) {
-                                    if (width > maxDim) {
-                                      height = Math.round((height * maxDim) / width);
-                                      width = maxDim;
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  const rawDataUrl = event.target.result;
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    const maxDim = 600;
+                                    let width = img.width;
+                                    let height = img.height;
+                                    if (width > height) {
+                                      if (width > maxDim) {
+                                        height = Math.round((height * maxDim) / width);
+                                        width = maxDim;
+                                      }
+                                    } else {
+                                      if (height > maxDim) {
+                                        width = Math.round((width * maxDim) / height);
+                                        height = maxDim;
+                                      }
                                     }
-                                  } else {
-                                    if (height > maxDim) {
-                                      width = Math.round((width * maxDim) / height);
-                                      height = maxDim;
-                                    }
-                                  }
-
-                                  canvas.width = width;
-                                  canvas.height = height;
-                                  const ctx = canvas.getContext('2d');
-                                  ctx.drawImage(img, 0, 0, width, height);
-
-                                  const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
-                                  URL.revokeObjectURL(objectUrl);
-
-                                  setProdForm(prev => ({
-                                    ...prev,
-                                    imageBase64: compressedBase64,
-                                    image: compressedBase64
-                                  }));
+                                    canvas.width = width;
+                                    canvas.height = height;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(img, 0, 0, width, height);
+                                    const compressed = canvas.toDataURL('image/jpeg', 0.8);
+                                    setProdForm(prev => ({
+                                      ...prev,
+                                      imageBase64: compressed,
+                                      image: compressed
+                                    }));
+                                  };
+                                  img.onerror = () => {
+                                    setProdForm(prev => ({
+                                      ...prev,
+                                      imageBase64: rawDataUrl,
+                                      image: rawDataUrl
+                                    }));
+                                  };
+                                  img.src = rawDataUrl;
                                 };
-                                img.src = objectUrl;
+                                reader.readAsDataURL(file);
                               }}
                               className="mt-1 text-xs text-gray-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emeraldBrand-900 file:text-goldBrand-200 cursor-pointer"
                             />
