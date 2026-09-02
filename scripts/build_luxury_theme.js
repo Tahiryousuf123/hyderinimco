@@ -4034,42 +4034,40 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
+        const trimmedPin = (pin || '').toString().trim();
+
+        // 1. Direct Instant Master PIN Check (Prevents red 401 console error on static host)
+        if (trimmedPin === '7860') {
+          setAuthRole('superadmin');
+          setTab('sales');
+          fetchOrders();
+          return;
+        }
+
+        if (trimmedPin === '1970') {
+          setAuthRole('manager');
+          setTab('sales');
+          fetchOrders();
+          return;
+        }
+
+        // 2. Fallback to API if custom PIN entered
         try {
           const res = await fetch('/api/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin, role: loginMode })
+            body: JSON.stringify({ pin: trimmedPin, role: loginMode })
           });
           const data = await res.json();
           if (data.success) {
-            setAuthRole(data.role || (pin === '7860' ? 'superadmin' : 'manager'));
+            setAuthRole(data.role || (trimmedPin === '7860' ? 'superadmin' : 'manager'));
             setTab('sales');
             fetchOrders();
           } else {
-            if (pin === '7860') {
-              setAuthRole('superadmin');
-              setTab('sales');
-              fetchOrders();
-            } else if (pin === '1970') {
-              setAuthRole('manager');
-              setTab('sales');
-              fetchOrders();
-            } else {
-              setError(data.message || 'Invalid authorized PIN code');
-            }
+            setError(data.message || 'Invalid authorized PIN code');
           }
         } catch (err) {
-          if (pin === '7860') {
-            setAuthRole('superadmin');
-            setTab('sales');
-            fetchOrders();
-          } else if (pin === '1970') {
-            setAuthRole('manager');
-            setTab('sales');
-            fetchOrders();
-          } else {
-            setError('Invalid authorized PIN code. Access denied.');
-          }
+          setError('Invalid authorized PIN code');
         }
       };
 
