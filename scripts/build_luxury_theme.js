@@ -1521,6 +1521,16 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       );
     }
     function App() {
+
+    const getApiBase = () => {
+      if (typeof window === 'undefined') return '';
+      const host = window.location.hostname;
+      if (host.includes('github.io') || host.includes('hyderinimco-frozen.com')) {
+        return 'https://hyderinimco.onrender.com';
+      }
+      return '';
+    };
+
       const [lang, setLang] = useState('en'); // 'en' | 'ur'
       const [products, setProducts] = useState(() => {
         try {
@@ -1559,7 +1569,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
       const loadProducts = async () => {
         try {
-          const res = await fetch('/api/products');
+          const res = await fetch(getApiBase() + '/api/products');
           const data = await res.json();
           if (data.success && Array.isArray(data.products) && data.products.length > 0) {
             let customList = [];
@@ -1582,7 +1592,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       };
       const _dummy_loadProducts = async () => {
         try {
-          const res = await fetch('/api/products');
+          const res = await fetch(getApiBase() + '/api/products');
           const data = await res.json();
           if (data.success && data.products) {
             setProducts(data.products);
@@ -1592,7 +1602,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
       const loadSettings = async () => {
         try {
-          const res = await fetch('/api/settings');
+          const res = await fetch(getApiBase() + '/api/settings');
           const data = await res.json();
           if (data.success && data.settings) {
             setSettings(data.settings);
@@ -3233,7 +3243,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             notes: customer.notes
           };
 
-          const res = await fetch('/api/orders', {
+          const res = await fetch(getApiBase() + '/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -3768,7 +3778,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         setLoading(true);
 
         try {
-          const res = await fetch('/api/chat', {
+          const res = await fetch(getApiBase() + '/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text })
@@ -3939,7 +3949,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         setWaSimLoading(true);
 
         try {
-          const res = await fetch('/api/whatsapp/simulate', {
+          const res = await fetch(getApiBase() + '/api/whatsapp/simulate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: customerMsg })
@@ -3987,7 +3997,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         let active = true;
 
         const fetchStatus = () => {
-          fetch('/api/whatsapp/status')
+          fetch(getApiBase() + '/api/whatsapp/status')
             .then(res => res.json())
             .then(data => {
               if (active && data.success) {
@@ -4009,7 +4019,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         setWaTogglingAi(true);
         try {
           const nextState = !waStatus.aiAutoReplyEnabled;
-          const res = await fetch('/api/whatsapp/toggle-ai', {
+          const res = await fetch(getApiBase() + '/api/whatsapp/toggle-ai', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled: nextState })
@@ -4029,7 +4039,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         if (!confirm('Are you sure you want to disconnect WhatsApp AI? You will need to re-scan the QR code.')) return;
         setWaDisconnecting(true);
         try {
-          const res = await fetch('/api/whatsapp/disconnect', { method: 'POST' });
+          const res = await fetch(getApiBase() + '/api/whatsapp/disconnect', { method: 'POST' });
           const data = await res.json();
           if (data.success) {
             setWaStatus({ status: 'initializing', qr: null, phone: null, aiAutoReplyEnabled: true });
@@ -4063,7 +4073,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
         // 2. Fallback to API if custom PIN entered
         try {
-          const res = await fetch('/api/admin/login', {
+          const res = await fetch(getApiBase() + '/api/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pin: trimmedPin, role: loginMode })
@@ -4083,7 +4093,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
       const fetchOrders = async () => {
         try {
-          const res = await fetch('/api/orders');
+          const res = await fetch(getApiBase() + '/api/orders');
           const data = await res.json();
           if (data.success) setOrders(data.orders || []);
         } catch (e) {}
@@ -4165,7 +4175,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const handleSaveSettings = async (e) => {
         e.preventDefault();
         try {
-          const res = await fetch('/api/admin/settings', {
+          const res = await fetch(getApiBase() + '/api/admin/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settingsForm)
@@ -4823,7 +4833,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    fetch('/api/whatsapp/status')
+                                    fetch(getApiBase() + '/api/whatsapp/status')
                                       .then(res => res.json())
                                       .then(data => { if (data.success) setWaStatus(data); })
                                       .catch(() => {});
