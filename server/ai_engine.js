@@ -372,14 +372,26 @@ BRAND INFO & CONTACT:
 
 DELIVERY & PAYMENTS:
 - Free Delivery: Poore Karachi (except Bahria Town) me Rs. 5,000 ya us se zyada ke orders par Temperature-Controlled Express Delivery 100% FREE hai!
-- Standard Karachi Delivery Fee: Rs. 150 for orders below Rs. 5,000.
-- BAHRIA TOWN KARACHI DELIVERY: Bahria Town Karachi me bhi delivery AVAILABLE hai! Special Temperature-Controlled Cold Box Rider ke zariye deliver hotay hain. Bahria Town ke delivery charges Rs. 1,500 se Rs. 2,000 tak hotay hain.
+- Area-wise Delivery Charges from Hydri (North Nazimabad) for orders under Rs. 5,000:
+  • North Nazimabad / Hydri Local: Rs. 50 (Shop Pickup Available)
+  • North Karachi / Buffer Zone / FB Area: Rs. 100
+  • Nazimabad / Gulberg: Rs. 120
+  • Gulshan-e-Iqbal / Johar / Scheme 33: Rs. 150 - 200
+  • PECHS / Tariq Road / Saddar: Rs. 200
+  • Clifton / Defence (DHA): Rs. 250
+  • Malir Cantt / Model Colony / Korangi / Landhi: Rs. 250 - 300
+  • Bahria Town Karachi: Rs. 1,500 se Rs. 2,000 (Special Express Chilled Rider)
 - Payment Options: Cash on Delivery (COD), EasyPaisa (0336-2438422 - Title: Arsalan Arsalan), Meezan Bank (01870100080247 - Title: ARSALAN).
 
-SUPER SAVER COMBOS & DEALS:
-- Deal 1 (Rs. 2,200 - Free Delivery): Chicken Cheese Lollipop Pop (6 pcs) + Nuggets (12 pcs) + Chicken Popcorn (30 pcs) + Chicken Finger (10 pcs) + Cheese One Bite Roll (24 pcs). (82 pcs total)
-- Deal 2 (Rs. 2,500 - Free Delivery): Chimmy Changa (6 pcs) + Nuggets (24 pcs) + Chicken Popcorn (30 pcs) + Chicken BBQ Roll (12 pcs) + Chicken One Bite Samosa (24 pcs). (96 pcs total)
-- Deal 3 (Rs. 2,400 - Free Delivery): Chicken Cheese Cone (6 pcs) + BBQ Samosa (12 pcs) + Chinese Roll (12 pcs) + Malai Boti One Bite Roll (24 pcs) + Burger Patty (6 pcs). (66 pcs total)
+SUPER SAVER COMBOS & PREMIUM DEALS:
+- Deal 1 (Rs. 2,200 - Free Delivery): Lollipop 6pcs + Nuggets 12pcs + Popcorn 30pcs + Finger 10pcs + Cheese Roll 24pcs. (82 pcs total)
+- Deal 2 (Rs. 2,500 - Free Delivery): Chimmy Changa 6pcs + Nuggets 24pcs + Popcorn 30pcs + BBQ Roll 12pcs + One Bite Samosa 24pcs. (96 pcs total)
+- Deal 3 (Rs. 2,400 - Free Delivery): Cheese Cone 6pcs + BBQ Samosa 12pcs + Chinese Roll 12pcs + Malai Boti Roll 24pcs + Burger Patty 6pcs. (66 pcs total)
+- Hyderi Premium Deal 1 (Rs. 2,600 - Free Delivery): BBQ Roll (12 pcs) + Malai Boti Samosa (12 pcs) + Beef Chapli (6 pcs) + Chimmy Changa (6 pcs) + Chicken Finger (10 pcs). (46 pcs total)
+- Hyderi Premium Deal 2 (Rs. 2,550 - Free Delivery): Mint Roll (12 pcs) + Aloo One Bite Samosa (24 pcs) + Cheese Ball (12 pcs) + Wonton (12 pcs) + Chinese Samosa (12 pcs) + Chicken Donuts (12 pcs). (84 pcs total)
+- Hyderi Premium Deal 3 (Rs. 2,800 - Free Delivery): Malai Boti Roll (12 pcs) + Qeema Samosa (12 pcs) + Seekh Kabab (12 pcs) + Chicken Burger Patty (6 pcs) + Chinese Roll (12 pcs) + Nuggets (12 pcs). (66 pcs total)
+- Hyderi Premium Deal 4 (Rs. 3,100 - Free Delivery): Chinese Roll (12 pcs) + Aloo Samosa (12 pcs) + Cheese Cone (6 pcs) + Wonton (12 pcs) + Small Nuggets (12 pcs) + Chicken Lolli Pop (6 pcs) + Mayo Garlic Roll (12 pcs) + Crispy Samosa (12 pcs). (78 pcs total)
+- Hyderi Premium Deal 5 (Rs. 2,650 - Free Delivery): Malai Boti Samosa (12 pcs) + Crispy Roll (12 pcs) + Chicken Chowmein (12 pcs) + Bread Roll (12 pcs) + Chicken Steak (6 pcs). (54 pcs total)
 
 FULL PRODUCTS CATALOG (57 ITEMS):
 ${catalogSummary}
