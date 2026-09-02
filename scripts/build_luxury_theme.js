@@ -3898,7 +3898,7 @@ const htmlContent = `<!DOCTYPE html>
     }
 
     // Enterprise Dual-Role Admin Portal (SuperAdmin & Store Owner with Sales Dashboard)
-    function AdminPortal({ isOpen, products, settings, onClose, onRefreshProducts, onRefreshSettings }) {
+    function AdminPortal({ isOpen, products, setProducts, settings, onClose, onRefreshProducts, onRefreshSettings }) {
       const [authRole, setAuthRole] = useState(null);
       const [loginMode, setLoginMode] = useState('manager');
       const [pin, setPin] = useState('');
