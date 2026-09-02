@@ -294,23 +294,31 @@ export function parseCustomerOrderList(text, products) {
 function findMatchingProducts(normalizedQuery, products) {
   const q = normalizedQuery.toLowerCase().trim();
 
-  // Category Level Requests
-  if (['roll', 'rolls', 'spring roll', 'spring rolls'].includes(q) || (q.includes('roll') && !q.includes('malai') && !q.includes('mayo') && !q.includes('pizza') && !q.includes('patti') && !q.includes('one bite') && !q.includes('cheese') && !q.includes('chinese') && !q.includes('tikka') && !q.includes('fajita'))) {
-    return { isCategory: true, title: 'Fresh Spring Rolls (13 Varieties)', items: products.filter(p => p.category === 'roll') };
+  // Flavors / Specific Item Modifiers list
+  const flavors = ['bbq', 'bar b q', 'barbeque', 'malai', 'mayo', 'shahi', 'mint', 'chinese', 'bread', 'chimmy', 'cheese', 'pizza', 'patti', 'one bite', 'vonton', 'qeema', 'aaloo', 'chaat', 'corn', 'tikka', 'fajita', 'chapli', 'seekh', 'shami', 'nugget', 'hot shot', 'fries', 'paratha', 'puri', 'donut', 'lollipop', 'cone'];
+
+  const hasFlavor = flavors.some(f => q.includes(f));
+
+  // Category Level Requests ONLY if NO specific flavor mentioned
+  if (!hasFlavor) {
+    if (['roll', 'rolls', 'spring roll', 'spring rolls'].includes(q)) {
+      return { isCategory: true, title: 'Fresh Spring Rolls (13 Varieties)', items: products.filter(p => p.category === 'roll') };
+    }
+    if (['samosa', 'samosay', 'samose', 'samosas'].includes(q)) {
+      return { isCategory: true, title: 'Fresh Samosay (13 Varieties)', items: products.filter(p => p.category === 'samosa') };
+    }
+    if (['kabab', 'kababs', 'kebab', 'kebabs'].includes(q)) {
+      return { isCategory: true, title: 'Shami, Seekh & Chapli Kababs (11 Varieties)', items: products.filter(p => p.category === 'kabab') };
+    }
+    if (['pizza', 'pizzas', 'mini pizza', 'mini pizzas'].includes(q)) {
+      return { isCategory: true, title: 'Mini Pizzas (2 Varieties)', items: products.filter(p => p.category === 'pizza') };
+    }
   }
-  if (['samosa', 'samosay', 'samose', 'samosas'].includes(q) || (q.includes('samosa') && !q.includes('malai') && !q.includes('cheese') && !q.includes('pizza') && !q.includes('one bite') && !q.includes('patti') && !q.includes('vonton') && !q.includes('qeema') && !q.includes('aaloo') && !q.includes('chaat') && !q.includes('chinese') && !q.includes('corn'))) {
-    return { isCategory: true, title: 'Fresh Samosay (13 Varieties)', items: products.filter(p => p.category === 'samosa') };
-  }
-  if (['kabab', 'kababs', 'kebab', 'kebabs'].includes(q)) {
-    return { isCategory: true, title: 'Shami, Seekh & Chapli Kababs (11 Varieties)', items: products.filter(p => p.category === 'kabab') };
-  }
-  if (['pizza', 'pizzas', 'mini pizza', 'mini pizzas'].includes(q)) {
-    return { isCategory: true, title: 'Mini Pizzas (2 Varieties)', items: products.filter(p => p.category === 'pizza') };
-  }
+
   if (['deal', 'deals', 'combo', 'combos', 'offer', 'offers', 'bachat deal', 'package'].some(k => q.includes(k))) {
     return { isCategory: true, title: '🔥 Super Saver Combos & Deals (Free Delivery Included!)', items: products.filter(p => p.category === 'deals') };
   }
-  if (['nimco', 'nimko', 'namkeen'].includes(q)) {
+  if (['nimco', 'nimko', 'namkeen'].includes(q) && !hasFlavor) {
     return { isCategory: true, title: 'Authentic Nimco Varieties (Since 1970)', items: products.filter(p => p.category === 'special' && p.name.toLowerCase().includes('nimco')) };
   }
 
@@ -320,6 +328,7 @@ function findMatchingProducts(normalizedQuery, products) {
     const nameUr = (p.nameUrdu || '').toLowerCase();
     if (q.includes(nameEn) || nameEn.includes(q)) return true;
     if (nameUr && (q.includes(nameUr) || nameUr.includes(q))) return true;
+    if ((q.includes('bbq') || q.includes('bar b q') || q.includes('barbeque')) && (nameEn.includes('bbq') || nameEn.includes('bar b q'))) return true;
     if (q.includes('malai boti') && nameEn.includes('malai boti')) return true;
     if (q.includes('mayo garlic') && nameEn.includes('mayo garlic')) return true;
     if (q.includes('pizza samosa') && nameEn.includes('pizza samosa')) return true;
