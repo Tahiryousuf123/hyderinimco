@@ -105,11 +105,18 @@ export async function startWhatsAppService() {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        console.log(`⚠️ [WhatsApp Service] Connection closed (code: ${statusCode}). Auto-reconnecting in 3s...`);
+        console.log(`⚠️ [WhatsApp Service] Connection closed (code: ${statusCode})...`);
 
         connectionStatus = 'disconnected';
+        latestQR = null;
 
-        // Always auto-reconnect using saved session keys without wiping AUTH_DIR
+        // If phone unlinked or logged out (401/403), wipe auth directory so Baileys generates fresh QR code
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403;
+        if (isLoggedOut) {
+          console.log('⚠️ [WhatsApp Service] Phone unlinked. Wiping stale session keys for fresh QR code generation...');
+          try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (e) {}
+        }
+
         setTimeout(() => startWhatsAppService(), 3000);
       } else if (connection === 'open') {
         connectionStatus = 'connected';
