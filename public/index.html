@@ -195,17 +195,20 @@
       if (isHero) dims = "w-28 h-28 sm:w-36 sm:h-36 border-4 shadow-2xl";
 
       return (
-        <div className={`relative flex items-center justify-center rounded-full bg-[#FAF5E8] border-goldBrand-400/90 shadow-xl overflow-hidden shrink-0 ${dims}`}>
+        <div className={"relative flex items-center justify-center rounded-full bg-[#FAF5E8] border-goldBrand-400/90 shadow-xl overflow-hidden shrink-0 " + dims}>
           <img
             src="images/hyderi_official_logo.png"
-            onError={(e) => { e.target.src = '/images/hyderi_official_logo.png'; }}
+            onError={(e) => {
+              if (e.target.src.includes('images/hyderi_official_logo.png')) {
+                e.target.src = '/images/hyderi_official_logo.png';
+              }
+            }}
             alt="Hyderi Nimco & Frozen Official Logo"
             className="w-full h-full object-cover rounded-full"
           />
         </div>
       );
     }
-
     function App() {
       const [lang, setLang] = useState('en'); // 'en' | 'ur'
       const [products, setProducts] = useState([]);

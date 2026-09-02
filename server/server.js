@@ -105,7 +105,14 @@ function saveBase64Image(base64Str) {
     const filename = `img-${Date.now()}-${Math.floor(Math.random() * 100000)}${ext}`;
     const filepath = path.join(UPLOADS_DIR, filename);
     fs.writeFileSync(filepath, buffer);
-    return `/uploads/${filename}`;
+
+    // Save copy in public/images for static file serving
+    try {
+      const publicPath = path.join(PUBLIC_DIR, 'images', filename);
+      fs.writeFileSync(publicPath, buffer);
+    } catch (err2) {}
+
+    return `/images/${filename}`;
   } catch (e) {
     console.error('Failed to write base64 image:', e);
     return null;
