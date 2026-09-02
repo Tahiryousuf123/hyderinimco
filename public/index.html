@@ -4093,31 +4093,35 @@
           ...prodForm
         };
 
-        // 1. Instant Optimistic UI Update (0.01s Instant Feedback!)
         setShowAddProd(false);
         setEditProd(null);
 
-        setProducts(prev => {
-          let next;
-          if (editProd) {
-            next = prev.map(p => p.id === editProd.id ? { ...p, ...updatedProd } : p);
-          } else {
-            next = [updatedProd, ...prev];
-          }
-          try { localStorage.setItem('hyderi_custom_products', JSON.stringify(next)); } catch (err) {}
-          return next;
-        });
+        if (typeof setProducts === 'function') {
+          setProducts(prev => {
+            const list = Array.isArray(prev) ? prev : [];
+            let next;
+            if (editProd) {
+              next = list.map(p => p.id === editProd.id ? { ...p, ...updatedProd } : p);
+            } else {
+              next = [updatedProd, ...list];
+            }
+            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(next)); } catch (err) {}
+            return next;
+          });
+        }
 
-        // 2. Background Server Sync (Non-blocking)
         try {
           const url = editProd ? '/api/products/' + editProd.id : '/api/products';
           const method = editProd ? 'PUT' : 'POST';
-          fetch(url, {
+          await fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(prodForm)
-          }).catch(() => {});
-        } catch (err) {}
+          });
+          if (onRefreshProducts) onRefreshProducts();
+        } catch (err) {
+          if (onRefreshProducts) onRefreshProducts();
+        }
       };
 
       const handleDeleteProduct = async (id) => {
