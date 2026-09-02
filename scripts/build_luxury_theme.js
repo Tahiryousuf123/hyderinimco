@@ -1562,10 +1562,21 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           const res = await fetch('/api/products');
           const data = await res.json();
           if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-            setProducts(data.products);
+            let customList = [];
             try {
-              localStorage.setItem('hyderi_custom_products', JSON.stringify(data.products));
+              const saved = localStorage.getItem('hyderi_custom_products');
+              if (saved) customList = JSON.parse(saved);
             } catch (e) {}
+
+            const merged = data.products.map(p => {
+              const localMatch = customList.find(c => c.id === p.id);
+              if (localMatch && localMatch.image && localMatch.image.startsWith('data:image')) {
+                return { ...p, image: localMatch.image };
+              }
+              return p;
+            });
+
+            setProducts(merged);
           }
         } catch (e) {}
       };
@@ -4134,15 +4145,12 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         }
 
         try {
-          await fetch(url, {
+          fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedProd)
-          });
-          if (onRefreshProducts) onRefreshProducts();
-        } catch (err) {
-          if (onRefreshProducts) onRefreshProducts();
-        }
+          }).catch(() => {});
+        } catch (err) {}
       };
 
       const handleDeleteProduct = async (id) => {
