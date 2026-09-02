@@ -421,9 +421,13 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true, message: 'Order status updated', order: orders[idx] });
   }
 
-  // 16. DELETE /api/orders/:id (Delete order)
+  // 16. DELETE /api/orders/:id (Delete order or delete all)
   if (pathname.startsWith('/api/orders/') && method === 'DELETE') {
     const id = pathname.replace('/api/orders/', '');
+    if (id === 'all') {
+      writeData('orders.json', []);
+      return sendJson(res, 200, { success: true, message: 'All orders cleared successfully' });
+    }
     let orders = readData('orders.json', []);
     orders = orders.filter(o => o.id !== id && o.orderRef !== id);
     writeData('orders.json', orders);
