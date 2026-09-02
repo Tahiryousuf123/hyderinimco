@@ -2625,11 +2625,11 @@ const htmlContent = `<!DOCTYPE html>
       const [waTogglingAi, setWaTogglingAi] = useState(false);
       const [waTogglingFollowUp, setWaTogglingFollowUp] = useState(false);
       const [broadcastMsg, setBroadcastMsg] = useState(
-        '🥟 *HYDERI NIMCO & FROZEN — SPECIAL ANNOUNCEMENT* ✨\n\n' +
-        'Assalam o Alaikum! 🥟\n' +
-        'Hamari 5 Nayi Save Deals aur Fresh Frozen items website par launch ho chuki hain!\n\n' +
-        '🔥 *Special Offer:* 100% Fresh Samosas, Rolls, Kababs & Hyderi Mix Nimco Express Delivery ke sath ghar mangwaiye.\n\n' +
-        '🛍️ *Abhi Order Karein:* https://hyderinimco-frozen.com\n' +
+        '🥟 *HYDERI NIMCO & FROZEN — SPECIAL ANNOUNCEMENT* ✨\\n\\n' +
+        'Assalam o Alaikum! 🥟\\n' +
+        'Hamari 5 Nayi Save Deals aur Fresh Frozen items website par launch ho chuki hain!\\n\\n' +
+        '🔥 *Special Offer:* 100% Fresh Samosas, Rolls, Kababs & Hyderi Mix Nimco Express Delivery ke sath ghar mangwaiye.\\n\\n' +
+        '🛍️ *Abhi Order Karein:* https://hyderinimco-frozen.com\\n' +
         '📍 North Nazimabad, Karachi (Since 1970)'
       );
       const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
