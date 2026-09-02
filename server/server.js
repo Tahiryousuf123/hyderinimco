@@ -217,6 +217,12 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'Invalid products array' });
   }
 
+  // 4. GET /api/products
+  if (pathname === '/api/products' && method === 'GET') {
+    const products = readData('products.json', []);
+    return sendJson(res, 200, { success: true, products });
+  }
+
   // 5. POST /api/products (Add product)
   if (pathname === '/api/products' && method === 'POST') {
     const body = await parseBody(req);
