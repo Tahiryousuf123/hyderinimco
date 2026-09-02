@@ -4095,11 +4095,14 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         const currentEditProd = editProd;
         const targetId = currentEditProd ? currentEditProd.id : 'prod-' + Date.now();
         const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
-        const method = currentEditProd ? 'PUT' : 'POST';
+        const finalImage = (prodForm.imageBase64 && prodForm.imageBase64.startsWith('data:image')) 
+          ? prodForm.imageBase64 
+          : (prodForm.image && prodForm.image !== '✓ Custom File Uploaded' ? prodForm.image : '');
 
         const updatedProd = {
           id: targetId,
-          ...prodForm
+          ...prodForm,
+          image: finalImage || prodForm.image
         };
 
         setShowAddProd(false);
@@ -5108,13 +5111,21 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                         </div>
 
                         <div className="border-t pt-2">
-                          <label className="text-[10px] font-bold text-gray-500 block mb-0.5">OR Image URL (یا ویب لنک درج کریں)</label>
+                          <label className="text-[10px] font-bold text-gray-500 block mb-0.5">OR Image URL (ya image URL paste karein)</label>
                           <input
                             type="text"
-                            value={prodForm.image && prodForm.image.startsWith('data:image') ? '[Uploaded Image Selected]' : (prodForm.image || '')}
-                            onChange={(e) => setProdForm({ ...prodForm, image: e.target.value, imageBase64: null })}
+                            disabled={!!(prodForm.image && prodForm.image.startsWith('data:image'))}
+                            value={prodForm.image && prodForm.image.startsWith('data:image') ? '✓ Custom File Uploaded' : (prodForm.image || '')}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setProdForm(prev => ({
+                                ...prev,
+                                image: val,
+                                imageBase64: val.startsWith('data:image') ? val : null
+                              }));
+                            }}
                             placeholder="https://... or /images/..."
-                            className="w-full px-3 py-1.5 bg-white border rounded-xl text-xs outline-none"
+                            className="w-full px-3 py-1.5 bg-white border rounded-xl text-xs outline-none disabled:bg-gray-100 disabled:text-emerald-800 disabled:font-bold"
                           />
                         </div>
                       </div>
