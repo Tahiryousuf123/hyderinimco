@@ -189,17 +189,22 @@ const htmlContent = `<!DOCTYPE html>
       { en: "Other Karachi Area", ur: "دیگر کراچی ایریاز" }
     ];
 
-    // Official Hyderi Logo Emblem Component
+    // Official Hyderi Badge Logo Emblem Component
     function HyderiLogoEmblem({ size = "normal" }) {
       const isLarge = size === "large";
       const isHero = size === "hero";
       let dims = "w-11 h-11 border-2";
-      if (isLarge) dims = "w-16 h-16 border-2";
+      if (isLarge) dims = "w-14 h-14 sm:w-16 sm:h-16 border-2";
       if (isHero) dims = "w-28 h-28 sm:w-36 sm:h-36 border-4 shadow-2xl";
 
       return (
         <div className={\`relative flex items-center justify-center rounded-full bg-[#FAF5E8] border-goldBrand-400/90 shadow-xl overflow-hidden shrink-0 \${dims}\`}>
-          <img src="/images/hyderi_official_logo.png" alt="Hyderi Nimco & Frozen Official Logo" className="w-full h-full object-cover rounded-full" />
+          <img
+            src="images/hyderi_official_logo.png"
+            onError={(e) => { e.target.src = '/images/hyderi_official_logo.png'; }}
+            alt="Hyderi Nimco & Frozen Official Logo"
+            className="w-full h-full object-cover rounded-full"
+          />
         </div>
       );
     }
