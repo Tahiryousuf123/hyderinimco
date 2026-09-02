@@ -4091,8 +4091,13 @@ const htmlContent = `<!DOCTYPE html>
 
       const handleSaveProduct = async (e) => {
         e.preventDefault();
+        const currentEditProd = editProd;
+        const targetId = currentEditProd ? currentEditProd.id : 'prod-' + Date.now();
+        const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
+        const method = currentEditProd ? 'PUT' : 'POST';
+
         const updatedProd = {
-          id: editProd ? editProd.id : 'prod-' + Date.now(),
+          id: targetId,
           ...prodForm
         };
 
@@ -4103,8 +4108,8 @@ const htmlContent = `<!DOCTYPE html>
           setProducts(prev => {
             const list = Array.isArray(prev) ? prev : [];
             let next;
-            if (editProd) {
-              next = list.map(p => p.id === editProd.id ? { ...p, ...updatedProd } : p);
+            if (currentEditProd) {
+              next = list.map(p => p.id === targetId ? { ...p, ...updatedProd } : p);
             } else {
               next = [updatedProd, ...list];
             }
@@ -4114,8 +4119,6 @@ const htmlContent = `<!DOCTYPE html>
         }
 
         try {
-          const url = editProd ? '/api/products/' + editProd.id : '/api/products';
-          const method = editProd ? 'PUT' : 'POST';
           await fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
