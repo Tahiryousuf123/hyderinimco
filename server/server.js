@@ -4,7 +4,7 @@ import path from 'path';
 import url, { fileURLToPath } from 'url';
 import { generateAIResponse, generateAIResponseAsync } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
-import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled } from './whatsapp_service.js';
+import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast } from './whatsapp_service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -89,18 +89,27 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-// Helper to save base64 slip image
+// Helper to save base64 slip or product image
 function saveBase64Image(base64Str) {
-  if (!base64Str || !base64Str.startsWith('data:image')) return null;
-  const matches = base64Str.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
-  if (!matches || matches.length !== 3) return null;
-  
-  const ext = matches[1] === 'jpeg' ? '.jpg' : `.${matches[1]}`;
-  const buffer = Buffer.from(matches[2], 'base64');
-  const filename = `slip-${Date.now()}-${Math.floor(Math.random() * 10000)}${ext}`;
-  const filepath = path.join(UPLOADS_DIR, filename);
-  fs.writeFileSync(filepath, buffer);
-  return `/uploads/${filename}`;
+  if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) return null;
+  const parts = base64Str.split(';base64,');
+  if (parts.length !== 2) return null;
+
+  let ext = '.jpg';
+  if (parts[0].includes('png')) ext = '.png';
+  else if (parts[0].includes('webp')) ext = '.webp';
+  else if (parts[0].includes('gif')) ext = '.gif';
+
+  try {
+    const buffer = Buffer.from(parts[1], 'base64');
+    const filename = `img-${Date.now()}-${Math.floor(Math.random() * 100000)}${ext}`;
+    const filepath = path.join(UPLOADS_DIR, filename);
+    fs.writeFileSync(filepath, buffer);
+    return `/uploads/${filename}`;
+  } catch (e) {
+    console.error('Failed to write base64 image:', e);
+    return null;
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -202,17 +211,21 @@ const server = http.createServer(async (req, res) => {
     const body = await parseBody(req);
     const products = readData('products.json', []);
     
-    let imageUrl = body.imageUrl || body.image || 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
-    if (body.imageBase64) {
-      const saved = saveBase64Image(body.imageBase64);
+    let imageUrl = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
+    const rawImg = body.imageBase64 || body.image || body.imageUrl;
+    if (rawImg && typeof rawImg === 'string' && rawImg.startsWith('data:image')) {
+      const saved = saveBase64Image(rawImg);
       if (saved) imageUrl = saved;
+    } else if (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('data:image')) {
+      imageUrl = rawImg;
     }
 
     const newProduct = {
       id: 'prod-' + Date.now(),
       name: body.name || 'New Item',
+      nameUrdu: body.nameUrdu || '',
       category: body.category || 'samosa',
-      categoryLabel: body.categoryLabel || 'Samosa & Appetizers',
+      categoryLabel: (body.category || 'samosa').toUpperCase(),
       packQuantity: body.packQuantity || '12 pcs',
       price: Number(body.price) || 0,
       rating: 5.0,
@@ -241,16 +254,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     let finalImage = products[idx].image;
-    if (body.imageBase64) {
-      const saved = saveBase64Image(body.imageBase64);
+    const rawImg = body.imageBase64 || body.image || body.imageUrl;
+    if (rawImg && typeof rawImg === 'string' && rawImg.startsWith('data:image')) {
+      const saved = saveBase64Image(rawImg);
       if (saved) finalImage = saved;
-    } else if (body.imageUrl || body.image) {
-      finalImage = body.imageUrl || body.image;
+    } else if (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('data:image')) {
+      finalImage = rawImg;
     }
 
     products[idx] = {
       ...products[idx],
       name: body.name !== undefined ? body.name : products[idx].name,
+      nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : products[idx].nameUrdu,
       category: body.category !== undefined ? body.category : products[idx].category,
       categoryLabel: body.categoryLabel !== undefined ? body.categoryLabel : products[idx].categoryLabel,
       packQuantity: body.packQuantity !== undefined ? body.packQuantity : products[idx].packQuantity,
@@ -398,6 +413,51 @@ const server = http.createServer(async (req, res) => {
     const enabled = body.enabled !== undefined ? !!body.enabled : !isAiAutoReplyEnabled();
     const result = setAiAutoReply(enabled);
     return sendJson(res, 200, { success: true, ...result });
+  }
+
+  // 14.86. POST /api/whatsapp/toggle-followup (Turn Automated 3-Hour AI Follow-up ON or OFF)
+  if (pathname === '/api/whatsapp/toggle-followup' && method === 'POST') {
+    const body = await parseBody(req);
+    const enabled = body.enabled !== undefined ? !!body.enabled : !isAiFollowUpEnabled();
+    const result = setAiFollowUp(enabled);
+    return sendJson(res, 200, { success: true, ...result });
+  }
+
+  // 14.87. POST /api/whatsapp/broadcast (Send Mass WhatsApp Broadcast for New Deals / Launch)
+  if (pathname === '/api/whatsapp/broadcast' && method === 'POST') {
+    const body = await parseBody(req);
+    const message = body.message;
+    let recipients = body.recipients;
+
+    if (!message || !message.trim()) {
+      return sendJson(res, 400, { success: false, error: 'Broadcast message content is required.' });
+    }
+
+    // If recipients not explicitly passed, extract unique customer phones from orders.json
+    if (!Array.isArray(recipients) || recipients.length === 0) {
+      const orders = readData('orders.json', []);
+      const phoneSet = new Set();
+      orders.forEach(o => {
+        if (o.customer?.phone) {
+          let p = String(o.customer.phone).replace(/[^0-9]/g, '');
+          if (p) phoneSet.add(p);
+        }
+      });
+      recipients = Array.from(phoneSet);
+    }
+
+    // Add default admin test phones if no past orders yet
+    if (recipients.length === 0) {
+      recipients = ['923362438422', '923252747343'];
+    }
+
+    let imageUrl = body.imageUrl || null;
+    if (body.imageBase64) {
+      imageUrl = saveBase64Image(body.imageBase64);
+    }
+
+    const result = await sendMassBroadcast(recipients, message, imageUrl);
+    return sendJson(res, 200, result);
   }
 
   // 14.9. POST /api/whatsapp/disconnect (Log out & reset session)

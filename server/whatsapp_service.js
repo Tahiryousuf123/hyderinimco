@@ -20,17 +20,26 @@ let rawQR = null;
 let connectionStatus = 'initializing'; // 'awaiting_scan', 'connected', 'disconnected'
 let connectedPhone = null;
 
+// Track active customer chats for 3-Hour AI Follow-Up Engine
+// Key: customerPhone, Value: { lastMsgTime, lastText, followUpSent, orderPlaced }
+const activeChats = new Map();
+
 function getSettings() {
   try {
     const p = path.join(__dirname, 'data', 'settings.json');
     if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch (e) {}
-  return { aiAutoReplyEnabled: true };
+  return { aiAutoReplyEnabled: true, aiFollowUpEnabled: true };
 }
 
 export function isAiAutoReplyEnabled() {
   const s = getSettings();
   return s.aiAutoReplyEnabled !== false;
+}
+
+export function isAiFollowUpEnabled() {
+  const s = getSettings();
+  return s.aiFollowUpEnabled !== false;
 }
 
 export function setAiAutoReply(enabled) {
@@ -40,7 +49,20 @@ export function setAiAutoReply(enabled) {
     if (fs.existsSync(p)) s = JSON.parse(fs.readFileSync(p, 'utf8'));
     s.aiAutoReplyEnabled = !!enabled;
     fs.writeFileSync(p, JSON.stringify(s, null, 2), 'utf8');
-    return { success: true, aiAutoReplyEnabled: s.aiAutoReplyEnabled };
+    return { success: true, aiAutoReplyEnabled: s.aiAutoReplyEnabled, aiFollowUpEnabled: s.aiFollowUpEnabled !== false };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+export function setAiFollowUp(enabled) {
+  try {
+    const p = path.join(__dirname, 'data', 'settings.json');
+    let s = {};
+    if (fs.existsSync(p)) s = JSON.parse(fs.readFileSync(p, 'utf8'));
+    s.aiFollowUpEnabled = !!enabled;
+    fs.writeFileSync(p, JSON.stringify(s, null, 2), 'utf8');
+    return { success: true, aiAutoReplyEnabled: s.aiAutoReplyEnabled !== false, aiFollowUpEnabled: s.aiFollowUpEnabled };
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -75,7 +97,7 @@ export async function startWhatsAppService() {
             }
           });
           connectionStatus = 'awaiting_scan';
-          console.log('📲 [WhatsApp Service] New Live Pairing QR Code generated! Scan from WhatsApp > Linked Devices.');
+          console.log('📲 [WhatsApp Service] New Live Pairing QR Code generated!');
         } catch (err) {
           console.error('Error generating QR DataURL:', err);
         }
@@ -115,12 +137,10 @@ export async function startWhatsAppService() {
       if (type !== 'notify') return;
 
       for (const msg of messages) {
-        // Don't reply to self messages or group messages
         if (msg.key.fromMe) continue;
         const remoteJid = msg.key.remoteJid;
-        if (!remoteJid || remoteJid.includes('@g.us')) continue; // skip groups
+        if (!remoteJid || remoteJid.includes('@g.us')) continue;
 
-        // Extract message text
         const text = 
           msg.message?.conversation ||
           msg.message?.extendedTextMessage?.text ||
@@ -132,9 +152,17 @@ export async function startWhatsAppService() {
         const customerPhone = remoteJid.split('@')[0];
         console.log(`📩 [WhatsApp AI] Received message from ${customerPhone}: "${text}"`);
 
+        // Record active conversation timestamp for 3-Hour AI Follow-Up Engine
+        activeChats.set(customerPhone, {
+          lastMsgTime: Date.now(),
+          lastText: text,
+          followUpSent: false,
+          orderPlaced: false
+        });
+
         // Check if AI Agent Auto-Reply is enabled by shop owner
         if (!isAiAutoReplyEnabled()) {
-          console.log(`⏸️ [WhatsApp AI] AI Auto-Reply is paused by owner. Message not auto-answered.`);
+          console.log(`⏸️ [WhatsApp AI] AI Auto-Reply is paused by owner.`);
           continue;
         }
 
@@ -152,10 +180,52 @@ export async function startWhatsAppService() {
       }
     });
 
+    // Start 15-Minute Background Interval for Automated 3-Hour AI Follow-Up Engine
+    setInterval(() => {
+      runAiFollowUpCheck();
+    }, 15 * 60 * 1000);
+
   } catch (err) {
     console.error('Fatal WhatsApp Service Error:', err);
     connectionStatus = 'disconnected';
     setTimeout(() => startWhatsAppService(), 5000);
+  }
+}
+
+// Background AI Engine: 3-Hour Gentle & Respectful Customer Follow-Up
+function runAiFollowUpCheck() {
+  if (!sock || connectionStatus !== 'connected' || !isAiFollowUpEnabled()) return;
+
+  const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  for (const [phone, chat] of activeChats.entries()) {
+    if (chat.orderPlaced || chat.followUpSent) continue;
+
+    const elapsed = now - chat.lastMsgTime;
+    if (elapsed >= THREE_HOURS_MS) {
+      const followUpText = 
+        `Assalam o Alaikum! 👋✨\n\n` +
+        `Umeed hai aap khairiyat se honge. Aap ne thodi der pehle Hyderi Nimco & Frozen se Samosas & Deals ke bare me maloomat li thi.\n\n` +
+        `🥟 **Kya aap ko aaj ka fresh order book karwane me koi madad chahiye?**\n` +
+        `Karachi ke tamam areas me fresh express delivery dastiyab hai!\n\n` +
+        `🛍️ Order karne ke liye hamari website visit karein: https://hyderinimco-frozen.com\n` +
+        `ya hamen yahan WhatsApp par reply farmaiye! 🤝\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `🥟 *HYDERI NIMCO & FROZEN*\n` +
+        `📍 North Nazimabad, Karachi • Since 1970`;
+
+      let cleanPhone = phone.replace(/[^0-9]/g, '');
+      if (cleanPhone.startsWith('03')) cleanPhone = '92' + cleanPhone.slice(1);
+      const jid = `${cleanPhone}@s.whatsapp.net`;
+
+      sock.sendMessage(jid, { text: followUpText })
+        .then(() => {
+          chat.followUpSent = true;
+          console.log(`🤖 [AI Follow-Up] Successfully sent 3-hour warm follow-up to ${phone}`);
+        })
+        .catch(err => console.error(`Failed AI follow-up to ${phone}:`, err));
+    }
   }
 }
 
@@ -164,7 +234,8 @@ export function getWhatsAppStatus() {
     status: connectionStatus,
     qr: latestQR,
     phone: connectedPhone,
-    aiAutoReplyEnabled: isAiAutoReplyEnabled()
+    aiAutoReplyEnabled: isAiAutoReplyEnabled(),
+    aiFollowUpEnabled: isAiFollowUpEnabled()
   };
 }
 
@@ -184,10 +255,57 @@ export async function disconnectWhatsApp() {
   }
 }
 
+// WhatsApp Mass Broadcast / Deal Blast Engine
+export async function sendMassBroadcast(recipients, messageText, imageUrl = null) {
+  if (!sock || connectionStatus !== 'connected') {
+    return { success: false, error: 'WhatsApp Service is not connected. Please scan QR code first in WhatsApp tab.' };
+  }
+
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    return { success: false, error: 'No customer phone numbers provided for broadcast.' };
+  }
+
+  let sentCount = 0;
+  let failedCount = 0;
+
+  for (const rawPhone of recipients) {
+    try {
+      let phone = String(rawPhone).replace(/[^0-9]/g, '');
+      if (!phone) continue;
+      if (phone.startsWith('03')) phone = '92' + phone.slice(1);
+      else if (!phone.startsWith('92')) phone = '92' + phone;
+
+      const jid = `${phone}@s.whatsapp.net`;
+      if (imageUrl) {
+        await sock.sendMessage(jid, {
+          image: { url: imageUrl },
+          caption: messageText
+        });
+      } else {
+        await sock.sendMessage(jid, { text: messageText });
+      }
+      sentCount++;
+      // Safe delay between messages to prevent spam flag
+      await new Promise(r => setTimeout(r, 1200));
+    } catch (err) {
+      console.error(`Broadcast error for phone ${rawPhone}:`, err);
+      failedCount++;
+    }
+  }
+
+  return { success: true, sentCount, failedCount, total: recipients.length };
+}
+
 export async function notifyOwnerNewOrder(order) {
   if (!sock || connectionStatus !== 'connected') {
     console.log('⚠️ WhatsApp service not connected, skipping direct socket dispatch to owner.');
     return;
+  }
+
+  // Mark customer phone as orderPlaced so AI 3-Hour follow-up is skipped
+  if (order.customer?.phone) {
+    const rawP = String(order.customer.phone).replace(/[^0-9]/g, '');
+    activeChats.set(rawP, { orderPlaced: true, followUpSent: true });
   }
 
   const itemsList = (order.items || [])
@@ -221,4 +339,3 @@ export async function notifyOwnerNewOrder(order) {
     }
   }
 }
-
