@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="46" fill="#022c22" stroke="#d97706" stroke-width="4"/>
+  <circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <path d="M 30 32 L 35 22 L 50 30 L 65 22 L 70 32 Z" fill="#f59e0b"/>
+  <text x="50" y="58" font-family="Georgia, serif" font-size="44" font-weight="900" fill="#fcd34d" text-anchor="middle">H</text>
+  <text x="50" y="82" font-family="Arial, sans-serif" font-size="11" font-weight="900" fill="#fbbf24" letter-spacing="1" text-anchor="middle">1970</text>
+</svg>

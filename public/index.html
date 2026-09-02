@@ -59,8 +59,9 @@
   }
   </script>
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥟</text></svg>" />
+  <!-- Favicon (Royal Hyderi 1970 Gold Emblem) -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="alternate icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23022c22' stroke='%23d97706' stroke-width='4'/><circle cx='50' cy='50' r='40' fill='none' stroke='%23f59e0b' stroke-width='1.5'/><path d='M 30 32 L 35 22 L 50 30 L 65 22 L 70 32 Z' fill='%23f59e0b'/><text x='50' y='58' font-family='Georgia, serif' font-size='44' font-weight='900' fill='%23fcd34d' text-anchor='middle'>H</text><text x='50' y='82' font-family='Arial, sans-serif' font-size='11' font-weight='900' fill='%23fbbf24' text-anchor='middle'>1970</text></svg>" />
 
   <!-- Google Fonts: Plus Jakarta Sans, Cinzel / Playfair / Outfit & Noto Nastaliq Urdu -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2605,6 +2606,7 @@
       // Product Add/Edit Form State
       const [showAddProd, setShowAddProd] = useState(false);
       const [editProd, setEditProd] = useState(null);
+      const [isSavingProd, setIsSavingProd] = useState(false);
       const [prodForm, setProdForm] = useState({
         name: '', nameUrdu: '', category: 'samosa', packQuantity: '12 pcs', price: '', image: '', description: '', badge: '', isAvailable: true
       });
@@ -3687,7 +3689,7 @@
                           <label className="text-[10px] font-bold text-gray-500 block mb-0.5">OR Image URL (یا ویب لنک درج کریں)</label>
                           <input
                             type="text"
-                            value={prodForm.image || ''}
+                            value={prodForm.image && prodForm.image.startsWith('data:image') ? '[Uploaded Image Selected]' : (prodForm.image || '')}
                             onChange={(e) => setProdForm({ ...prodForm, image: e.target.value, imageBase64: null })}
                             placeholder="https://... or /images/..."
                             className="w-full px-3 py-1.5 bg-white border rounded-xl text-xs outline-none"
@@ -3697,7 +3699,7 @@
                     </div>
 
                     <button type="submit" className="w-full py-3 bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 font-bold rounded-xl mt-2 shadow-md transition-all border border-goldBrand-400">
-                      {editProd ? 'Update Product Details' : 'Save New Product'}
+                      {isSavingProd ? '⏳ Saving Product & Image...' : (editProd ? 'Update Product Details' : 'Save New Product')}
                     </button>
                   </form>
                 </div>
