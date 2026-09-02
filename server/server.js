@@ -207,10 +207,14 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true, message: 'Settings updated successfully', settings: updated });
   }
 
-  // 4. GET /api/products
-  if (pathname === '/api/products' && method === 'GET') {
-    const products = readData('products.json', []);
-    return sendJson(res, 200, { success: true, products });
+  // 4.5. POST /api/products/batch (Restore catalog backup JSON)
+  if (pathname === '/api/products/batch' && method === 'POST') {
+    const body = await parseBody(req);
+    if (body.products && Array.isArray(body.products) && body.products.length > 0) {
+      writeData('products.json', body.products);
+      return sendJson(res, 200, { success: true, count: body.products.length });
+    }
+    return sendJson(res, 400, { error: 'Invalid products array' });
   }
 
   // 5. POST /api/products (Add product)
