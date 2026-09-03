@@ -4,6 +4,7 @@ import path from 'path';
 import url, { fileURLToPath } from 'url';
 import { connectDB, isDBConnected, executeDBQuery, withTimeout } from './db.js';
 import { Product } from './models/Product.js';
+import { ProductImage } from './models/ProductImage.js';
 import { Order } from './models/Order.js';
 import { Setting } from './models/Setting.js';
 import { generateAIResponse, generateAIResponseAsync } from './ai_engine.js';
@@ -21,13 +22,6 @@ function invalidateProductsCache() {
 }
 
 /**
- * MongoDB Single Source of Truth Startup Initializer
- * Requirement: Application startup must NEVER blindly replace MongoDB data with local files.
- * 1. Connect to MongoDB.
- * 2. If MongoDB Atlas has documents: MongoDB is authoritative. Update local cache as passive read-only snapshot.
- * 3. Automatically convert any legacy bloated Base64 strings to clean static image files.
- * 4. Only if MongoDB is completely empty (fresh setup) does it seed initial catalog once.
-/**
  * Automatically cleanses bloated legacy Base64 images in MongoDB Atlas to lightweight static paths.
  * Queries ONLY product IDs to avoid streaming megabytes over the network.
  */
@@ -37,7 +31,7 @@ async function autoCleanseBloatedAtlasImages() {
     if (bloatedDocs && bloatedDocs.length > 0) {
       console.log(`[MongoDB Cleanser] Detected ${bloatedDocs.length} bloated Base64 records in MongoDB Atlas. Sanitizing to lightweight paths...`);
       for (const doc of bloatedDocs) {
-        const cleanUrl = `/images/prod-${doc.id}.jpg`;
+        const cleanUrl = `/api/products/${doc.id}/image`;
         await Product.updateOne({ id: doc.id }, { $set: { image: cleanUrl } });
       }
       console.log(`[MongoDB Cleanser] Successfully sanitized ${bloatedDocs.length} products in MongoDB Atlas to lightweight URLs.`);
@@ -45,6 +39,91 @@ async function autoCleanseBloatedAtlasImages() {
     }
   } catch (err) {
     console.warn('[MongoDB Cleanser] Warning:', err.message);
+  }
+}
+
+/**
+ * Safe Migration: Migrates existing static product images into persistent ProductImage binary storage in MongoDB Atlas.
+ * Product by product, verified strictly by product ID.
+ */
+async function migrateExistingImagesToMongoDB() {
+  try {
+    const products = await Product.find({}, { id: 1, name: 1, image: 1 }).lean();
+    if (!products || products.length === 0) return;
+
+    let migrated = 0;
+    for (const prod of products) {
+      // Check if product already has an image stored in ProductImage collection
+      const existingImg = await ProductImage.findOne({ productId: prod.id }, { _id: 1 }).lean();
+      if (existingImg) {
+        if (!prod.image || !prod.image.startsWith(`/api/products/${prod.id}/image`)) {
+          await Product.updateOne({ id: prod.id }, { $set: { image: `/api/products/${prod.id}/image` } });
+        }
+        continue;
+      }
+
+      // Explicit authentic image file mapping based strictly on verified product ID
+      let localFilePath = null;
+
+      if (prod.id === 'special-13') {
+        localFilePath = path.join(PUBLIC_DIR, 'images', 'samosa_patti.jpg');
+      } else if (prod.id === 'special-14') {
+        localFilePath = path.join(PUBLIC_DIR, 'images', 'paratha_real.jpg');
+      } else if (prod.id === 'special-15') {
+        localFilePath = path.join(PUBLIC_DIR, 'images', 'plain_puri.jpg');
+      } else if (prod.id === 'special-12') {
+        localFilePath = path.join(PUBLIC_DIR, 'images', 'roll_patti.jpg');
+      } else if (prod.id === 'special-6') {
+        localFilePath = path.join(PUBLIC_DIR, 'images', 'chicken_donuts.jpg');
+      } else if (prod.image && prod.image.startsWith('/images/')) {
+        const directPath = path.join(PUBLIC_DIR, prod.image);
+        if (fs.existsSync(directPath)) {
+          localFilePath = directPath;
+        }
+      }
+
+      // Check prod-{id}.jpg or prod-{id}.png fallback on disk
+      if (!localFilePath || !fs.existsSync(localFilePath)) {
+        for (const ext of ['.jpg', '.png', '.webp']) {
+          const candidate = path.join(PUBLIC_DIR, 'images', `prod-${prod.id}${ext}`);
+          if (fs.existsSync(candidate)) {
+            localFilePath = candidate;
+            break;
+          }
+        }
+      }
+
+      // If a valid authentic file exists on disk, read binary and save to ProductImage
+      if (localFilePath && fs.existsSync(localFilePath)) {
+        const buffer = fs.readFileSync(localFilePath);
+        const ext = path.extname(localFilePath).toLowerCase();
+        const contentType = MIME_TYPES[ext] || 'image/jpeg';
+
+        await ProductImage.findOneAndUpdate(
+          { productId: prod.id },
+          {
+            $set: {
+              productId: prod.id,
+              contentType: contentType,
+              data: buffer,
+              updatedAt: new Date()
+            }
+          },
+          { upsert: true, returnDocument: 'after' }
+        );
+
+        // Update product record to point to authoritative image endpoint
+        await Product.updateOne({ id: prod.id }, { $set: { image: `/api/products/${prod.id}/image` } });
+        migrated++;
+      }
+    }
+
+    if (migrated > 0) {
+      console.log(`[MongoDB Migration] Successfully migrated ${migrated} product images into persistent ProductImage binary storage in Atlas.`);
+      invalidateProductsCache();
+    }
+  } catch (err) {
+    console.warn('[MongoDB Migration] Image migration warning:', err.message);
   }
 }
 
@@ -58,7 +137,8 @@ async function initializeDatabaseOnStartup() {
   const connected = await connectDB();
   if (connected) {
     console.log('[MongoDB Startup] MongoDB Atlas is online and verified as the single source of truth.');
-    autoCleanseBloatedAtlasImages().catch(() => {});
+    await autoCleanseBloatedAtlasImages().catch(() => {});
+    await migrateExistingImagesToMongoDB().catch((err) => console.warn('[MongoDB Image Migration] Error:', err.message));
   } else {
     console.warn('[MongoDB Startup] MongoDB Atlas connection not established. API mutation requests will return HTTP 503.');
   }
@@ -147,6 +227,54 @@ function sendJson(res, statusCode, data) {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   });
   res.end(JSON.stringify(data));
+}
+
+/**
+ * Saves a base64-encoded product image directly into MongoDB Atlas ProductImage collection.
+ * Product document only stores the lightweight API URL: /api/products/:id/image?v=...
+ */
+async function saveProductImageToMongoDB(productId, base64Str) {
+  if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) {
+    return null;
+  }
+
+  const parts = base64Str.split(';base64,');
+  if (parts.length !== 2) return null;
+
+  const header = parts[0].toLowerCase();
+  let contentType = 'image/jpeg';
+  if (header.includes('png')) contentType = 'image/png';
+  else if (header.includes('webp')) contentType = 'image/webp';
+  else if (header.includes('gif')) contentType = 'image/gif';
+  else if (header.includes('jpeg') || header.includes('jpg')) contentType = 'image/jpeg';
+  else {
+    throw new Error('Unsupported image format. Allowed formats: JPEG, PNG, WEBP, GIF.');
+  }
+
+  const buffer = Buffer.from(parts[1], 'base64');
+  if (buffer.length > 5 * 1024 * 1024) {
+    throw new Error('Image file is too large. Maximum allowed size is 5MB.');
+  }
+
+  // Atomic upsert into MongoDB ProductImage collection
+  await executeDBQuery(
+    () => ProductImage.findOneAndUpdate(
+      { productId: productId },
+      {
+        $set: {
+          productId: productId,
+          contentType: contentType,
+          data: buffer,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true, returnDocument: 'after' }
+    ),
+    2,
+    15000
+  );
+
+  return `/api/products/${productId}/image?v=${Date.now()}`;
 }
 
 // Helper to save base64 slip or product image
@@ -250,6 +378,12 @@ const server = http.createServer(async (req, res) => {
           diag.countMs = Date.now() - t2;
         } catch (cde) {
           diag.countError = cde.message;
+        }
+
+        try {
+          diag.productImageCount = await ProductImage.countDocuments();
+        } catch (pie) {
+          diag.productImageError = pie.message;
         }
 
         try {
@@ -420,6 +554,64 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 3.9. GET /api/products/:id/image (Persistent MongoDB Binary Image Stream)
+  if (pathname.startsWith('/api/products/') && pathname.endsWith('/image') && method === 'GET') {
+    const id = pathname.replace('/api/products/', '').replace('/image', '').trim();
+    if (!id) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Product ID is required' }));
+    }
+
+    if (!isDBConnected()) {
+      await connectDB();
+    }
+
+    try {
+      // 1. Fetch binary image from MongoDB Atlas ProductImage collection
+      const imgDoc = await executeDBQuery(
+        () => ProductImage.findOne({ productId: id }).lean().exec(),
+        2,
+        10000
+      );
+
+      if (imgDoc && imgDoc.data) {
+        const buffer = Buffer.isBuffer(imgDoc.data) 
+          ? imgDoc.data 
+          : (imgDoc.data.buffer ? Buffer.from(imgDoc.data.buffer) : Buffer.from(imgDoc.data));
+        res.writeHead(200, {
+          'Content-Type': imgDoc.contentType || 'image/jpeg',
+          'Content-Length': buffer.length,
+          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
+          'Access-Control-Allow-Origin': '*'
+        });
+        return res.end(buffer);
+      }
+
+      // 2. Check local disk static fallback if present
+      for (const ext of ['.jpg', '.png', '.webp', '.jpeg']) {
+        const diskPath = path.join(PUBLIC_DIR, 'images', `prod-${id}${ext}`);
+        if (fs.existsSync(diskPath)) {
+          const fileBuf = fs.readFileSync(diskPath);
+          res.writeHead(200, {
+            'Content-Type': MIME_TYPES[ext] || 'image/jpeg',
+            'Content-Length': fileBuf.length,
+            'Cache-Control': 'public, max-age=86400',
+            'Access-Control-Allow-Origin': '*'
+          });
+          return res.end(fileBuf);
+        }
+      }
+
+      // 3. Return clean 404 (NEVER index.html)
+      res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      return res.end(JSON.stringify({ error: `Image not found for product ${id}` }));
+    } catch (err) {
+      console.error(`[MongoDB] Error serving image for product ${id}:`, err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      return res.end(JSON.stringify({ error: 'Failed to retrieve product image' }));
+    }
+  }
+
   // 4. GET /api/products (Authoritative MongoDB Read with Cache Accelerator)
   if (pathname === '/api/products' && method === 'GET') {
     // Serve from fast memory cache if recent (<15s) to prevent hammering MongoDB
@@ -487,8 +679,12 @@ const server = http.createServer(async (req, res) => {
     const prodId = (body.id && String(body.id).trim()) || ('prod-' + Date.now() + '-' + Math.floor(Math.random() * 10000));
     let rawImg = body.imageBase64 || body.image || body.imageUrl || '';
     if (rawImg && typeof rawImg === 'string' && rawImg.startsWith('data:image')) {
-      const savedPath = saveBase64Image(rawImg);
-      if (savedPath) rawImg = savedPath;
+      try {
+        const savedUrl = await saveProductImageToMongoDB(prodId, rawImg);
+        if (savedUrl) rawImg = savedUrl;
+      } catch (imgErr) {
+        return sendJson(res, 400, { success: false, error: imgErr.message });
+      }
     }
     const now = new Date().toISOString();
 
@@ -551,8 +747,12 @@ const server = http.createServer(async (req, res) => {
     const now = new Date().toISOString();
     let finalImage = body.imageBase64 || body.image || body.imageUrl;
     if (finalImage && typeof finalImage === 'string' && finalImage.startsWith('data:image')) {
-      const savedPath = saveBase64Image(finalImage);
-      if (savedPath) finalImage = savedPath;
+      try {
+        const savedUrl = await saveProductImageToMongoDB(id, finalImage);
+        if (savedUrl) finalImage = savedUrl;
+      } catch (imgErr) {
+        return sendJson(res, 400, { success: false, error: imgErr.message });
+      }
     }
 
     const updateFields = {
@@ -604,6 +804,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const delResult = await executeDBQuery(() => Product.deleteOne({ id }), 2, 10000);
+      await executeDBQuery(() => ProductImage.deleteOne({ productId: id }), 2, 5000).catch(() => {});
 
       invalidateProductsCache();
       console.log(`[MongoDB Authoritative] Deleted product ${id} from MongoDB (deletedCount: ${delResult.deletedCount})`);
@@ -909,9 +1110,19 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Serve public static files or index.html with low-memory streaming pipe
+  // Serve public static files or return 404 for missing assets (never return index.html for images)
+  const pathnameExt = path.extname(pathname).toLowerCase();
+  const isAssetRequest = pathname.startsWith('/images/') || 
+                         pathname.startsWith('/uploads/') || 
+                         pathname.startsWith('/api/') || 
+                         ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.ico', '.css', '.js', '.json', '.map', '.woff', '.woff2', '.ttf'].includes(pathnameExt);
+
   let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
   if (!fs.existsSync(filePath)) {
+    if (isAssetRequest) {
+      res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      return res.end(JSON.stringify({ error: 'Asset not found', path: pathname }));
+    }
     filePath = path.join(PUBLIC_DIR, 'index.html');
   }
 
