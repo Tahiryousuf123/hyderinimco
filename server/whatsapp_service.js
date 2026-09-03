@@ -5,6 +5,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
+import { WASession } from './models/WASession.js';
+import { isDBConnected } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,9 +21,9 @@ let latestQR = null;
 let rawQR = null;
 let connectionStatus = 'initializing'; // 'awaiting_scan', 'connected', 'disconnected'
 let connectedPhone = null;
+let isStartingService = false;
 
 // Track active customer chats for 3-Hour AI Follow-Up Engine
-// Key: customerPhone, Value: { lastMsgTime, lastText, followUpSent, orderPlaced }
 const activeChats = new Map();
 
 function getSettings() {
@@ -68,8 +70,60 @@ export function setAiFollowUp(enabled) {
   }
 }
 
-export async function startWhatsAppService() {
+// Restore WhatsApp Session Files from MongoDB Atlas to Local Ephemeral Disk
+async function restoreAuthFromDB() {
+  if (!isDBConnected()) return false;
   try {
+    const docs = await WASession.find({}).lean();
+    if (docs && docs.length > 0) {
+      if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+      for (const doc of docs) {
+        const filepath = path.join(AUTH_DIR, doc.key);
+        fs.writeFileSync(filepath, doc.data, 'utf8');
+      }
+      console.log(`✅ [WhatsApp Auth Sync] Successfully restored ${docs.length} session key files from MongoDB Atlas.`);
+      return true;
+    }
+  } catch (e) {
+    console.error('[WhatsApp Auth Sync] Warning: Failed to restore session from MongoDB Atlas:', e.message);
+  }
+  return false;
+}
+
+// Backup Local WhatsApp Session Files from Local Ephemeral Disk to MongoDB Atlas
+async function backupAuthToDB() {
+  if (!isDBConnected() || !fs.existsSync(AUTH_DIR)) return;
+  try {
+    const files = fs.readdirSync(AUTH_DIR);
+    for (const file of files) {
+      const filepath = path.join(AUTH_DIR, file);
+      if (fs.statSync(filepath).isFile()) {
+        const content = fs.readFileSync(filepath, 'utf8');
+        await WASession.updateOne({ key: file }, { $set: { key: file, data: content } }, { upsert: true });
+      }
+    }
+    console.log(`💾 [WhatsApp Auth Sync] Successfully backed up ${files.length} auth key files to MongoDB Atlas.`);
+  } catch (e) {
+    console.error('[WhatsApp Auth Sync] Warning: Failed to backup session to MongoDB Atlas:', e.message);
+  }
+}
+
+export async function startWhatsAppService() {
+  if (isStartingService) {
+    console.log('⚠️ [WhatsApp Service] Service initialization already in progress. Bypassing duplicate call.');
+    return;
+  }
+  if (connectionStatus === 'connected' && sock) {
+    console.log('✅ [WhatsApp Service] WhatsApp AI is already connected and active.');
+    return;
+  }
+
+  isStartingService = true;
+
+  try {
+    // Step 1: Restore authenticated session files from MongoDB Atlas before initializing Baileys
+    await restoreAuthFromDB();
+
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
     sock = makeWASocket({
@@ -77,10 +131,15 @@ export async function startWhatsAppService() {
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
       browser: ['Hyderi Nimco & Frozen', 'Chrome', '1.0.0'],
-      syncFullHistory: false
+      syncFullHistory: false,
+      connectTimeoutMs: 30000,
+      keepAliveIntervalMs: 15000
     });
 
-    sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', async () => {
+      await saveCreds();
+      backupAuthToDB().catch(() => {});
+    });
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -91,10 +150,7 @@ export async function startWhatsAppService() {
           latestQR = await QRCode.toDataURL(qr, {
             width: 320,
             margin: 2,
-            color: {
-              dark: '#08281F',
-              light: '#FFFFFF'
-            }
+            color: { dark: '#08281F', light: '#FFFFFF' }
           });
           connectionStatus = 'awaiting_scan';
           console.log('📲 [WhatsApp Service] New Live Pairing QR Code generated!');
@@ -109,22 +165,41 @@ export async function startWhatsAppService() {
 
         connectionStatus = 'disconnected';
         latestQR = null;
+        isStartingService = false;
 
-        // If phone unlinked or logged out (401/403), wipe auth directory so Baileys generates fresh QR code
         const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403;
         if (isLoggedOut) {
-          console.log('⚠️ [WhatsApp Service] Phone unlinked. Wiping stale session keys for fresh QR code generation...');
+          console.log('⚠️ [WhatsApp Service] Device unlinked by phone/user. Wiping session keys...');
           try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (e) {}
+          if (isDBConnected()) {
+            try { await WASession.deleteMany({}); } catch (e) {}
+          }
         }
 
-        setTimeout(() => startWhatsAppService(), 3000);
+        const hasCreds = fs.existsSync(path.join(AUTH_DIR, 'creds.json'));
+        
+        // Prevent infinite QR generation loop on Code 408 timeout if no credentials exist
+        if (statusCode === 408 && !hasCreds) {
+          console.log('⏳ [WhatsApp Service] QR scan window timed out. Awaiting manual QR scan request.');
+          return;
+        }
+
+        const retryDelay = hasCreds ? 5000 : 15000;
+        setTimeout(() => {
+          startWhatsAppService();
+        }, retryDelay);
+
       } else if (connection === 'open') {
         connectionStatus = 'connected';
+        isStartingService = false;
         latestQR = null;
         rawQR = null;
         const userJid = sock.user?.id || '';
         connectedPhone = userJid.split(':')[0] || userJid.split('@')[0];
         console.log(`✅ [WhatsApp Service] WhatsApp AI Successfully Connected! Phone: ${connectedPhone}`);
+
+        // Persist fresh authenticated credentials to MongoDB Atlas
+        backupAuthToDB().catch(() => {});
       }
     });
 
@@ -182,9 +257,10 @@ export async function startWhatsAppService() {
     }, 15 * 60 * 1000);
 
   } catch (err) {
+    isStartingService = false;
     console.error('Fatal WhatsApp Service Error:', err);
     connectionStatus = 'disconnected';
-    setTimeout(() => startWhatsAppService(), 5000);
+    setTimeout(() => startWhatsAppService(), 10000);
   }
 }
 
@@ -241,9 +317,13 @@ export async function disconnectWhatsApp() {
       await sock.logout();
     }
     fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    if (isDBConnected()) {
+      try { await WASession.deleteMany({}); } catch (e) {}
+    }
     connectionStatus = 'disconnected';
     latestQR = null;
     connectedPhone = null;
+    isStartingService = false;
     setTimeout(() => startWhatsAppService(), 2000);
     return { success: true, message: 'Logged out successfully' };
   } catch (err) {

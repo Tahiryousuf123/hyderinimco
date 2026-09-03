@@ -2,7 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import url, { fileURLToPath } from 'url';
-import { connectDB, isDBConnected, withTimeout } from './db.js';
+import { connectDB, isDBConnected, executeDBQuery, withTimeout } from './db.js';
 import { Product } from './models/Product.js';
 import { Order } from './models/Order.js';
 import { Setting } from './models/Setting.js';
@@ -10,8 +10,32 @@ import { generateAIResponse, generateAIResponseAsync } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast } from './whatsapp_service.js';
 
-// Auto-connect to MongoDB Atlas at module load
-connectDB().catch(err => console.error('[MongoDB] Initial connection attempt error:', err));
+// Auto-connect to MongoDB Atlas and synchronize local cache on startup
+async function syncDatabaseOnStartup() {
+  const connected = await connectDB();
+  if (connected) {
+    try {
+      const dbProducts = await executeDBQuery(() => Product.find({}, { _id: 0, __v: 0 }).lean(), 3, 10000);
+      if (dbProducts && dbProducts.length > 0) {
+        console.log(`[MongoDB Startup Sync] Found ${dbProducts.length} authoritative products in MongoDB Atlas. Synchronizing local cache...`);
+        writeData('products.json', dbProducts);
+      } else {
+        console.log('[MongoDB Startup Sync] MongoDB Atlas collection is empty. Seeding from local products.json...');
+        const local = readData('products.json', []);
+        if (local.length > 0) {
+          for (const p of local) {
+            await executeDBQuery(() => Product.updateOne({ id: p.id }, { $set: p }, { upsert: true }), 3, 5000);
+          }
+          console.log(`[MongoDB Startup Sync] Successfully seeded ${local.length} products to MongoDB Atlas.`);
+        }
+      }
+    } catch (e) {
+      console.error('[MongoDB Startup Sync] Warning: Startup sync failed:', e.message);
+    }
+  }
+}
+
+syncDatabaseOnStartup().catch(err => console.error('[MongoDB] Startup sync error:', err.message));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -242,16 +266,18 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/products' && method === 'GET') {
     if (isDBConnected()) {
       try {
-        const dbProducts = await withTimeout(Product.find({}, { _id: 0, __v: 0 }).lean(), 3000);
+        const dbProducts = await executeDBQuery(() => Product.find({}, { _id: 0, __v: 0 }).lean(), 2, 6000);
         if (dbProducts && dbProducts.length > 0) {
+          // Asynchronously sync local cache so local disk is always identical to MongoDB Atlas
+          writeData('products.json', dbProducts);
           return sendJson(res, 200, { success: true, products: dbProducts, source: 'mongodb' });
         }
       } catch (dbErr) {
-        console.error('[MongoDB] GET /api/products error:', dbErr.message);
+        console.error('[MongoDB] GET /api/products read error:', dbErr.message);
       }
     }
     const products = readData('products.json', []);
-    return sendJson(res, 200, { success: true, products, source: 'local_json' });
+    return sendJson(res, 200, { success: true, products, source: 'local_json_cache' });
   }
 
   // 5. POST /api/products (Add / Save product)
@@ -284,27 +310,32 @@ const server = http.createServer(async (req, res) => {
       featured: body.featured === true || body.featured === 'true'
     };
 
-    // 1. ALWAYS write to local products.json first (Guarantees local fallback is 100% fresh)
-    const products = readData('products.json', []);
-    const existingIdx = products.findIndex(p => p.id === prodId);
-    if (existingIdx !== -1) {
-      products[existingIdx] = newProduct;
-    } else {
-      products.unshift(newProduct);
-    }
-    writeData('products.json', products);
-
-    // 2. ALWAYS sync to MongoDB Atlas if connected
-    if (isDBConnected()) {
-      try {
-        await withTimeout(Product.updateOne({ id: prodId }, { $set: newProduct }, { upsert: true }), 3000);
-        console.log(`[MongoDB] Synced product ${prodId} (${newProduct.name}) to MongoDB Atlas`);
-      } catch (dbErr) {
-        console.error('[MongoDB] POST /api/products DB save error:', dbErr.message);
+    try {
+      // Step 1: Write to MongoDB Atlas (Authoritative Source of Truth) with retry
+      await executeDBQuery(() => Product.updateOne({ id: prodId }, { $set: newProduct }, { upsert: true }), 3, 10000);
+      
+      // Step 2: Verify write in MongoDB Atlas
+      const verified = await executeDBQuery(() => Product.findOne({ id: prodId }, { _id: 0, __v: 0 }).lean(), 2, 5000);
+      if (!verified) {
+        throw new Error('Verification read-back failed in MongoDB Atlas');
       }
-    }
 
-    return sendJson(res, 200, { success: true, product: newProduct });
+      // Step 3: Update local products.json cache only after verified DB write
+      const products = readData('products.json', []);
+      const existingIdx = products.findIndex(p => p.id === prodId);
+      if (existingIdx !== -1) {
+        products[existingIdx] = verified;
+      } else {
+        products.unshift(verified);
+      }
+      writeData('products.json', products);
+
+      console.log(`[Production Verified] Saved product ${prodId} (${verified.name}) to MongoDB Atlas`);
+      return sendJson(res, 200, { success: true, product: verified, source: 'mongodb' });
+    } catch (dbErr) {
+      console.error('[MongoDB Error] POST /api/products failed to save to MongoDB Atlas:', dbErr.message);
+      return sendJson(res, 500, { success: false, error: `Production save failed: MongoDB Atlas write error: ${dbErr.message}` });
+    }
   }
 
   // 6. PUT /api/products/:id (Update product)
@@ -315,10 +346,18 @@ const server = http.createServer(async (req, res) => {
     let finalImage = body.imageBase64 || body.image || body.imageUrl;
     const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : 'SAMOSA');
 
-    // 1. Read existing local product
-    const products = readData('products.json', []);
-    let idx = products.findIndex(p => p.id === id);
-    const existing = idx !== -1 ? products[idx] : null;
+    // Read existing product state from MongoDB Atlas or local cache
+    let existing = null;
+    if (isDBConnected()) {
+      try {
+        existing = await executeDBQuery(() => Product.findOne({ id }).lean(), 2, 5000);
+      } catch (e) {}
+    }
+    if (!existing) {
+      const local = readData('products.json', []);
+      const idx = local.findIndex(p => p.id === id);
+      if (idx !== -1) existing = local[idx];
+    }
 
     const updatedProduct = {
       id: id,
@@ -335,47 +374,53 @@ const server = http.createServer(async (req, res) => {
       image: finalImage || (existing ? existing.image : '')
     };
 
-    // 2. ALWAYS write to local products.json first
-    if (idx !== -1) {
-      products[idx] = updatedProduct;
-    } else {
-      products.unshift(updatedProduct);
-    }
-    writeData('products.json', products);
-
-    // 3. ALWAYS sync to MongoDB Atlas if connected
-    if (isDBConnected()) {
-      try {
-        await withTimeout(Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true }), 3000);
-        console.log(`[MongoDB] Synced updated product ${id} (${updatedProduct.name}) to MongoDB Atlas`);
-      } catch (dbErr) {
-        console.error('[MongoDB] PUT /api/products DB error:', dbErr.message);
+    try {
+      // Step 1: Write to MongoDB Atlas (Authoritative Source of Truth) with retries
+      await executeDBQuery(() => Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true }), 3, 10000);
+      
+      // Step 2: Verify write in MongoDB Atlas
+      const verified = await executeDBQuery(() => Product.findOne({ id }, { _id: 0, __v: 0 }).lean(), 2, 5000);
+      if (!verified || (finalImage && verified.image !== finalImage)) {
+        throw new Error('Verification read-back failed in MongoDB Atlas');
       }
-    }
 
-    return sendJson(res, 200, { success: true, product: updatedProduct });
+      // Step 3: Update local products.json cache only after verified DB write
+      const products = readData('products.json', []);
+      const idx = products.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        products[idx] = verified;
+      } else {
+        products.unshift(verified);
+      }
+      writeData('products.json', products);
+
+      console.log(`[Production Verified] Updated product ${id} (${verified.name}) in MongoDB Atlas`);
+      return sendJson(res, 200, { success: true, product: verified, source: 'mongodb' });
+    } catch (dbErr) {
+      console.error('[MongoDB Error] PUT /api/products failed to update in MongoDB Atlas:', dbErr.message);
+      return sendJson(res, 500, { success: false, error: `Production update failed: MongoDB Atlas write error: ${dbErr.message}` });
+    }
   }
 
   // 7. DELETE /api/products/:id
   if (pathname.startsWith('/api/products/') && method === 'DELETE') {
     const id = pathname.replace('/api/products/', '');
 
-    // 1. ALWAYS delete from local products.json
-    let products = readData('products.json', []);
-    products = products.filter(p => p.id !== id);
-    writeData('products.json', products);
+    try {
+      // Step 1: Delete from MongoDB Atlas (Authoritative Source of Truth)
+      await executeDBQuery(() => Product.deleteOne({ id }), 3, 10000);
+      
+      // Step 2: Remove from local products.json cache
+      let products = readData('products.json', []);
+      products = products.filter(p => p.id !== id);
+      writeData('products.json', products);
 
-    // 2. ALWAYS delete from MongoDB Atlas if connected
-    if (isDBConnected()) {
-      try {
-        await withTimeout(Product.deleteOne({ id }), 3000);
-        console.log(`[MongoDB] Deleted product ${id} from MongoDB Atlas`);
-      } catch (dbErr) {
-        console.error('[MongoDB] DELETE /api/products DB error:', dbErr.message);
-      }
+      console.log(`[Production Verified] Deleted product ${id} from MongoDB Atlas`);
+      return sendJson(res, 200, { success: true, message: 'Product deleted from MongoDB Atlas' });
+    } catch (dbErr) {
+      console.error('[MongoDB Error] DELETE /api/products failed in MongoDB Atlas:', dbErr.message);
+      return sendJson(res, 500, { success: false, error: `Production delete failed: MongoDB Atlas write error: ${dbErr.message}` });
     }
-
-    return sendJson(res, 200, { success: true, message: 'Product deleted' });
   }
 
   // 8. GET /api/orders
