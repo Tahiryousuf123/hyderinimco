@@ -101,7 +101,7 @@ async function migrateExistingImagesToMongoDB() {
         const ext = path.extname(localFilePath).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'image/jpeg';
 
-        await ProductImage.findOneAndUpdate(
+        await ProductImage.updateOne(
           { productId: prod.id },
           {
             $set: {
@@ -111,7 +111,7 @@ async function migrateExistingImagesToMongoDB() {
               updatedAt: new Date()
             }
           },
-          { upsert: true, returnDocument: 'after' }
+          { upsert: true }
         );
 
         // Update product record to point to authoritative image endpoint
@@ -258,9 +258,9 @@ async function saveProductImageToMongoDB(productId, base64Str) {
     throw new Error('Image file is too large. Maximum allowed size is 5MB.');
   }
 
-  // Atomic upsert into MongoDB ProductImage collection
+  // Atomic upsert into MongoDB ProductImage collection (using updateOne to avoid downloading large buffer back)
   await executeDBQuery(
-    () => ProductImage.findOneAndUpdate(
+    () => ProductImage.updateOne(
       { productId: productId },
       {
         $set: {
@@ -270,10 +270,10 @@ async function saveProductImageToMongoDB(productId, base64Str) {
           updatedAt: new Date()
         }
       },
-      { upsert: true, returnDocument: 'after' }
+      { upsert: true }
     ),
     2,
-    15000
+    25000
   );
 
   return `/api/products/${productId}/image?v=${Date.now()}`;
@@ -571,15 +571,22 @@ const server = http.createServer(async (req, res) => {
     try {
       // 1. Fetch binary image from MongoDB Atlas ProductImage collection
       const imgDoc = await executeDBQuery(
-        () => ProductImage.findOne({ productId: id }).lean().exec(),
+        () => ProductImage.findOne({ productId: id }, { data: 1, contentType: 1 }).lean().exec(),
         2,
-        10000
+        25000
       );
 
       if (imgDoc && imgDoc.data) {
-        const buffer = Buffer.isBuffer(imgDoc.data) 
-          ? imgDoc.data 
-          : (imgDoc.data.buffer ? Buffer.from(imgDoc.data.buffer) : Buffer.from(imgDoc.data));
+        let buffer;
+        if (Buffer.isBuffer(imgDoc.data)) {
+          buffer = imgDoc.data;
+        } else if (imgDoc.data.buffer) {
+          buffer = Buffer.from(imgDoc.data.buffer);
+        } else if (typeof imgDoc.data === 'string') {
+          buffer = Buffer.from(imgDoc.data, 'base64');
+        } else {
+          buffer = Buffer.from(imgDoc.data);
+        }
         res.writeHead(200, {
           'Content-Type': imgDoc.contentType || 'image/jpeg',
           'Content-Length': buffer.length,
