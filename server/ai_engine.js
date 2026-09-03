@@ -439,13 +439,227 @@ Remember: MongoDB is the ONLY source of truth. Use tools, not memory.`;
 }
 
 // ---------------------------------------------------------------------------
-// MAIN GEMINI AI ENGINE — Gemini ONLY, no fallback to old chatbot
+// OPENAI / GROQ COMPATIBLE TOOL DEFINITIONS
 // ---------------------------------------------------------------------------
-export async function generateAIResponseAsync(userMessage, conversationHistory = [], customerPhone = '', messageId = '') {
+const GROQ_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_products',
+      description: 'Get all products from the live MongoDB catalog. Returns product ID, name, Urdu name, category, pack quantity, price, availability status, and badge. Always call this before quoting prices or recommending products.',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: {
+            type: 'string',
+            description: 'Optional category filter: samosa, roll, kabab, pizza, deals, nimco, special, puri. Leave empty to get all products.'
+          }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_product_by_name',
+      description: 'Search for a specific product by name, Urdu name, or keyword. Use this to find a product when the customer mentions it by name or description.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Search query. E.g. "samosa", "chicken roll", "nimco", "pani puri"'
+          }
+        },
+        required: ['query']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'check_availability',
+      description: 'Check whether a specific product is currently available and get its current price from MongoDB.',
+      parameters: {
+        type: 'object',
+        properties: {
+          product_id: {
+            type: 'string',
+            description: 'The exact product ID from the catalog'
+          }
+        },
+        required: ['product_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_order',
+      description: 'Create a confirmed order in MongoDB Atlas. ONLY call this after the customer has explicitly confirmed their order (e.g. said "haan", "confirm", "yes", "kar do", "book karo"). Do NOT call this speculatively. Each order must have at least one item and a delivery address.',
+      parameters: {
+        type: 'object',
+        properties: {
+          customer_phone: { type: 'string', description: 'Customer WhatsApp phone number' },
+          customer_name: { type: 'string', description: 'Customer name (if provided)' },
+          delivery_address: { type: 'string', description: 'Full delivery address' },
+          delivery_area: { type: 'string', description: 'Delivery area/neighbourhood name' },
+          items: {
+            type: 'array',
+            description: 'List of items to order',
+            items: {
+              type: 'object',
+              properties: {
+                product_id: { type: 'string', description: 'Product ID from catalog' },
+                product_name: { type: 'string', description: 'Product name for display' },
+                quantity: { type: 'number', description: 'Number of packets/units' }
+              },
+              required: ['product_id', 'quantity']
+            }
+          },
+          payment_method: { type: 'string', description: 'cod, easypaisa, or bank_transfer. Default: cod' },
+          notes: { type: 'string', description: 'Any special instructions or notes from customer' },
+          idempotency_key: { type: 'string', description: 'Unique key to prevent duplicate orders — use the WhatsApp message ID' }
+        },
+        required: ['customer_phone', 'items', 'delivery_address']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_order_status',
+      description: "Get the status of the customer's most recent order from MongoDB.",
+      parameters: {
+        type: 'object',
+        properties: {
+          customer_phone: { type: 'string', description: 'Customer WhatsApp phone number' }
+        },
+        required: ['customer_phone']
+      }
+    }
+  }
+];
+
+// ---------------------------------------------------------------------------
+// GROQ AI ENGINE — Ultra-fast (sub-second response, 30 RPM, 14,400 req/day FREE)
+// ---------------------------------------------------------------------------
+async function generateGroqResponseAsync(userMessage, conversationHistory = [], customerPhone = '', messageId = '') {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  const groqModels = [
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'qwen/qwen3.6-27b',
+    'qwen/qwen3.8-27b'
+  ];
+
+  const systemPrompt = buildSystemPrompt();
+  const messages = [
+    { role: 'system', content: systemPrompt }
+  ];
+
+  for (const msg of (conversationHistory || [])) {
+    messages.push({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text || ''
+    });
+  }
+  messages.push({ role: 'user', content: userMessage });
+
+  for (const modelName of groqModels) {
+    try {
+      const currentMessages = [...messages];
+      let finalReply = null;
+
+      for (let round = 0; round < 6; round++) {
+        const t0 = Date.now();
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: currentMessages,
+            tools: GROQ_TOOLS,
+            temperature: 0.6,
+            max_tokens: 1024
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.warn(`[AI Engine:Groq] ${modelName} HTTP ${res.status}:`, errText.slice(0, 200));
+          break; // try next model
+        }
+
+        const data = await res.json();
+        const choice = data?.choices?.[0];
+        const msg = choice?.message;
+        if (!msg) break;
+
+        const toolCalls = msg.tool_calls || [];
+        if (toolCalls.length === 0) {
+          finalReply = (msg.content || '').trim();
+          console.log(`[AI Engine:Groq] ${modelName} responded in ${Date.now() - t0}ms (${finalReply.length} chars)`);
+          break;
+        }
+
+        // Add assistant message with tool calls
+        currentMessages.push(msg);
+
+        // Execute all tools called by Groq
+        for (const tc of toolCalls) {
+          const toolName = tc.function?.name;
+          let toolArgs = {};
+          try {
+            toolArgs = typeof tc.function?.arguments === 'string'
+              ? JSON.parse(tc.function.arguments)
+              : (tc.function?.arguments || {});
+          } catch (e) {
+            console.warn(`[AI Tool:Groq] Failed to parse args for ${toolName}:`, tc.function?.arguments);
+          }
+
+          console.log(`[AI Tool:Groq] Calling: ${toolName}(${JSON.stringify(toolArgs).slice(0, 150)})`);
+          const toolResult = await executeToolCall(toolName, toolArgs, customerPhone);
+          console.log(`[AI Tool:Groq] ${toolName} result:`, JSON.stringify(toolResult).slice(0, 200));
+
+          currentMessages.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: JSON.stringify(toolResult)
+          });
+        }
+      }
+
+      if (finalReply && finalReply.length > 0) {
+        return {
+          reply: finalReply,
+          suggestions: ['🛒 Order Book Karna Hai', '💳 Payment Details', '🥟 Full Menu', '🛵 Delivery Areas'],
+          action: null
+        };
+      }
+    } catch (err) {
+      console.warn(`[AI Engine:Groq] ${modelName} error:`, err.message);
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// GEMINI FALLBACK ENGINE — used if Groq is unavailable
+// ---------------------------------------------------------------------------
+async function generateGeminiResponseAsync(userMessage, conversationHistory = [], customerPhone = '', messageId = '') {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.error('[AI Engine] GEMINI_API_KEY is not configured in environment variables.');
+    console.error('[AI Engine:Gemini] GEMINI_API_KEY is not configured in environment variables.');
     return {
       reply: 'Maafi chahte hain, AI service abhi temporarily unavailable hai. Thodi der baad dobara try karein, ya seedha call karein: 0336-2438422',
       suggestions: [],
@@ -503,7 +717,7 @@ export async function generateAIResponseAsync(userMessage, conversationHistory =
 
         if (!res.ok) {
           const errText = await res.text();
-          console.error(`[AI Engine] Gemini ${modelName} HTTP ${res.status}:`, errText.slice(0, 200));
+          console.error(`[AI Engine:Gemini] Gemini ${modelName} HTTP ${res.status}:`, errText.slice(0, 200));
           break; // try next model
         }
 
@@ -529,10 +743,10 @@ export async function generateAIResponseAsync(userMessage, conversationHistory =
         const toolResultParts = [];
         for (const fcPart of functionCallParts) {
           const { name: toolName, args: toolArgs } = fcPart.functionCall;
-          console.log(`[AI Tool] Gemini calling: ${toolName}(${JSON.stringify(toolArgs).slice(0, 150)})`);
+          console.log(`[AI Tool:Gemini] Calling: ${toolName}(${JSON.stringify(toolArgs).slice(0, 150)})`);
 
           const toolResult = await executeToolCall(toolName, toolArgs || {}, customerPhone);
-          console.log(`[AI Tool] ${toolName} result:`, JSON.stringify(toolResult).slice(0, 200));
+          console.log(`[AI Tool:Gemini] ${toolName} result:`, JSON.stringify(toolResult).slice(0, 200));
 
           toolResultParts.push({
             functionResponse: {
@@ -543,11 +757,10 @@ export async function generateAIResponseAsync(userMessage, conversationHistory =
         }
 
         currentContents.push({ role: 'user', parts: toolResultParts });
-        // Continue agentic loop
       }
 
       if (finalReply && finalReply.length > 0) {
-        console.log(`[AI Engine] Gemini ${modelName} responded successfully (${finalReply.length} chars)`);
+        console.log(`[AI Engine:Gemini] ${modelName} responded successfully (${finalReply.length} chars)`);
         return {
           reply: finalReply,
           suggestions: ['🛒 Order Book Karna Hai', '💳 Payment Details', '🥟 Full Menu', '🛵 Delivery Areas'],
@@ -556,23 +769,41 @@ export async function generateAIResponseAsync(userMessage, conversationHistory =
       }
 
     } catch (err) {
-      // Check if it was an abort/timeout
       if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-        console.error(`[AI Engine] Gemini ${modelName} timed out after 30s`);
+        console.error(`[AI Engine:Gemini] Gemini ${modelName} timed out after 30s`);
       } else {
-        console.error(`[AI Engine] Gemini ${modelName} error:`, err.message);
+        console.error(`[AI Engine:Gemini] Gemini ${modelName} error:`, err.message);
       }
-      // Try next model
     }
   }
 
   // All Gemini models failed — return clean unavailable message
-  console.error('[AI Engine] All Gemini models failed. Returning service-unavailable message.');
+  console.error('[AI Engine] All AI models failed. Returning service-unavailable message.');
   return {
     reply: 'Maafi chahte hain, AI service abhi temporarily unavailable hai. Thodi der baad dobara try karein, ya seedha call karein: 0336-2438422 | 021-36625698',
     suggestions: [],
     action: null
   };
+}
+
+// ---------------------------------------------------------------------------
+// MAIN AI ENGINE ENTRYPOINT — Groq Primary (Super Fast) + Gemini Fallback
+// ---------------------------------------------------------------------------
+export async function generateAIResponseAsync(userMessage, conversationHistory = [], customerPhone = '', messageId = '') {
+  // 1. Try Groq first for lightning-fast sub-second response & massive free quota
+  if (process.env.GROQ_API_KEY) {
+    try {
+      const groqResult = await generateGroqResponseAsync(userMessage, conversationHistory, customerPhone, messageId);
+      if (groqResult && groqResult.reply) {
+        return groqResult;
+      }
+    } catch (err) {
+      console.warn('[AI Engine] Groq primary failed, falling back to Gemini:', err.message);
+    }
+  }
+
+  // 2. Fallback to Gemini if Groq is not configured or failed
+  return await generateGeminiResponseAsync(userMessage, conversationHistory, customerPhone, messageId);
 }
 
 // ---------------------------------------------------------------------------
