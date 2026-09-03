@@ -2,7 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import url, { fileURLToPath } from 'url';
-import { connectDB, isDBConnected } from './db.js';
+import { connectDB, isDBConnected, withTimeout } from './db.js';
 import { Product } from './models/Product.js';
 import { Order } from './models/Order.js';
 import { Setting } from './models/Setting.js';
@@ -82,24 +82,6 @@ function parseBody(req) {
         resolve({ raw: body });
       }
     });
-  });
-}
-
-// Helper to wrap promises with a maximum timeout (prevents database hangs)
-function withTimeout(promise, ms = 3000) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Operation timed out after ${ms}ms`));
-    }, ms);
-    promise
-      .then(res => {
-        clearTimeout(timer);
-        resolve(res);
-      })
-      .catch(err => {
-        clearTimeout(timer);
-        reject(err);
-      });
   });
 }
 
@@ -336,7 +318,7 @@ const server = http.createServer(async (req, res) => {
 
     if (isDBConnected()) {
       try {
-        const existing = await Product.findOne({ id }).lean();
+        const existing = await withTimeout(Product.findOne({ id }).lean(), 3000);
         const updatedProduct = {
           id: id,
           name: body.name !== undefined ? body.name : (existing ? existing.name : 'Item'),
@@ -427,7 +409,7 @@ const server = http.createServer(async (req, res) => {
     const ref = decodeURIComponent(pathname.replace('/api/orders/', ''));
     if (isDBConnected()) {
       try {
-        const dbOrder = await Order.findOne({ $or: [{ id: ref }, { orderRef: ref }] }, { _id: 0, __v: 0 }).lean();
+        const dbOrder = await withTimeout(Order.findOne({ $or: [{ id: ref }, { orderRef: ref }] }, { _id: 0, __v: 0 }).lean(), 3000);
         if (dbOrder) {
           return sendJson(res, 200, { success: true, order: dbOrder, source: 'mongodb' });
         }

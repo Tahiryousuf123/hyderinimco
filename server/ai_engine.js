@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { KNOWLEDGE_BASE_QA } from './knowledge_qa.js';
 import { Product } from './models/Product.js';
-import { isDBConnected } from './db.js';
+import { isDBConnected, withTimeout } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 export async function getLiveProducts() {
   if (isDBConnected()) {
     try {
-      const dbProducts = await Product.find({}, { _id: 0, __v: 0 }).lean();
+      const dbProducts = await withTimeout(Product.find({}, { _id: 0, __v: 0 }).lean(), 3000);
       if (dbProducts && dbProducts.length > 0) {
         return dbProducts;
       }
