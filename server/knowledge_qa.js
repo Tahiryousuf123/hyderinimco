@@ -35,6 +35,23 @@ export const KNOWLEDGE_BASE_QA = [
     "answer": "Walaikum Assalam bhai! New Hyderi Nimco & Frozen Foods (Since 1970) me welcome! 🥟✨\n\nHamari taraf se aapki kya khidmat kar sakte hain? Aapko kya chahiye?\n\nAap mujh se:\n• 🥟 *Menu & Rates:* Samosay, Rolls, Kababs, Pizzas ya Nimco ke rates\n• 🛒 *Order:* Direct home delivery order book karwana\n• 💵 *Payment:* Cash on Delivery (COD) ya EasyPaisa / Meezan Bank\n• 🎁 *Party & Dawat:* Bulk discount aur guests estimation\n• 🛵 *Free Delivery:* Rs. 5,000 par poore Karachi me Free Delivery\n\njo bhi chahein pooch sakte hain! Bataiye hum aapki kaise madad kar sakte hain ya aapko kya chahiye?"
   },
   {
+    "category": "owner_info",
+    "patterns": [
+      "arsalan",
+      "arsalan bhai",
+      "arsalan bhai ki shop hai",
+      "arsalan ki shop",
+      "arsalan bhai hain",
+      "arsalan sahib",
+      "owner kon hai",
+      "dukandar kon hai",
+      "shop owner",
+      "arsalan arsalan",
+      "arsalan bhai ki dukan"
+    ],
+    "answer": "Ji haan bilkul! 👑 Ye Arsalan Bhai ki hi official shop 'New Hyderi Nimco & Frozen Foods (Since 1970)' hai 🥟✨\n\n📍 *Address:* Shop # 20, 21, Burhani Bagh, Block-E, Hydri, North Nazimabad, Karachi.\n📞 *Helpline / WhatsApp:* 0336-2438422 / 0325-2747343\n💳 *EasyPaisa / Raast Title:* Arsalan Arsalan (0336-2438422)\n🏦 *Meezan Bank Title:* ARSALAN (01870100080247)\n\nArsalan Bhai ke direct supervision me hamare 100% zabiha halal, taaza aur hygenic frozen items daily tayar hote hain. Aapko kon se items (Samosa, Roll, Kabab, Nimco) chahiye? Mai abhi order book kar deta hoon!"
+  },
+  {
     "category": "order",
     "patterns": [
       "order karna hai",
