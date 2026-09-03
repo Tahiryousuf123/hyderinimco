@@ -284,17 +284,7 @@ const server = http.createServer(async (req, res) => {
       featured: body.featured === true || body.featured === 'true'
     };
 
-    if (isDBConnected()) {
-      try {
-        await Product.updateOne({ id: prodId }, { $set: newProduct }, { upsert: true });
-        console.log(`[MongoDB] Saved product ${prodId} (${newProduct.name}) to MongoDB Atlas`);
-        return sendJson(res, 200, { success: true, product: newProduct });
-      } catch (dbErr) {
-        console.error('[MongoDB] POST /api/products DB save error:', dbErr);
-      }
-    }
-
-    // Local JSON fallback if DB disconnected
+    // 1. ALWAYS write to local products.json first (Guarantees local fallback is 100% fresh)
     const products = readData('products.json', []);
     const existingIdx = products.findIndex(p => p.id === prodId);
     if (existingIdx !== -1) {
@@ -303,6 +293,16 @@ const server = http.createServer(async (req, res) => {
       products.unshift(newProduct);
     }
     writeData('products.json', products);
+
+    // 2. ALWAYS sync to MongoDB Atlas if connected
+    if (isDBConnected()) {
+      try {
+        await withTimeout(Product.updateOne({ id: prodId }, { $set: newProduct }, { upsert: true }), 3000);
+        console.log(`[MongoDB] Synced product ${prodId} (${newProduct.name}) to MongoDB Atlas`);
+      } catch (dbErr) {
+        console.error('[MongoDB] POST /api/products DB save error:', dbErr.message);
+      }
+    }
 
     return sendJson(res, 200, { success: true, product: newProduct });
   }
@@ -313,53 +313,29 @@ const server = http.createServer(async (req, res) => {
     const body = await parseBody(req);
 
     let finalImage = body.imageBase64 || body.image || body.imageUrl;
-
     const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : 'SAMOSA');
 
-    if (isDBConnected()) {
-      try {
-        const existing = await withTimeout(Product.findOne({ id }).lean(), 3000);
-        const updatedProduct = {
-          id: id,
-          name: body.name !== undefined ? body.name : (existing ? existing.name : 'Item'),
-          nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : (existing ? existing.nameUrdu : ''),
-          category: body.category !== undefined ? body.category : (existing ? existing.category : 'samosa'),
-          categoryLabel: catLabel,
-          packQuantity: body.packQuantity !== undefined ? body.packQuantity : (existing ? existing.packQuantity : '12 pcs'),
-          price: body.price !== undefined ? Number(body.price) : (existing ? existing.price : 0),
-          badge: body.badge !== undefined ? body.badge : (existing ? existing.badge : ''),
-          description: body.description !== undefined ? body.description : (existing ? existing.description : ''),
-          isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : (existing ? existing.isAvailable : true),
-          featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : (existing ? existing.featured : false),
-          image: finalImage || (existing ? existing.image : '')
-        };
-
-        await Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true });
-        console.log(`[MongoDB] Updated product ${id} (${updatedProduct.name}) in MongoDB Atlas`);
-        return sendJson(res, 200, { success: true, product: updatedProduct });
-      } catch (dbErr) {
-        console.error('[MongoDB] PUT /api/products DB error:', dbErr);
-      }
-    }
-
-    // Local JSON fallback
+    // 1. Read existing local product
     const products = readData('products.json', []);
     let idx = products.findIndex(p => p.id === id);
+    const existing = idx !== -1 ? products[idx] : null;
+
     const updatedProduct = {
       id: id,
-      name: body.name !== undefined ? body.name : (idx !== -1 ? products[idx].name : 'Item'),
-      nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : (idx !== -1 ? products[idx].nameUrdu : ''),
-      category: body.category !== undefined ? body.category : (idx !== -1 ? products[idx].category : 'samosa'),
+      name: body.name !== undefined ? body.name : (existing ? existing.name : 'Item'),
+      nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : (existing ? existing.nameUrdu : ''),
+      category: body.category !== undefined ? body.category : (existing ? existing.category : 'samosa'),
       categoryLabel: catLabel,
-      packQuantity: body.packQuantity !== undefined ? body.packQuantity : (idx !== -1 ? products[idx].packQuantity : '12 pcs'),
-      price: body.price !== undefined ? Number(body.price) : (idx !== -1 ? products[idx].price : 0),
-      badge: body.badge !== undefined ? body.badge : (idx !== -1 ? products[idx].badge : ''),
-      description: body.description !== undefined ? body.description : (idx !== -1 ? products[idx].description : ''),
-      isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : (idx !== -1 ? products[idx].isAvailable : true),
-      featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : (idx !== -1 ? products[idx].featured : false),
-      image: finalImage || (idx !== -1 ? products[idx].image : '')
+      packQuantity: body.packQuantity !== undefined ? body.packQuantity : (existing ? existing.packQuantity : '12 pcs'),
+      price: body.price !== undefined ? Number(body.price) : (existing ? existing.price : 0),
+      badge: body.badge !== undefined ? body.badge : (existing ? existing.badge : ''),
+      description: body.description !== undefined ? body.description : (existing ? existing.description : ''),
+      isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : (existing ? existing.isAvailable : true),
+      featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : (existing ? existing.featured : false),
+      image: finalImage || (existing ? existing.image : '')
     };
 
+    // 2. ALWAYS write to local products.json first
     if (idx !== -1) {
       products[idx] = updatedProduct;
     } else {
@@ -367,24 +343,38 @@ const server = http.createServer(async (req, res) => {
     }
     writeData('products.json', products);
 
+    // 3. ALWAYS sync to MongoDB Atlas if connected
+    if (isDBConnected()) {
+      try {
+        await withTimeout(Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true }), 3000);
+        console.log(`[MongoDB] Synced updated product ${id} (${updatedProduct.name}) to MongoDB Atlas`);
+      } catch (dbErr) {
+        console.error('[MongoDB] PUT /api/products DB error:', dbErr.message);
+      }
+    }
+
     return sendJson(res, 200, { success: true, product: updatedProduct });
   }
 
   // 7. DELETE /api/products/:id
   if (pathname.startsWith('/api/products/') && method === 'DELETE') {
     const id = pathname.replace('/api/products/', '');
-    if (isDBConnected()) {
-      try {
-        await Product.deleteOne({ id });
-        console.log(`[MongoDB] Deleted product ${id} from MongoDB Atlas`);
-        return sendJson(res, 200, { success: true, message: 'Product deleted' });
-      } catch (dbErr) {
-        console.error('[MongoDB] DELETE /api/products DB error:', dbErr);
-      }
-    }
+
+    // 1. ALWAYS delete from local products.json
     let products = readData('products.json', []);
     products = products.filter(p => p.id !== id);
     writeData('products.json', products);
+
+    // 2. ALWAYS delete from MongoDB Atlas if connected
+    if (isDBConnected()) {
+      try {
+        await withTimeout(Product.deleteOne({ id }), 3000);
+        console.log(`[MongoDB] Deleted product ${id} from MongoDB Atlas`);
+      } catch (dbErr) {
+        console.error('[MongoDB] DELETE /api/products DB error:', dbErr.message);
+      }
+    }
+
     return sendJson(res, 200, { success: true, message: 'Product deleted' });
   }
 
