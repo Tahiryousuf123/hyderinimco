@@ -368,7 +368,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       await executeDBQuery(
-        () => Setting.findOneAndUpdate({ key: 'store_config' }, { $set: { key: 'store_config', value: updated } }, { upsert: true, new: true }),
+        () => Setting.findOneAndUpdate({ key: 'store_config' }, { $set: { key: 'store_config', value: updated } }, { upsert: true, returnDocument: 'after' }),
         2,
         5000
       );
@@ -515,7 +515,7 @@ const server = http.createServer(async (req, res) => {
     try {
       // Atomic MongoDB write (Primary Source of Truth)
       const savedDoc = await executeDBQuery(
-        () => Product.findOneAndUpdate({ id: prodId }, { $set: newProductData }, { upsert: true, new: true, lean: true, projection: { _id: 0, __v: 0 } }),
+        () => Product.findOneAndUpdate({ id: prodId }, { $set: newProductData }, { upsert: true, returnDocument: 'after', lean: true, projection: { _id: 0, __v: 0 } }),
         2,
         15000
       );
@@ -570,7 +570,7 @@ const server = http.createServer(async (req, res) => {
     try {
       // Atomic MongoDB update strictly by ID
       const updatedDoc = await executeDBQuery(
-        () => Product.findOneAndUpdate({ id }, { $set: updateFields }, { new: true, lean: true, projection: { _id: 0, __v: 0 } }),
+        () => Product.findOneAndUpdate({ id }, { $set: updateFields }, { returnDocument: 'after', lean: true, projection: { _id: 0, __v: 0 } }),
         2,
         15000
       );
@@ -696,7 +696,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const savedOrder = await executeDBQuery(
-        () => Order.findOneAndUpdate({ id: orderId }, { $set: newOrder }, { upsert: true, new: true, lean: true, projection: { _id: 0, __v: 0 } }),
+        () => Order.findOneAndUpdate({ id: orderId }, { $set: newOrder }, { upsert: true, returnDocument: 'after', lean: true, projection: { _id: 0, __v: 0 } }),
         2,
         8000
       );
@@ -843,7 +843,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const updatedDoc = await executeDBQuery(
-        () => Order.findOneAndUpdate({ $or: [{ id }, { orderRef: id }] }, { $set: { status: body.status, updatedAt: now } }, { new: true, lean: true, projection: { _id: 0, __v: 0 } }),
+        () => Order.findOneAndUpdate({ $or: [{ id }, { orderRef: id }] }, { $set: { status: body.status, updatedAt: now } }, { returnDocument: 'after', lean: true, projection: { _id: 0, __v: 0 } }),
         2,
         8000
       );
