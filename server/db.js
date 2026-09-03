@@ -2,6 +2,13 @@ import mongoose from 'mongoose';
 
 let isConnected = false;
 let isConnecting = false;
+let lastDBErrorTime = 0;
+const DB_OFFLINE_COOLDOWN_MS = 60000; // 60s cooldown after error/timeout to avoid blocking requests
+
+export function markDBError() {
+  lastDBErrorTime = Date.now();
+  isConnected = false;
+}
 
 export async function connectDB() {
   const uri = process.env.MONGODB_URI;
@@ -23,24 +30,28 @@ export async function connectDB() {
     await mongoose.connect(uri, {
       maxPoolSize: 5,
       minPoolSize: 1,
-      serverSelectionTimeoutMS: 15000, // 15s for Render cold start network delay
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 5000, // 5s for fast failover
+      socketTimeoutMS: 15000,
       autoIndex: false,
     });
 
     isConnected = true;
     isConnecting = false;
+    lastDBErrorTime = 0; // reset error timer on clean connect
     console.log('[MongoDB] Successfully connected to MongoDB Atlas database!');
     return true;
   } catch (error) {
     console.error('[MongoDB] Connection error:', error.message);
-    isConnected = false;
+    markDBError();
     isConnecting = false;
     return false;
   }
 }
 
 export function isDBConnected() {
+  if (Date.now() - lastDBErrorTime < DB_OFFLINE_COOLDOWN_MS) {
+    return false;
+  }
   const ready = mongoose.connection.readyState === 1;
   if (!ready && !isConnecting) {
     isConnected = false;
@@ -53,7 +64,7 @@ export function isDBConnected() {
 
 // Auto-reconnect periodic check every 30s
 setInterval(() => {
-  if (process.env.MONGODB_URI && mongoose.connection.readyState !== 1 && !isConnecting) {
+  if (process.env.MONGODB_URI && mongoose.connection.readyState !== 1 && !isConnecting && (Date.now() - lastDBErrorTime >= DB_OFFLINE_COOLDOWN_MS)) {
     console.log('[MongoDB] Connection inactive. Attempting auto-reconnect...');
     connectDB().catch(() => {});
   }
@@ -62,6 +73,7 @@ setInterval(() => {
 export function withTimeout(promise, ms = 3000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
+      markDBError();
       reject(new Error(`Operation timed out after ${ms}ms`));
     }, ms);
     promise
@@ -71,9 +83,11 @@ export function withTimeout(promise, ms = 3000) {
       })
       .catch(err => {
         clearTimeout(timer);
+        markDBError();
         reject(err);
       });
   });
 }
+
 
 
