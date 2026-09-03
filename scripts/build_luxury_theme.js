@@ -3969,7 +3969,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         }
       };
 
-      // Product Add/Edit Form State
+      const [toastMsg, setToastMsg] = useState('');
       const [showAddProd, setShowAddProd] = useState(false);
       const [editProd, setEditProd] = useState(null);
       const [isSavingProd, setIsSavingProd] = useState(false);
@@ -4129,8 +4129,14 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
         const method = currentEditProd ? 'PUT' : 'POST';
 
-        let realImage = window._pendingUploadedImage || prodForm.imageBase64 || prodForm.image;
-        if ((!realImage || typeof realImage !== 'string' || realImage.includes('Custom File')) && currentEditProd) {
+        let realImage = '';
+        if (window._pendingUploadedImage) {
+          realImage = window._pendingUploadedImage;
+        } else if (prodForm.imageBase64 && prodForm.imageBase64.startsWith('data:image')) {
+          realImage = prodForm.imageBase64;
+        } else if (prodForm.image && !prodForm.image.includes('Custom File')) {
+          realImage = prodForm.image;
+        } else if (currentEditProd && currentEditProd.image) {
           realImage = currentEditProd.image;
         }
 
@@ -4158,6 +4164,9 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             return next;
           });
         }
+
+        setToastMsg(currentEditProd ? '✅ Product details & picture updated successfully!' : '✅ New product & picture added successfully!');
+        setTimeout(() => setToastMsg(''), 4500);
 
         try {
           fetch(url, {
@@ -4337,7 +4346,13 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               </div>
             ) : (
               /* Authenticated Portal Interface */
-              <div className="flex-1 flex flex-col overflow-hidden bg-parchment-100">
+              <div className="flex-1 flex flex-col overflow-hidden bg-parchment-100 relative">
+                {toastMsg && (
+                  <div className="fixed top-5 right-5 z-[99999] bg-emeraldBrand-950 text-goldBrand-200 px-5 py-3 rounded-2xl shadow-2xl font-black text-xs sm:text-sm border-2 border-goldBrand-400 flex items-center gap-2 animate-bounce">
+                    <span>✨</span>
+                    <span>{toastMsg}</span>
+                  </div>
+                )}
                 
                 {/* Navigation Tabs */}
                 <div className="bg-white border-b border-goldBrand-400/40 px-4 sm:px-6 py-2.5 flex justify-between items-center flex-wrap gap-2 shrink-0">
@@ -4633,6 +4648,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                           <div className="flex justify-between items-center pt-2 border-t text-xs">
                             <button
                               onClick={() => {
+                                window._pendingUploadedImage = null;
                                 setEditProd(p);
                                 setProdForm(p);
                                 setShowAddProd(true);
