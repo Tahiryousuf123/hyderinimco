@@ -4736,7 +4736,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
                   {/* 4. WHATSAPP AI AUTO-RESPONDER & SIMULATOR */}
                   {tab === 'whatsapp' && (
