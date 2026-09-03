@@ -1520,16 +1520,17 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         </div>
       );
     }
-    function App() {
 
-    const getApiBase = () => {
+    function getApiBase() {
       if (typeof window === 'undefined') return '';
       const host = window.location.hostname;
       if (host.includes('github.io') || host.includes('hyderinimco-frozen.com')) {
         return 'https://hyderinimco.onrender.com';
       }
       return '';
-    };
+    }
+
+    function App() {
 
       const [lang, setLang] = useState('en'); // 'en' | 'ur'
       const [products, setProducts] = useState(() => {
