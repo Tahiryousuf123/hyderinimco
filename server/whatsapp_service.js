@@ -221,6 +221,7 @@ export async function startWhatsAppService() {
         if (!text.trim()) continue;
 
         const customerPhone = remoteJid.split('@')[0];
+        const messageId = msg.key.id || '';
         console.log(`📩 [WhatsApp AI] Received message from ${customerPhone}: "${text}"`);
 
         // Record active conversation timestamp for 3-Hour AI Follow-Up Engine
@@ -238,9 +239,17 @@ export async function startWhatsAppService() {
         }
 
         try {
-          // Generate Intelligent Response via Hyderi AI Knowledge Engine (Google Gemini 3.6 Flash)
-          const aiResponse = await handleWhatsAppIncoming(customerPhone, text);
-          const replyText = aiResponse?.message || 'Assalam o Alaikum! Hyderi Nimco & Frozen me khushamdeed.';
+          // Generate Intelligent Response via Gemini AI Agent (function calling + MongoDB tools)
+          const aiResponse = await handleWhatsAppIncoming(customerPhone, text, messageId);
+
+          // Skip sending if duplicate message was detected
+          if (aiResponse._duplicate) {
+            console.log(`⚡ [WhatsApp AI] Duplicate message skipped for ${customerPhone}`);
+            continue;
+          }
+
+          const replyText = aiResponse?.message || '';
+          if (!replyText) continue;
 
           // Send auto-reply back to the customer on WhatsApp
           await sock.sendMessage(remoteJid, { text: replyText });

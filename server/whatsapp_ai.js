@@ -1,88 +1,160 @@
-// WhatsApp AI Auto-Responder Engine for New Hyderi Nimco & Frozen
-// Keyed by normalized customer phone number (0092/923xx) with max 20 messages memory limit
+/**
+ * WhatsApp AI Message Handler — New Hyderi Nimco & Frozen
+ *
+ * Per-customer state isolation:
+ *   conversationStore: Map<phone, Message[]>   — last 20 messages
+ *   processedMsgIds:   Map<phone, Set<msgId>>  — idempotency (dedup)
+ *
+ * All state is keyed by normalized phone number.
+ * Customer A and Customer B NEVER share state.
+ */
 
 import { generateAIResponseAsync } from './ai_engine.js';
 
-// In-memory conversation store keyed by customer phone number
+// ---------------------------------------------------------------------------
+// PER-CUSTOMER STORES — all keyed by normalized phone number
+// ---------------------------------------------------------------------------
+
+/** Conversation history: Map<phone, Array<{sender, text, timestamp}>> */
 const conversationStore = new Map();
 
 /**
- * Get last 20 messages for a given customer phone number
+ * Processed message ID set for idempotency.
+ * Map<phone, Set<messageId>> — prevents processing the same WhatsApp message twice.
  */
-export function getCustomerHistory(phone) {
-  const cleanPhone = (phone || '').toString().replace(/[^0-9]/g, '');
-  if (!cleanPhone) return [];
-  return conversationStore.get(cleanPhone) || [];
+const processedMsgIds = new Map();
+
+const MAX_HISTORY = 20;
+const MAX_PROCESSED_IDS = 50;
+
+// ---------------------------------------------------------------------------
+// HELPERS
+// ---------------------------------------------------------------------------
+function normalizePhone(phone) {
+  return (phone || '').toString().replace(/[^0-9]/g, '');
 }
 
-/**
- * Save a message (user or assistant) into customer history
- */
-export function saveCustomerMessage(phone, sender, text) {
-  const cleanPhone = (phone || '').toString().replace(/[^0-9]/g, '');
-  if (!cleanPhone || !text) return;
+export function getCustomerHistory(phone) {
+  const p = normalizePhone(phone);
+  return p ? (conversationStore.get(p) || []) : [];
+}
 
-  const history = conversationStore.get(cleanPhone) || [];
+export function saveCustomerMessage(phone, sender, text) {
+  const p = normalizePhone(phone);
+  if (!p || !text) return;
+
+  const history = conversationStore.get(p) || [];
   history.push({
     sender: sender === 'user' ? 'user' : 'assistant',
     text: String(text).trim(),
     timestamp: new Date().toISOString()
   });
 
-  // Limit conversation history to last 20 messages to keep prompts efficient
-  if (history.length > 20) {
-    history.splice(0, history.length - 20);
-  }
-
-  conversationStore.set(cleanPhone, history);
+  // Keep only last 20 messages
+  if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
+  conversationStore.set(p, history);
 }
 
-/**
- * Clear customer history upon request or order completion
- */
 export function clearCustomerHistory(phone) {
-  const cleanPhone = (phone || '').toString().replace(/[^0-9]/g, '');
-  if (cleanPhone) {
-    conversationStore.delete(cleanPhone);
+  const p = normalizePhone(phone);
+  if (p) {
+    conversationStore.delete(p);
+    processedMsgIds.delete(p);
   }
 }
 
 /**
- * Main incoming WhatsApp message handler
+ * Idempotency check.
+ * Returns true if this messageId has already been processed for this phone.
+ * Automatically records the ID if it is new.
  */
-export async function handleWhatsAppIncoming(from, messageText) {
-  const cleanFrom = (from || '').toString().replace(/[^0-9]/g, '');
+function isDuplicateMessage(phone, messageId) {
+  if (!messageId) return false; // No ID = cannot dedup, allow through
+  const p = normalizePhone(phone);
+  if (!p) return false;
+
+  const ids = processedMsgIds.get(p) || new Set();
+
+  if (ids.has(messageId)) {
+    console.warn(`[WhatsApp AI] Duplicate message ignored: phone=${p} msgId=${messageId}`);
+    return true;
+  }
+
+  // Record this ID
+  ids.add(messageId);
+
+  // FIFO eviction — keep max 50 IDs
+  if (ids.size > MAX_PROCESSED_IDS) {
+    const oldest = ids.values().next().value;
+    ids.delete(oldest);
+  }
+
+  processedMsgIds.set(p, ids);
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// MAIN HANDLER
+// ---------------------------------------------------------------------------
+/**
+ * Handle an incoming WhatsApp message for a customer.
+ *
+ * @param {string} from        - Customer phone (raw JID or number)
+ * @param {string} messageText - The customer's text
+ * @param {string} messageId   - Unique Baileys message ID (for idempotency)
+ * @returns {Promise<{ recipient, message, suggestions, action, timestamp }>}
+ */
+export async function handleWhatsAppIncoming(from, messageText, messageId = '') {
+  const cleanFrom = normalizePhone(from);
   const rawMsg = (messageText || '').trim();
 
   if (!rawMsg) {
-    return { recipient: cleanFrom, message: '', suggestedOptions: [], action: null };
+    return { recipient: cleanFrom, message: '', suggestions: [], action: null };
   }
 
-  // 1. Retrieve customer's conversation history
+  // --- Idempotency guard ---
+  if (isDuplicateMessage(cleanFrom, messageId)) {
+    return { recipient: cleanFrom, message: '', suggestions: [], action: null, _duplicate: true };
+  }
+
+  // 1. Load customer's conversation history
   const history = getCustomerHistory(cleanFrom);
 
-  // 2. Save customer message to history
+  // 2. Save the incoming customer message
   saveCustomerMessage(cleanFrom, 'user', rawMsg);
 
-  // 3. Generate response using AI engine (Gemini Flash + MongoDB + Context History)
-  const aiResult = await generateAIResponseAsync(rawMsg, history);
-
-  let whatsappFormatted = aiResult.reply || 'Wa Alaikum Assalam! Hyderi Nimco & Frozen me khushamdeed.';
-
-  // 4. Append WhatsApp footer branding ONCE if not already present
-  const footerMarker = 'NEW HYDERI NIMCO & FROZEN';
-  if (!whatsappFormatted.includes(footerMarker)) {
-    whatsappFormatted += `\n\n━━━━━━━━━━━━━━━━━━━━\n🥟 *NEW HYDERI NIMCO & FROZEN*\n📍 _Shop # 20-21, Burhani Bagh, Block-E, Hydri, Karachi_\n🌐 Order Online: https://hyderinimco-frozen.com\n📞 0336-2438422 | 0325-2747343 | 021-36625698`;
+  let aiResult;
+  try {
+    // 3. Call Gemini AI agent (function-calling, MongoDB-backed)
+    aiResult = await generateAIResponseAsync(rawMsg, history, cleanFrom, messageId);
+  } catch (err) {
+    console.error(`[WhatsApp AI] Unexpected error in generateAIResponseAsync for ${cleanFrom}:`, err.message);
+    aiResult = {
+      reply: 'Maafi chahte hain, abhi ek masla aa gaya hai. Thodi der baad dobara try karein ya call karein: 0336-2438422',
+      suggestions: [],
+      action: null
+    };
   }
 
-  // 5. Save AI assistant reply to customer history
-  saveCustomerMessage(cleanFrom, 'assistant', aiResult.reply);
+  const replyText = aiResult.reply || '';
+
+  // 4. Append WhatsApp footer branding (once, if not already present)
+  let whatsappFormatted = replyText;
+  const footerMarker = 'NEW HYDERI NIMCO';
+  if (replyText.length > 0 && !whatsappFormatted.includes(footerMarker)) {
+    whatsappFormatted += `\n\n━━━━━━━━━━━━━━━━━━━━\n🥟 *NEW HYDERI NIMCO & FROZEN*\n📍 _Shop # 20-21, Burhani Bagh, Block-E, Hydri, Karachi_\n🌐 https://hyderinimco-frozen.com\n📞 0336-2438422 | 0325-2747343 | 021-36625698`;
+  }
+
+  // 5. Save AI reply to history
+  if (replyText.length > 0) {
+    saveCustomerMessage(cleanFrom, 'assistant', replyText);
+  }
 
   return {
     recipient: cleanFrom,
     message: whatsappFormatted,
-    suggestedOptions: aiResult.suggestions || [],
-    action: aiResult.action,
+    suggestions: aiResult.suggestions || [],
+    action: aiResult.action || null,
     timestamp: new Date().toISOString()
   };
 }

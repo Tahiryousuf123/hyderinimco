@@ -4,3 +4,7 @@ dist/
 .DS_Store
 Thumbs.db
 server/auth_baileys/
+*.rar
+*.zip
+*.tar.gz
+*.bak
