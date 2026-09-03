@@ -261,12 +261,7 @@ const server = http.createServer(async (req, res) => {
     let imageUrl = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
     const rawImg = body.imageBase64 || body.image || body.imageUrl;
     if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
-      if (rawImg.startsWith('data:image')) {
-        const saved = saveBase64Image(rawImg);
-        imageUrl = saved || rawImg;
-      } else {
-        imageUrl = rawImg;
-      }
+      imageUrl = rawImg;
     }
 
     const prodId = body.id || ('prod-' + Date.now());
@@ -318,10 +313,6 @@ const server = http.createServer(async (req, res) => {
     const body = await parseBody(req);
 
     let finalImage = body.imageBase64 || body.image || body.imageUrl;
-    if (finalImage && typeof finalImage === 'string' && finalImage.startsWith('data:image')) {
-      const saved = saveBase64Image(finalImage);
-      finalImage = saved || finalImage;
-    }
 
     const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : 'SAMOSA');
 
