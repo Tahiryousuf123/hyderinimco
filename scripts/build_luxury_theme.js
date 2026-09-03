@@ -1971,7 +1971,11 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                     onClick={() => {
                       setActiveCategory(cat.id);
                       setSearchQuery('');
-                      document.getElementById('menu-view')?.scrollIntoView({ behavior: 'smooth' });
+                      setTimeout(() => {
+                        const targetId = (cat.id === 'all' || cat.id === 'deals') ? 'menu-view' : 'catalog-items';
+                        const el = document.getElementById(targetId) || document.getElementById('menu-view');
+                        el?.scrollIntoView({ behavior: 'smooth' });
+                      }, 50);
                     }}
                     className={"flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 border cursor-pointer " + (
                       activeCategory === cat.id && !searchQuery
@@ -2076,7 +2080,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
           {/* Main Content Area: Menu Catalog */}
           <main id="menu-view" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-            {/* Dedicated Super Saver Deals Showcase Hero Section */}
+            {/* Dedicated Super Saver Deals Showcase Hero Section (Only shown when ALL or DEALS category selected) */}
+            {(activeCategory === 'all' || activeCategory === 'deals') && (
             <section className="mb-12 bg-gradient-to-br from-emeraldBrand-950 via-emeraldBrand-900 to-emeraldBrand-950 rounded-3xl p-5 sm:p-8 border-2 border-goldBrand-400 shadow-2xl relative overflow-hidden">
               {/* Decorative Metallic Background Elements */}
               <div className="absolute top-0 right-0 w-96 h-96 bg-goldBrand-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -2252,11 +2257,11 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               </div>
             </div>
             </section>
-
+            )}
 
             
             {/* Catalog Section Header */}
-            <div className="text-center space-y-2 mb-6">
+            <div id="catalog-items" className="text-center space-y-2 mb-6 scroll-mt-24">
               <div className="inline-flex items-center justify-center gap-2 text-goldBrand-700 font-bold text-sm">
                 <span>❦</span>
                 <span className="uppercase tracking-widest text-xs">{isUrdu ? 'تازہ تیار شدہ بروشر مینو' : 'Official Brochure Menu'}</span>
