@@ -21,6 +21,16 @@ function invalidateProductsCache() {
   productCacheTime = 0;
 }
 
+// In-memory settings cache (60-second TTL) — prevents hammering MongoDB on every storefront load
+let settingsCache = null;
+let settingsCacheTime = 0;
+const SETTINGS_CACHE_TTL = 60000; // 60 seconds
+
+function invalidateSettingsCache() {
+  settingsCache = null;
+  settingsCacheTime = 0;
+}
+
 /**
  * Automatically cleanses bloated legacy Base64 images in MongoDB Atlas to lightweight static paths.
  * Queries ONLY product IDs to avoid streaming megabytes over the network.
@@ -429,13 +439,26 @@ const server = http.createServer(async (req, res) => {
 
   // 1. GET /api/settings
   if (pathname === '/api/settings' && method === 'GET') {
+    // Serve from in-memory cache if fresh (avoids repeated Atlas roundtrips on every storefront load)
+    if (settingsCache && (Date.now() - settingsCacheTime < SETTINGS_CACHE_TTL)) {
+      const { adminPassword, adminPin, superAdmin, manager, ...publicSettings } = settingsCache;
+      return sendJson(res, 200, { success: true, settings: publicSettings, _cache: true });
+    }
+
     let settings = readData('settings.json', {});
     if (isDBConnected()) {
       try {
-        const dbSettings = await executeDBQuery(() => Setting.findOne({ key: 'store_config' }, { _id: 0, __v: 0 }).lean(), 2, 4000);
-        if (dbSettings?.value && typeof dbSettings.value === 'object') { settings = dbSettings.value; writeData('settings.json', settings); }
+        const dbSettings = await executeDBQuery(() => Setting.findOne({ key: 'store_config' }, { _id: 0, __v: 0 }).lean(), 2, 12000);
+        if (dbSettings?.value && typeof dbSettings.value === 'object') {
+          settings = dbSettings.value;
+          writeData('settings.json', settings);
+        }
       } catch (e) { console.warn('[MongoDB] GET /api/settings fallback to local:', e.message); }
     }
+    // Cache the result
+    settingsCache = settings;
+    settingsCacheTime = Date.now();
+
     const { adminPassword, adminPin, superAdmin, manager, ...publicSettings } = settings;
     return sendJson(res, 200, { success: true, settings: publicSettings });
   }
@@ -511,8 +534,11 @@ const server = http.createServer(async (req, res) => {
       await executeDBQuery(
         () => Setting.findOneAndUpdate({ key: 'store_config' }, { $set: { key: 'store_config', value: updated } }, { upsert: true, returnDocument: 'after' }),
         2,
-        5000
+        12000
       );
+      // Immediately update in-memory settings cache so next GET returns fresh data
+      settingsCache = updated;
+      settingsCacheTime = Date.now();
       console.log('[MongoDB Authoritative] Updated store settings in MongoDB Atlas');
       return sendJson(res, 200, { success: true, message: 'Settings updated successfully in MongoDB', settings: updated });
     } catch (e) {

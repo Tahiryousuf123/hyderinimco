@@ -103,9 +103,9 @@ export async function connectDB() {
 
       await mongoose.connect(uri, {
         dbName: dbName,
-        maxPoolSize: 10,
-        minPoolSize: 1,
-        serverSelectionTimeoutMS: 10000,
+        maxPoolSize: 50,
+        minPoolSize: 5,
+        serverSelectionTimeoutMS: 15000,
         socketTimeoutMS: 45000,
         connectTimeoutMS: 15000,
         heartbeatFrequencyMS: 10000,
