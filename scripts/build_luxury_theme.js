@@ -4134,7 +4134,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         e.preventDefault();
         const currentEditProd = editProd;
         const targetId = currentEditProd ? currentEditProd.id : 'prod-' + Date.now();
-        const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
+        const url = getApiBase() + (currentEditProd ? '/api/products/' + targetId : '/api/products');
         const method = currentEditProd ? 'PUT' : 'POST';
 
         let realImage = '';
@@ -4188,7 +4188,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const handleDeleteProduct = async (id) => {
         if (!confirm('Delete this item?')) return;
         try {
-          await fetch(\`/api/products/\${id}\`, { method: 'DELETE' });
+          await fetch(getApiBase() + \`/api/products/\${id}\`, { method: 'DELETE' });
           onRefreshProducts();
         } catch (e) {}
       };
