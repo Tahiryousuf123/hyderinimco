@@ -521,54 +521,11 @@ const server = http.createServer(async (req, res) => {
       else local.unshift(updatedDoc);
       writeData('products.json', local);
 
-<<<<<<< HEAD
-    const updatedProduct = {
-      id: id,
-      name: body.name !== undefined ? body.name : (existing ? existing.name : 'Item'),
-      nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : (existing ? existing.nameUrdu : ''),
-      category: body.category !== undefined ? body.category : (existing ? existing.category : 'samosa'),
-      categoryLabel: catLabel,
-      packQuantity: body.packQuantity !== undefined ? body.packQuantity : (existing ? existing.packQuantity : '12 pcs'),
-      price: body.price !== undefined ? Number(body.price) : (existing ? existing.price : 0),
-      badge: body.badge !== undefined ? body.badge : (existing ? existing.badge : ''),
-      description: body.description !== undefined ? body.description : (existing ? existing.description : ''),
-      isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : (existing ? existing.isAvailable : true),
-      featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : (existing ? existing.featured : false),
-      image: finalImage || (existing ? existing.image : '')
-    };
-
-    try {
-      // Step 1: Write to MongoDB Atlas (Authoritative Source of Truth) with retries
-      await executeDBQuery(() => Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true }), 3, 15000);
-      
-      // Step 2: Verify write in MongoDB Atlas
-      const verified = await executeDBQuery(() => Product.findOne({ id }, { _id: 0, __v: 0 }).lean(), 3, 10000);
-      if (!verified || (finalImage && verified.image !== finalImage)) {
-        throw new Error('Verification read-back failed in MongoDB Atlas');
-      }
-
-      // Step 3: Update local products.json cache only after verified DB write
-      const products = readData('products.json', []);
-      const idx = products.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        products[idx] = verified;
-      } else {
-        products.unshift(verified);
-      }
-      writeData('products.json', products);
-
-      console.log(`[Production Verified] Updated product ${id} (${verified.name}) in MongoDB Atlas`);
-      return sendJson(res, 200, { success: true, product: verified, source: 'mongodb' });
-    } catch (dbErr) {
-      console.error('[MongoDB Error] PUT /api/products failed to update in MongoDB Atlas:', dbErr.message);
-      return sendJson(res, 500, { success: false, error: `Production update failed: MongoDB Atlas write error: ${dbErr.message}` });
-=======
       console.log(`[MongoDB Authoritative] Updated product ${id} (${updatedDoc.name})`);
       return sendJson(res, 200, { success: true, product: updatedDoc, source: 'mongodb' });
     } catch (err) {
       console.error('[MongoDB Error] PUT /api/products/:id failed:', err.message);
       return sendJson(res, 500, { success: false, error: `MongoDB update failed: ${err.message}` });
->>>>>>> 1671b7f (Enforce MongoDB single source of truth, optimize payload to lightweight images, and add memory cache accelerator)
     }
   }
 

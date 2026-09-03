@@ -81,15 +81,11 @@ reconnectTimer.unref?.();
 /**
  * Robust DB Query Executor with Automatic Retry Loop and Backoff
  */
-<<<<<<< HEAD
-export async function executeDBQuery(queryFn, maxRetries = 3, timeoutMs = 15000) {
-=======
 export async function executeDBQuery(queryFn, maxRetries = 2, timeoutMs = 15000) {
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI environment variable is not defined.');
   }
 
->>>>>>> 1671b7f (Enforce MongoDB single source of truth, optimize payload to lightweight images, and add memory cache accelerator)
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -110,11 +106,7 @@ export async function executeDBQuery(queryFn, maxRetries = 2, timeoutMs = 15000)
       lastError = err;
       console.warn(`[MongoDB] Query attempt ${attempt}/${maxRetries} failed: ${err.message}`);
       if (attempt < maxRetries) {
-<<<<<<< HEAD
-        await new Promise(res => setTimeout(res, attempt * 1000)); // 1s backoff delay
-=======
-        await new Promise(res => setTimeout(res, attempt * 400)); // Exponential backoff delay
->>>>>>> 1671b7f (Enforce MongoDB single source of truth, optimize payload to lightweight images, and add memory cache accelerator)
+        await new Promise(res => setTimeout(res, attempt * 500)); // Exponential backoff delay
       }
     }
   }
