@@ -4629,7 +4629,75 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
                   {/* 3. MENU CATALOG */}
                   {tab === 'products' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="space-y-4">
+                      {/* Catalog Backup & Recovery Utility Bar */}
+                      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-goldBrand-400/40 shadow-xs flex justify-between items-center flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">📦</span>
+                          <div>
+                            <h4 className="font-bold text-xs text-emeraldBrand-950">Menu Catalog Database Safety</h4>
+                            <p className="text-[10px] text-gray-500">Backup your catalog JSON or restore anytime in 1 click.</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => {
+                              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
+                              const dlAnchorElem = document.createElement('a');
+                              dlAnchorElem.setAttribute("href", dataStr);
+                              dlAnchorElem.setAttribute("download", "hyderi_catalog_backup_" + Date.now() + ".json");
+                              document.body.appendChild(dlAnchorElem);
+                              dlAnchorElem.click();
+                              dlAnchorElem.remove();
+                              setToastMsg('📥 Catalog Backup JSON Downloaded!');
+                              setTimeout(() => setToastMsg(''), 4000);
+                            }}
+                            className="bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 border border-goldBrand-400 shadow-xs transition-all active:scale-95 cursor-pointer"
+                          >
+                            <span>📥</span>
+                            <span>Download Catalog Backup (JSON)</span>
+                          </button>
+
+                          <label className="bg-parchment-100 hover:bg-parchment-200 text-emeraldBrand-950 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 border border-goldBrand-400/60 shadow-xs cursor-pointer transition-all active:scale-95">
+                            <span>📤</span>
+                            <span>Restore Catalog JSON</span>
+                            <input
+                              type="file"
+                              accept=".json"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  try {
+                                    const restored = JSON.parse(event.target.result);
+                                    if (Array.isArray(restored) && restored.length > 0) {
+                                      setProducts(restored);
+                                      try { localStorage.setItem('hyderi_custom_products', JSON.stringify(restored)); } catch (err) {}
+                                      fetch(getApiBase() + '/api/products/batch', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ products: restored })
+                                      }).catch(() => {});
+                                      setToastMsg('✅ Catalog restored successfully with ' + restored.length + ' items!');
+                                      setTimeout(() => setToastMsg(''), 4500);
+                                    } else {
+                                      alert('Invalid catalog JSON file structure.');
+                                    }
+                                  } catch (err) {
+                                    alert('Failed to parse catalog JSON file.');
+                                  }
+                                };
+                                reader.readAsText(file);
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                       {products.map(p => (
                         <div key={p.id} className="bg-white rounded-3xl border border-goldBrand-400/40 p-3 flex flex-col justify-between text-xs space-y-2.5 shadow-xs">
                           <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-parchment-200">
