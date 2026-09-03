@@ -67,12 +67,11 @@ async function migrateExistingImagesToMongoDB() {
     if (!products || products.length === 0) return;
 
     let migrated = 0;
-    const targetProductIds = ['special-13', 'special-14', 'special-15', 'special-12', 'special-6'];
     for (const prod of products) {
-      const isTargetProduct = targetProductIds.includes(prod.id);
-      // Check if product already has an image stored in ProductImage collection
+      // Check if product already has an image stored in ProductImage collection in MongoDB Atlas
+      // NEVER overwrite existing images in Atlas! MongoDB is the single source of truth.
       const existingImg = await ProductImage.findOne({ productId: prod.id }, { _id: 1 }).lean();
-      if (existingImg && !isTargetProduct) {
+      if (existingImg) {
         if (!prod.image || !prod.image.startsWith(`/api/products/${prod.id}/image`)) {
           await Product.updateOne({ id: prod.id }, { $set: { image: `/api/products/${prod.id}/image` } });
         }
