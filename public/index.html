@@ -3808,37 +3808,19 @@
           }
         } catch (err) {
           const lower = text.toLowerCase();
-          let replyText = 'وعلیکم السلام! نیو حیدری نمکو اینڈ فروزن فوڈز میں خوش آمدید 🥟✨
-
-🥟 **ہمارے خستہ سموسے:** Chicken Vonton (12 pcs) — Rs. 240/-, Aaloo One Bite (24 pcs) — Rs. 350/-, Chicken Cheese (24 pcs) — Rs. 500/-
-
-💳 **ادائیگی:** Meezan Bank, EasyPaisa, Raast pre-paid accepted.
-📍 **شاپ ایڈریس:** Shop # 20, 21, Burhani Bagh, North Nazimabad, Karachi.';
+          let replyText = 'وعلیکم السلام! نیو حیدری نمکو اینڈ فروزن فوڈز میں خوش آمدید 🥟✨\n\n🥟 **ہمارے خستہ سموسے:** Chicken Vonton (12 pcs) — Rs. 240/-, Aaloo One Bite (24 pcs) — Rs. 350/-, Chicken Cheese (24 pcs) — Rs. 500/-\n\n💳 **ادائیگی:** Meezan Bank, EasyPaisa, Raast pre-paid accepted.\n📍 **شاپ ایڈریس:** Shop # 20, 21, Burhani Bagh, North Nazimabad, Karachi.';
           let localAction = null;
 
           if (lower.includes('samosa') || lower.includes('سموسہ') || lower.includes('price') || lower.includes('ریٹ')) {
-            replyText = '🥟 **ہمارے مشہور خستہ سموسے:**
-• Chicken Vonton (12 pcs) — Rs. 240/-
-• Aaloo One Bite Samosa (24 pcs) — Rs. 350/-
-• Chicken One Bite Samosa (24 pcs) — Rs. 400/-
-• Chicken Cheese Crispy Samosa (24 pcs) — Rs. 500/-';
+            replyText = '🥟 **ہمارے مشہور خستہ سموسے:**\n• Chicken Vonton (12 pcs) — Rs. 240/-\n• Aaloo One Bite Samosa (24 pcs) — Rs. 350/-\n• Chicken One Bite Samosa (24 pcs) — Rs. 400/-\n• Chicken Cheese Crispy Samosa (24 pcs) — Rs. 500/-';
             localAction = 'filter_samosa';
           } else if (lower.includes('roll') || lower.includes('رول')) {
-            replyText = '🌯 **ہمارے ڈلیشیس اسپرنگ رولز:**
-• Chicken Spring Roll (24 pcs) — Rs. 500/-
-• Malai Boti Roll (12 pcs) — Rs. 500/-
-• Cheese One Bite Roll (24 pcs) — Rs. 450/-';
+            replyText = '🌯 **ہمارے ڈلیشیس اسپرنگ رولز:**\n• Chicken Spring Roll (24 pcs) — Rs. 500/-\n• Malai Boti Roll (12 pcs) — Rs. 500/-\n• Cheese One Bite Roll (24 pcs) — Rs. 450/-';
             localAction = 'filter_roll';
           } else if (lower.includes('pay') || lower.includes('bank') || lower.includes('easypaisa') || lower.includes('پیمنٹ')) {
-            replyText = '💳 **آن لائن بینکنگ و پیمنٹ میتھڈز:**
-• Meezan Bank (01010102030405)
-• EasyPaisa / Raast (0336-2438422)
-
-*آرڈر کی منتقلی پر سلپ واٹس ایپ کیجیے۔*';
+            replyText = '💳 **آن لائن بینکنگ و پیمنٹ میتھڈز:**\n• Meezan Bank (01010102030405)\n• EasyPaisa / Raast (0336-2438422)\n\n*آرڈر کی منتقلی پر سلپ واٹس ایپ کیجیے۔*';
           } else if (lower.includes('address') || lower.includes('location') || lower.includes('ایڈریس')) {
-            replyText = '📍 **نیو حیدری نمکو اینڈ فروزن فوڈز:**
-شاپ نمبر ۲۰، ۲۱، برہانی باغ بلڈنگ، بلاک E، نارتھ ناظم آباد، حیدری مارکیٹ، کراچی۔
-📞 0336-2438422 / 0325-2747343';
+            replyText = '📍 **نیو حیدری نمکو اینڈ فروزن فوڈز:**\nشاپ نمبر ۲۰، ۲۱، برہانی باغ بلڈنگ، بلاک E، نارتھ ناظم آباد، حیدری مارکیٹ، کراچی۔\n📞 0336-2438422 / 0325-2747343';
           }
 
           setMessages(prev => [
