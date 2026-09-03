@@ -2,9 +2,16 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import url, { fileURLToPath } from 'url';
+import { connectDB, isDBConnected } from './db.js';
+import { Product } from './models/Product.js';
+import { Order } from './models/Order.js';
+import { Setting } from './models/Setting.js';
 import { generateAIResponse, generateAIResponseAsync } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast } from './whatsapp_service.js';
+
+// Auto-connect to MongoDB Atlas at module load
+connectDB().catch(err => console.error('[MongoDB] Initial connection attempt error:', err));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -215,19 +222,38 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/products/batch' && method === 'POST') {
     const body = await parseBody(req);
     if (body.products && Array.isArray(body.products) && body.products.length > 0) {
+      if (isDBConnected()) {
+        try {
+          for (const prod of body.products) {
+            await Product.updateOne({ id: prod.id }, { $set: prod }, { upsert: true });
+          }
+        } catch (dbErr) {
+          console.error('[MongoDB] Batch product update error:', dbErr);
+        }
+      }
       writeData('products.json', body.products);
       return sendJson(res, 200, { success: true, count: body.products.length });
     }
     return sendJson(res, 400, { error: 'Invalid products array' });
   }
 
-  // 4. GET /api/products
+  // 4. GET /api/products (Primary Source of Truth: MongoDB Atlas)
   if (pathname === '/api/products' && method === 'GET') {
+    if (isDBConnected()) {
+      try {
+        const dbProducts = await Product.find({}, { _id: 0, __v: 0 }).lean();
+        if (dbProducts && dbProducts.length > 0) {
+          return sendJson(res, 200, { success: true, products: dbProducts, source: 'mongodb' });
+        }
+      } catch (dbErr) {
+        console.error('[MongoDB] GET /api/products error:', dbErr);
+      }
+    }
     const products = readData('products.json', []);
-    return sendJson(res, 200, { success: true, products });
+    return sendJson(res, 200, { success: true, products, source: 'local_json' });
   }
 
-  // 5. POST /api/products (Add product)
+  // 5. POST /api/products (Add / Save product)
   if (pathname === '/api/products' && method === 'POST') {
     const body = await parseBody(req);
     const products = readData('products.json', []);
@@ -237,9 +263,7 @@ const server = http.createServer(async (req, res) => {
     if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
       if (rawImg.startsWith('data:image')) {
         const saved = saveBase64Image(rawImg);
-        if (saved) {
-          imageUrl = saved;
-        }
+        imageUrl = saved || rawImg;
       } else {
         imageUrl = rawImg;
       }
@@ -265,14 +289,23 @@ const server = http.createServer(async (req, res) => {
       featured: body.featured === true || body.featured === 'true'
     };
 
+    if (isDBConnected()) {
+      try {
+        await Product.updateOne({ id: prodId }, { $set: newProduct }, { upsert: true });
+        console.log(`[MongoDB] Saved product ${prodId} (${newProduct.name}) to MongoDB Atlas`);
+      } catch (dbErr) {
+        console.error('[MongoDB] POST /api/products DB save error:', dbErr);
+      }
+    }
+
     const existingIdx = products.findIndex(p => p.id === prodId);
     if (existingIdx !== -1) {
       products[existingIdx] = newProduct;
     } else {
       products.unshift(newProduct);
     }
-
     writeData('products.json', products);
+
     return sendJson(res, 200, { success: true, product: newProduct });
   }
 
@@ -288,9 +321,7 @@ const server = http.createServer(async (req, res) => {
     if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
       if (rawImg.startsWith('data:image')) {
         const saved = saveBase64Image(rawImg);
-        if (saved) {
-          finalImage = saved;
-        }
+        finalImage = saved || rawImg;
       } else {
         finalImage = rawImg;
       }
@@ -298,50 +329,51 @@ const server = http.createServer(async (req, res) => {
 
     const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : (idx !== -1 ? products[idx].categoryLabel : 'SAMOSA'));
 
-    if (idx === -1) {
-      const newProduct = {
-        id: id,
-        name: body.name || 'New Item',
-        nameUrdu: body.nameUrdu || '',
-        category: body.category || 'samosa',
-        categoryLabel: catLabel,
-        packQuantity: body.packQuantity || '12 pcs',
-        price: Number(body.price) || 0,
-        rating: 5.0,
-        reviewCount: 1,
-        image: finalImage,
-        badge: body.badge || '',
-        description: body.description || '',
-        isAvailable: body.isAvailable !== false && body.isAvailable !== 'false',
-        featured: body.featured === true || body.featured === 'true'
-      };
-      products.unshift(newProduct);
-      writeData('products.json', products);
-      return sendJson(res, 200, { success: true, product: newProduct });
-    }
-
-    products[idx] = {
-      ...products[idx],
-      name: body.name !== undefined ? body.name : products[idx].name,
-      nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : products[idx].nameUrdu,
-      category: body.category !== undefined ? body.category : products[idx].category,
+    const updatedProduct = {
+      id: id,
+      name: body.name !== undefined ? body.name : (idx !== -1 ? products[idx].name : 'Item'),
+      nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : (idx !== -1 ? products[idx].nameUrdu : ''),
+      category: body.category !== undefined ? body.category : (idx !== -1 ? products[idx].category : 'samosa'),
       categoryLabel: catLabel,
-      packQuantity: body.packQuantity !== undefined ? body.packQuantity : products[idx].packQuantity,
-      price: body.price !== undefined ? Number(body.price) : products[idx].price,
-      badge: body.badge !== undefined ? body.badge : products[idx].badge,
-      description: body.description !== undefined ? body.description : products[idx].description,
-      isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : products[idx].isAvailable,
-      featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : products[idx].featured,
+      packQuantity: body.packQuantity !== undefined ? body.packQuantity : (idx !== -1 ? products[idx].packQuantity : '12 pcs'),
+      price: body.price !== undefined ? Number(body.price) : (idx !== -1 ? products[idx].price : 0),
+      badge: body.badge !== undefined ? body.badge : (idx !== -1 ? products[idx].badge : ''),
+      description: body.description !== undefined ? body.description : (idx !== -1 ? products[idx].description : ''),
+      isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : (idx !== -1 ? products[idx].isAvailable : true),
+      featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : (idx !== -1 ? products[idx].featured : false),
       image: finalImage
     };
 
+    if (isDBConnected()) {
+      try {
+        await Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true });
+        console.log(`[MongoDB] Updated product ${id} (${updatedProduct.name}) in MongoDB Atlas`);
+      } catch (dbErr) {
+        console.error('[MongoDB] PUT /api/products DB error:', dbErr);
+      }
+    }
+
+    if (idx !== -1) {
+      products[idx] = updatedProduct;
+    } else {
+      products.unshift(updatedProduct);
+    }
     writeData('products.json', products);
-    return sendJson(res, 200, { success: true, product: products[idx] });
+
+    return sendJson(res, 200, { success: true, product: updatedProduct });
   }
 
   // 7. DELETE /api/products/:id
   if (pathname.startsWith('/api/products/') && method === 'DELETE') {
     const id = pathname.replace('/api/products/', '');
+    if (isDBConnected()) {
+      try {
+        await Product.deleteOne({ id });
+        console.log(`[MongoDB] Deleted product ${id} from MongoDB Atlas`);
+      } catch (dbErr) {
+        console.error('[MongoDB] DELETE /api/products DB error:', dbErr);
+      }
+    }
     let products = readData('products.json', []);
     products = products.filter(p => p.id !== id);
     writeData('products.json', products);
@@ -350,13 +382,33 @@ const server = http.createServer(async (req, res) => {
 
   // 8. GET /api/orders
   if (pathname === '/api/orders' && method === 'GET') {
+    if (isDBConnected()) {
+      try {
+        const dbOrders = await Order.find({}, { _id: 0, __v: 0 }).sort({ createdAt: -1 }).lean();
+        if (dbOrders && dbOrders.length > 0) {
+          return sendJson(res, 200, { success: true, orders: dbOrders, source: 'mongodb' });
+        }
+      } catch (dbErr) {
+        console.error('[MongoDB] GET /api/orders error:', dbErr);
+      }
+    }
     const orders = readData('orders.json', []);
-    return sendJson(res, 200, { success: true, orders });
+    return sendJson(res, 200, { success: true, orders, source: 'local_json' });
   }
 
   // 9. GET /api/orders/:orderRef
   if (pathname.startsWith('/api/orders/') && !pathname.endsWith('/status') && method === 'GET') {
     const ref = decodeURIComponent(pathname.replace('/api/orders/', ''));
+    if (isDBConnected()) {
+      try {
+        const dbOrder = await Order.findOne({ $or: [{ id: ref }, { orderRef: ref }] }, { _id: 0, __v: 0 }).lean();
+        if (dbOrder) {
+          return sendJson(res, 200, { success: true, order: dbOrder, source: 'mongodb' });
+        }
+      } catch (dbErr) {
+        console.error('[MongoDB] GET /api/orders/:ref error:', dbErr);
+      }
+    }
     const orders = readData('orders.json', []);
     const order = orders.find(o => o.orderRef?.toLowerCase() === ref.toLowerCase() || o.id === ref);
     if (!order) {
@@ -365,7 +417,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true, order });
   }
 
-  // 10. POST /api/orders (Create pre-paid order)
+  // 10. POST /api/orders (Create order)
   if (pathname === '/api/orders' && method === 'POST') {
     const body = await parseBody(req);
     const orders = readData('orders.json', []);
@@ -377,9 +429,10 @@ const server = http.createServer(async (req, res) => {
 
     const orderDate = new Date();
     const orderRef = 'HYD-' + Math.floor(100000 + Math.random() * 900000);
+    const orderId = 'ord-' + Date.now();
 
     const newOrder = {
-      id: 'ord-' + Date.now(),
+      id: orderId,
       orderRef: orderRef,
       createdAt: orderDate.toISOString(),
       formattedDate: orderDate.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
@@ -398,6 +451,15 @@ const server = http.createServer(async (req, res) => {
       status: 'pending_verification',
       notes: body.notes || ''
     };
+
+    if (isDBConnected()) {
+      try {
+        await Order.updateOne({ id: orderId }, { $set: newOrder }, { upsert: true });
+        console.log(`[MongoDB] Created order ${orderRef} in MongoDB Atlas`);
+      } catch (dbErr) {
+        console.error('[MongoDB] POST /api/orders DB error:', dbErr);
+      }
+    }
 
     orders.unshift(newOrder);
     writeData('orders.json', orders);

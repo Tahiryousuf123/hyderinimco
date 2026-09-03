@@ -1,0 +1,50 @@
+{
+  "storeName": "HYDERI NIMCO & FROZEN",
+  "tagline": "Serving Fresh Since 1970",
+  "website": "https://hyderinimco-frozen.com",
+  "sloganUrdu": "نمکو بھی، فروزن بھی، معیار بھی، ذائقہ بھی",
+  "whatsapp": "923362438422",
+  "phone1": "0336-2438422",
+  "phone2": "0325-2747343",
+  "phone3": "021-36625698",
+  "ownerNotificationPhones": [
+    "923362438422",
+    "923252747343"
+  ],
+  "address": "Shop # 20, 21, Burhani Bagh, Block-E, Hydri, Karachi",
+  "deliveryFee": 150,
+  "freeDeliveryAbove": 5000,
+  "adminPin": "7860",
+  "adminPassword": "admin",
+  "superAdmin": {
+    "username": "developer",
+    "pin": "7860",
+    "password": "superadmin7860",
+    "label": "Super Admin (Developer Master Access)"
+  },
+  "manager": {
+    "username": "owner",
+    "pin": "1970",
+    "password": "hyderi1970",
+    "label": "Store Owner / Operations Manager"
+  },
+  "paymentAccounts": {
+    "cod": {
+      "name": "Cash on Delivery (COD)",
+      "titleUrdu": "کیش آن ڈیلیوری",
+      "instructions": "Raqam parcel milne par delivery rider ko naqad ada karein."
+    },
+    "bankTransfer": {
+      "bankName": "Meezan Bank",
+      "accountTitle": "ARSALAN",
+      "accountNumber": "01870100080247",
+      "instructions": "Meezan Bank ya kisi bhi bank app se Account 01870100080247 (Title: ARSALAN) par raqam transfer karein aur TID / slip upload karein."
+    },
+    "easypaisa": {
+      "accountTitle": "Arsalan Arsalan",
+      "accountNumber": "0336-2438422",
+      "instructions": "EasyPaisa App > Send Money > 03362438422 (Title: Arsalan Arsalan) par raqam bhejein aur TID / slip upload karein."
+    }
+  },
+  "announcement": "✨ FREE DELIVERY across North Nazimabad & Karachi on orders above Rs. 5,000! Freshly Prepared & Fast Chilled Delivery."
+}
