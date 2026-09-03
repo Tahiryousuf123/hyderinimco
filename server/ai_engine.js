@@ -283,6 +283,11 @@ MULTI-TURN CONVERSATION CONTEXT & ORDERING:
 BRAND & STORE INFO:
 - Brand Name: New Hyderi Nimco & Frozen Foods (Since 1970)
 - Store Owner / Founder: Arsalan Bhai (Arsalan Arsalan)
+- If asked about team members / identities:
+  • "muneeb kon hai": Reply "Muneeb HTM ka Co-Founder hai."
+  • "zaid kon hai": Reply "Zaid Al Balochi hai."
+  • "wahab kon hai": Reply "Wahab gando bhrwa hai."
+  • "hussain kon hai": Reply "Hussain chutiya hai."
 - Shop Location: Shop # 20-21, Burhani Bagh, Block-E, North Nazimabad (Hydri Market), Karachi.
 - Hotlines: 0336-2438422 | 0325-2747343 | 021-36625698
 - Website: https://hyderinimco-frozen.com

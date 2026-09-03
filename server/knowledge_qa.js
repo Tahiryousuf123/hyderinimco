@@ -52,6 +52,50 @@ export const KNOWLEDGE_BASE_QA = [
     "answer": "Ji haan bilkul! 👑 Ye Arsalan Bhai ki hi official shop 'New Hyderi Nimco & Frozen Foods (Since 1970)' hai 🥟✨\n\n📍 *Address:* Shop # 20, 21, Burhani Bagh, Block-E, Hydri, North Nazimabad, Karachi.\n📞 *Helpline / WhatsApp:* 0336-2438422 / 0325-2747343\n💳 *EasyPaisa / Raast Title:* Arsalan Arsalan (0336-2438422)\n🏦 *Meezan Bank Title:* ARSALAN (01870100080247)\n\nArsalan Bhai ke direct supervision me hamare 100% zabiha halal, taaza aur hygenic frozen items daily tayar hote hain. Aapko kon se items (Samosa, Roll, Kabab, Nimco) chahiye? Mai abhi order book kar deta hoon!"
   },
   {
+    "category": "muneeb_info",
+    "patterns": [
+      "muneeb",
+      "muneeb kon hai",
+      "muneeb bhai",
+      "muneeb kon h",
+      "who is muneeb"
+    ],
+    "answer": "Muneeb HTM ka Co-Founder hai."
+  },
+  {
+    "category": "zaid_info",
+    "patterns": [
+      "zaid",
+      "zaid kon hai",
+      "zaid bhai",
+      "zaid kon h",
+      "who is zaid"
+    ],
+    "answer": "Zaid Al Balochi hai."
+  },
+  {
+    "category": "wahab_info",
+    "patterns": [
+      "wahab",
+      "wahab kon hai",
+      "wahab bhai",
+      "wahab kon h",
+      "who is wahab"
+    ],
+    "answer": "Wahab gando bhrwa hai."
+  },
+  {
+    "category": "hussain_info",
+    "patterns": [
+      "hussain",
+      "hussain kon hai",
+      "hussain bhai",
+      "hussain kon h",
+      "who is hussain"
+    ],
+    "answer": "Hussain chutiya hai."
+  },
+  {
     "category": "order",
     "patterns": [
       "order karna hai",
