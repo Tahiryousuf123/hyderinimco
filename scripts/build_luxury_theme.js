@@ -3933,6 +3933,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           </form>
         </div>
       );
+    }
 
     // Enterprise Dual-Role Admin Portal (SuperAdmin & Store Owner with Sales Dashboard)
     function AdminPortal({ isOpen, products, setProducts, settings, onClose, onRefreshProducts, onRefreshSettings }) {
