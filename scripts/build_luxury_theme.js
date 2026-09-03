@@ -4649,14 +4649,18 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => {
-                              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
+                              const productsWithEmbeddedImages = products.map(p => ({
+                                ...p,
+                                image: (p.imageBase64 && p.imageBase64.startsWith('data:image')) ? p.imageBase64 : p.image
+                              }));
+                              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(productsWithEmbeddedImages, null, 2));
                               const dlAnchorElem = document.createElement('a');
                               dlAnchorElem.setAttribute("href", dataStr);
                               dlAnchorElem.setAttribute("download", "hyderi_catalog_backup_" + Date.now() + ".json");
                               document.body.appendChild(dlAnchorElem);
                               dlAnchorElem.click();
                               dlAnchorElem.remove();
-                              setToastMsg('📥 Catalog Backup JSON Downloaded!');
+                              setToastMsg('📥 Catalog Backup JSON (With HD Photos Embedded) Downloaded!');
                               setTimeout(() => setToastMsg(''), 4000);
                             }}
                             className="bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 border border-goldBrand-400 shadow-xs transition-all active:scale-95 cursor-pointer"
@@ -4680,14 +4684,18 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                                   try {
                                     const restored = JSON.parse(event.target.result);
                                     if (Array.isArray(restored) && restored.length > 0) {
-                                      setProducts(restored);
-                                      try { localStorage.setItem('hyderi_custom_products', JSON.stringify(restored)); } catch (err) {}
+                                      const sanitized = restored.map(p => ({
+                                        ...p,
+                                        imageBase64: (p.image && p.image.startsWith('data:image')) ? p.image : (p.imageBase64 || null)
+                                      }));
+                                      setProducts(sanitized);
+                                      try { localStorage.setItem('hyderi_custom_products', JSON.stringify(sanitized)); } catch (err) {}
                                       fetch(getApiBase() + '/api/products/batch', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ products: restored })
+                                        body: JSON.stringify({ products: sanitized })
                                       }).catch(() => {});
-                                      setToastMsg('✅ Catalog restored successfully with ' + restored.length + ' items!');
+                                      setToastMsg('✅ Catalog restored successfully with ' + sanitized.length + ' items & HD photos!');
                                       setTimeout(() => setToastMsg(''), 4500);
                                     } else {
                                       alert('Invalid catalog JSON file structure.');
