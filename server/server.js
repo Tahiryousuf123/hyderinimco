@@ -230,8 +230,9 @@ const server = http.createServer(async (req, res) => {
         } catch (dbErr) {
           console.error('[MongoDB] Batch product update error:', dbErr);
         }
+      } else {
+        writeData('products.json', body.products);
       }
-      writeData('products.json', body.products);
       return sendJson(res, 200, { success: true, count: body.products.length });
     }
     return sendJson(res, 400, { error: 'Invalid products array' });
@@ -256,7 +257,6 @@ const server = http.createServer(async (req, res) => {
   // 5. POST /api/products (Add / Save product)
   if (pathname === '/api/products' && method === 'POST') {
     const body = await parseBody(req);
-    const products = readData('products.json', []);
     
     let imageUrl = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
     const rawImg = body.imageBase64 || body.image || body.imageUrl;
@@ -293,11 +293,14 @@ const server = http.createServer(async (req, res) => {
       try {
         await Product.updateOne({ id: prodId }, { $set: newProduct }, { upsert: true });
         console.log(`[MongoDB] Saved product ${prodId} (${newProduct.name}) to MongoDB Atlas`);
+        return sendJson(res, 200, { success: true, product: newProduct });
       } catch (dbErr) {
         console.error('[MongoDB] POST /api/products DB save error:', dbErr);
       }
     }
 
+    // Local JSON fallback if DB disconnected
+    const products = readData('products.json', []);
     const existingIdx = products.findIndex(p => p.id === prodId);
     if (existingIdx !== -1) {
       products[existingIdx] = newProduct;
@@ -313,22 +316,44 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/api/products/') && method === 'PUT') {
     const id = pathname.replace('/api/products/', '');
     const body = await parseBody(req);
-    const products = readData('products.json', []);
-    let idx = products.findIndex(p => p.id === id);
 
-    let finalImage = idx !== -1 ? products[idx].image : 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
-    const rawImg = body.imageBase64 || body.image || body.imageUrl;
-    if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
-      if (rawImg.startsWith('data:image')) {
-        const saved = saveBase64Image(rawImg);
-        finalImage = saved || rawImg;
-      } else {
-        finalImage = rawImg;
+    let finalImage = body.imageBase64 || body.image || body.imageUrl;
+    if (finalImage && typeof finalImage === 'string' && finalImage.startsWith('data:image')) {
+      const saved = saveBase64Image(finalImage);
+      finalImage = saved || finalImage;
+    }
+
+    const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : 'SAMOSA');
+
+    if (isDBConnected()) {
+      try {
+        const existing = await Product.findOne({ id }).lean();
+        const updatedProduct = {
+          id: id,
+          name: body.name !== undefined ? body.name : (existing ? existing.name : 'Item'),
+          nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : (existing ? existing.nameUrdu : ''),
+          category: body.category !== undefined ? body.category : (existing ? existing.category : 'samosa'),
+          categoryLabel: catLabel,
+          packQuantity: body.packQuantity !== undefined ? body.packQuantity : (existing ? existing.packQuantity : '12 pcs'),
+          price: body.price !== undefined ? Number(body.price) : (existing ? existing.price : 0),
+          badge: body.badge !== undefined ? body.badge : (existing ? existing.badge : ''),
+          description: body.description !== undefined ? body.description : (existing ? existing.description : ''),
+          isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : (existing ? existing.isAvailable : true),
+          featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : (existing ? existing.featured : false),
+          image: finalImage || (existing ? existing.image : '')
+        };
+
+        await Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true });
+        console.log(`[MongoDB] Updated product ${id} (${updatedProduct.name}) in MongoDB Atlas`);
+        return sendJson(res, 200, { success: true, product: updatedProduct });
+      } catch (dbErr) {
+        console.error('[MongoDB] PUT /api/products DB error:', dbErr);
       }
     }
 
-    const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : (idx !== -1 ? products[idx].categoryLabel : 'SAMOSA'));
-
+    // Local JSON fallback
+    const products = readData('products.json', []);
+    let idx = products.findIndex(p => p.id === id);
     const updatedProduct = {
       id: id,
       name: body.name !== undefined ? body.name : (idx !== -1 ? products[idx].name : 'Item'),
@@ -341,17 +366,8 @@ const server = http.createServer(async (req, res) => {
       description: body.description !== undefined ? body.description : (idx !== -1 ? products[idx].description : ''),
       isAvailable: body.isAvailable !== undefined ? (body.isAvailable === true || body.isAvailable === 'true') : (idx !== -1 ? products[idx].isAvailable : true),
       featured: body.featured !== undefined ? (body.featured === true || body.featured === 'true') : (idx !== -1 ? products[idx].featured : false),
-      image: finalImage
+      image: finalImage || (idx !== -1 ? products[idx].image : '')
     };
-
-    if (isDBConnected()) {
-      try {
-        await Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true });
-        console.log(`[MongoDB] Updated product ${id} (${updatedProduct.name}) in MongoDB Atlas`);
-      } catch (dbErr) {
-        console.error('[MongoDB] PUT /api/products DB error:', dbErr);
-      }
-    }
 
     if (idx !== -1) {
       products[idx] = updatedProduct;
@@ -370,6 +386,7 @@ const server = http.createServer(async (req, res) => {
       try {
         await Product.deleteOne({ id });
         console.log(`[MongoDB] Deleted product ${id} from MongoDB Atlas`);
+        return sendJson(res, 200, { success: true, message: 'Product deleted' });
       } catch (dbErr) {
         console.error('[MongoDB] DELETE /api/products DB error:', dbErr);
       }
@@ -614,25 +631,21 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true, message: 'Order deleted successfully' });
   }
 
-  // Serve static uploads
+  // Serve static uploads with low-memory streaming
   if (pathname.startsWith('/uploads/')) {
     const filename = pathname.replace('/uploads/', '');
     const filepath = path.join(UPLOADS_DIR, filename);
     if (fs.existsSync(filepath)) {
       const ext = path.extname(filepath).toLowerCase();
-      fs.readFile(filepath, (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          return res.end('Error loading file');
-        }
-        res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
-        res.end(data);
-      });
+      res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+      const stream = fs.createReadStream(filepath);
+      stream.on('error', () => { if (!res.headersSent) res.writeHead(500); res.end('Error loading file'); });
+      stream.pipe(res);
       return;
     }
   }
 
-  // Serve public static files or index.html
+  // Serve public static files or index.html with low-memory streaming pipe
   let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
   if (!fs.existsSync(filePath)) {
     filePath = path.join(PUBLIC_DIR, 'index.html');
@@ -640,17 +653,13 @@ const server = http.createServer(async (req, res) => {
 
   if (fs.existsSync(filePath)) {
     const ext = path.extname(filePath).toLowerCase();
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        res.writeHead(500);
-        return res.end('Error loading asset');
-      }
-      res.writeHead(200, {
-        'Content-Type': MIME_TYPES[ext] || 'text/html; charset=utf-8',
-        'Access-Control-Allow-Origin': '*'
-      });
-      res.end(data);
+    res.writeHead(200, {
+      'Content-Type': MIME_TYPES[ext] || 'text/html; charset=utf-8',
+      'Access-Control-Allow-Origin': '*'
     });
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => { if (!res.headersSent) res.writeHead(500); res.end('Error loading asset'); });
+    stream.pipe(res);
     return;
   }
 

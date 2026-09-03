@@ -15,10 +15,13 @@ export async function connectDB() {
   }
 
   try {
-    console.log('[MongoDB] Connecting to MongoDB Atlas...');
+    console.log('[MongoDB] Connecting to MongoDB Atlas with low-memory pool limits (maxPoolSize: 5)...');
     await mongoose.connect(uri, {
+      maxPoolSize: 5,
+      minPoolSize: 1,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      autoIndex: false, // Prevent index creation overhead at runtime
     });
 
     isConnected = true;
