@@ -623,7 +623,11 @@ const server = http.createServer(async (req, res) => {
       }
     }
     try {
-      const dbOrders = await executeDBQuery(() => Order.find({}, { _id: 0, __v: 0 }).sort({ createdAt: -1 }).lean().exec(), 2, 8000);
+      const dbOrders = await executeDBQuery(
+        () => Order.find({}, { _id: 0, __v: 0, 'paymentDetails.paymentSlipBase64': 0 }).sort({ _id: -1 }).lean().exec(),
+        2,
+        25000
+      );
       return sendJson(res, 200, { success: true, orders: dbOrders || [], source: 'mongodb' });
     } catch (dbErr) {
       console.error('[MongoDB] GET /api/orders error:', dbErr.message);
