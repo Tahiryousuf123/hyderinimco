@@ -22,8 +22,6 @@ const productSchema = new mongoose.Schema({
   featured: { type: Boolean, default: false },
   isDeal: { type: Boolean, default: false },
   dealItems: { type: [String], default: [] }
-}, {
-  timestamps: true
-});
+}, { timestamps: true, strict: false });
 
 export const Product = mongoose.models.Product || mongoose.model('Product', productSchema);

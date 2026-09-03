@@ -10,32 +10,87 @@ import { generateAIResponse, generateAIResponseAsync } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast } from './whatsapp_service.js';
 
-// Auto-connect to MongoDB Atlas and synchronize local cache on startup
-async function syncDatabaseOnStartup() {
+// In-memory catalog cache accelerator (prevents hammering MongoDB on rapid client polling)
+let productCache = null;
+let productCacheTime = 0;
+const PRODUCT_CACHE_TTL = 15000; // 15 seconds
+
+function invalidateProductsCache() {
+  productCache = null;
+  productCacheTime = 0;
+}
+
+/**
+ * MongoDB Single Source of Truth Startup Initializer
+ * Requirement: Application startup must NEVER blindly replace MongoDB data with local files.
+ * 1. Connect to MongoDB.
+ * 2. If MongoDB Atlas has documents: MongoDB is authoritative. Update local cache as passive read-only snapshot.
+ * 3. Automatically convert any legacy bloated Base64 strings to clean static image files.
+ * 4. Only if MongoDB is completely empty (fresh setup) does it seed initial catalog once.
+ * 5. Never automatically restore deleted or stale local data over MongoDB.
+ */
+async function initializeDatabaseOnStartup() {
   const connected = await connectDB();
   if (connected) {
     try {
-      const dbProducts = await executeDBQuery(() => Product.find({}, { _id: 0, __v: 0 }).lean(), 3, 10000);
-      if (dbProducts && dbProducts.length > 0) {
-        console.log(`[MongoDB Startup Sync] Found ${dbProducts.length} authoritative products in MongoDB Atlas. Synchronizing local cache...`);
+      const dbProducts = await executeDBQuery(() => Product.find({}, { _id: 0, __v: 0 }).lean(), 2, 20000);
+      if (Array.isArray(dbProducts) && dbProducts.length > 0) {
+        console.log(`[MongoDB Startup] Successfully loaded ${dbProducts.length} authoritative products from MongoDB Atlas.`);
+        
+        // Cleanse any legacy bloated base64 images in MongoDB Atlas to lightweight file paths
+        let cleansedCount = 0;
+        for (const p of dbProducts) {
+          if (p.image && typeof p.image === 'string' && p.image.startsWith('data:image')) {
+            const savedPath = saveBase64Image(p.image);
+            if (savedPath) {
+              p.image = savedPath;
+              await executeDBQuery(() => Product.updateOne({ id: p.id }, { $set: { image: savedPath } }), 1, 5000).catch(() => {});
+              cleansedCount++;
+            }
+          }
+        }
+        if (cleansedCount > 0) {
+          console.log(`[MongoDB Startup] Cleaned ${cleansedCount} bloated base64 images in MongoDB Atlas to lightweight file paths.`);
+        }
+
+        productCache = dbProducts;
+        productCacheTime = Date.now();
+        // Update local products.json as a passive read-only snapshot of MongoDB
         writeData('products.json', dbProducts);
       } else {
-        console.log('[MongoDB Startup Sync] MongoDB Atlas collection is empty. Seeding from local products.json...');
+        console.log('[MongoDB Startup] MongoDB Atlas product collection is empty. Checking local products.json for initial seed...');
         const local = readData('products.json', []);
         if (local.length > 0) {
           for (const p of local) {
-            await executeDBQuery(() => Product.updateOne({ id: p.id }, { $set: p }, { upsert: true }), 3, 5000);
+            await executeDBQuery(() => Product.updateOne({ id: p.id }, { $set: p }, { upsert: true }), 2, 5000);
           }
-          console.log(`[MongoDB Startup Sync] Successfully seeded ${local.length} products to MongoDB Atlas.`);
+          console.log(`[MongoDB Startup] Seeded initial ${local.length} products to empty MongoDB Atlas collection.`);
+          productCache = local;
+          productCacheTime = Date.now();
         }
       }
-    } catch (e) {
-      console.error('[MongoDB Startup Sync] Warning: Startup sync failed:', e.message);
+
+      // Settings synchronization
+      const dbSettings = await executeDBQuery(() => Setting.findOne({ key: 'store_config' }, { _id: 0, __v: 0 }).lean(), 2, 5000);
+      if (dbSettings && dbSettings.value && Object.keys(dbSettings.value).length > 0) {
+        console.log('[MongoDB Startup] Loaded authoritative store settings from MongoDB Atlas.');
+        writeData('settings.json', dbSettings.value);
+      } else {
+        const localSettings = readData('settings.json', {});
+        if (Object.keys(localSettings).length > 0) {
+          await executeDBQuery(() => Setting.updateOne({ key: 'store_config' }, { $set: { key: 'store_config', value: localSettings } }, { upsert: true }), 2, 5000);
+          console.log('[MongoDB Startup] Seeded initial store settings to empty MongoDB Atlas collection.');
+        }
+      }
+    } catch (err) {
+      console.error('[MongoDB Startup] Initialization error:', err.message);
     }
+  } else {
+    console.warn('[MongoDB Startup] MongoDB Atlas connection not established. Local files will act as offline read-only fallback.');
   }
 }
 
-syncDatabaseOnStartup().catch(err => console.error('[MongoDB] Startup sync error:', err.message));
+initializeDatabaseOnStartup().catch(err => console.error('[MongoDB Startup] Error:', err.message));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,7 +236,13 @@ const server = http.createServer(async (req, res) => {
 
   // 1. GET /api/settings
   if (pathname === '/api/settings' && method === 'GET') {
-    const settings = readData('settings.json', {});
+    let settings = readData('settings.json', {});
+    if (isDBConnected()) {
+      try {
+        const dbSettings = await executeDBQuery(() => Setting.findOne({ key: 'store_config' }, { _id: 0, __v: 0 }).lean(), 2, 4000);
+        if (dbSettings?.value && typeof dbSettings.value === 'object') { settings = dbSettings.value; writeData('settings.json', settings); }
+      } catch (e) { console.warn('[MongoDB] GET /api/settings fallback to local:', e.message); }
+    }
     const { adminPassword, adminPin, superAdmin, manager, ...publicSettings } = settings;
     return sendJson(res, 200, { success: true, settings: publicSettings });
   }
@@ -236,129 +297,231 @@ const server = http.createServer(async (req, res) => {
   // 3. POST /api/admin/settings (SuperAdmin only)
   if (pathname === '/api/admin/settings' && method === 'POST') {
     const body = await parseBody(req);
-    const current = readData('settings.json', {});
-    const updated = { ...current, ...body };
+    let current = null;
+    if (isDBConnected()) {
+      try {
+        const doc = await executeDBQuery(() => Setting.findOne({ key: 'store_config' }, { _id: 0, __v: 0 }).lean(), 2, 4000);
+        if (doc?.value) current = doc.value;
+      } catch (e) {}
+    }
+    if (!current) current = readData('settings.json', {});
+    const updated = { ...current, ...body, _updatedAt: Date.now() };
+
+    if (isDBConnected()) {
+      try {
+        await executeDBQuery(
+          () => Setting.findOneAndUpdate({ key: 'store_config' }, { $set: { key: 'store_config', value: updated } }, { upsert: true, new: true }),
+          2,
+          5000
+        );
+      } catch (e) {
+        console.error('[MongoDB] Settings update error:', e.message);
+      }
+    }
     writeData('settings.json', updated);
     return sendJson(res, 200, { success: true, message: 'Settings updated successfully', settings: updated });
   }
 
-  // 4.5. POST /api/products/batch (Restore catalog backup JSON)
+  // 4.5. POST /api/products/batch (Explicit bulk catalog import to MongoDB)
   if (pathname === '/api/products/batch' && method === 'POST') {
     const body = await parseBody(req);
-    if (body.products && Array.isArray(body.products) && body.products.length > 0) {
-      if (isDBConnected()) {
-        try {
-          for (const prod of body.products) {
-            await Product.updateOne({ id: prod.id }, { $set: prod }, { upsert: true });
-          }
-        } catch (dbErr) {
-          console.error('[MongoDB] Batch product update error:', dbErr);
-        }
-      } else {
-        writeData('products.json', body.products);
-      }
-      return sendJson(res, 200, { success: true, count: body.products.length });
+    if (!body.products || !Array.isArray(body.products) || body.products.length === 0) {
+      return sendJson(res, 400, { success: false, error: 'Invalid or empty products array' });
     }
-    return sendJson(res, 400, { error: 'Invalid products array' });
+
+    if (!isDBConnected()) {
+      const connected = await connectDB();
+      if (!connected) {
+        return sendJson(res, 503, { success: false, error: 'MongoDB connection unavailable. Batch update cannot be processed.' });
+      }
+    }
+
+    try {
+      const now = new Date().toISOString();
+      let upsertedCount = 0;
+      for (const prod of body.products) {
+        if (!prod.id) continue;
+        if (prod.image && typeof prod.image === 'string' && prod.image.startsWith('data:image')) {
+          const savedPath = saveBase64Image(prod.image);
+          if (savedPath) prod.image = savedPath;
+        }
+        await executeDBQuery(
+          () => Product.updateOne({ id: prod.id }, { $set: { ...prod, updatedAt: prod.updatedAt || now } }, { upsert: true }),
+          2,
+          5000
+        );
+        upsertedCount++;
+      }
+
+      // Refresh passive local snapshot
+      const fresh = await executeDBQuery(() => Product.find({}, { _id: 0, __v: 0 }).lean(), 2, 15000);
+      if (Array.isArray(fresh)) {
+        productCache = fresh;
+        productCacheTime = Date.now();
+        writeData('products.json', fresh);
+      } else {
+        invalidateProductsCache();
+      }
+
+      return sendJson(res, 200, { success: true, count: upsertedCount, totalInDB: fresh?.length || 0, source: 'mongodb' });
+    } catch (err) {
+      console.error('[MongoDB Error] Batch product sync failed:', err.message);
+      return sendJson(res, 500, { success: false, error: `Batch import to MongoDB failed: ${err.message}` });
+    }
   }
 
-  // 4. GET /api/products (Primary Source of Truth: MongoDB Atlas)
+  // 4. GET /api/products (MongoDB Single Source of Truth with Cache Accelerator)
   if (pathname === '/api/products' && method === 'GET') {
+    // Serve from fast memory cache if recent to prevent connection saturation
+    if (productCache && (Date.now() - productCacheTime < PRODUCT_CACHE_TTL)) {
+      return sendJson(res, 200, { success: true, products: productCache, source: 'mongodb' });
+    }
+
     if (isDBConnected()) {
       try {
-        const dbProducts = await executeDBQuery(() => Product.find({}, { _id: 0, __v: 0 }).lean(), 2, 6000);
-        if (dbProducts && dbProducts.length > 0) {
-          // Asynchronously sync local cache so local disk is always identical to MongoDB Atlas
-          writeData('products.json', dbProducts);
+        const dbProducts = await executeDBQuery(() => Product.find({}, { _id: 0, __v: 0 }).lean(), 2, 15000);
+        if (Array.isArray(dbProducts)) {
+          productCache = dbProducts;
+          productCacheTime = Date.now();
+          writeData('products.json', dbProducts); // passive cache snapshot
           return sendJson(res, 200, { success: true, products: dbProducts, source: 'mongodb' });
         }
       } catch (dbErr) {
-        console.error('[MongoDB] GET /api/products read error:', dbErr.message);
+        console.error('[MongoDB] GET /api/products query error:', dbErr.message);
       }
     }
-    const products = readData('products.json', []);
-    return sendJson(res, 200, { success: true, products, source: 'local_json_cache' });
+    const fallbackProducts = productCache || readData('products.json', []);
+    return sendJson(res, 200, { success: true, products: fallbackProducts, source: 'local_fallback', warning: 'MongoDB slow or offline' });
   }
 
-  // 5. POST /api/products (Add / Save product)
+  // 5. POST /api/products (Create product in MongoDB)
+  // Strict Flow: CLIENT -> API -> VALIDATE -> MONGODB -> VERIFY SUCCESS -> RETURN AUTHORITATIVE DOCUMENT
   if (pathname === '/api/products' && method === 'POST') {
     const body = await parseBody(req);
-    
-    let imageUrl = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
-    const rawImg = body.imageBase64 || body.image || body.imageUrl;
-    if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
-      imageUrl = rawImg;
+    if (!body.name || body.price === undefined) {
+      return sendJson(res, 400, { success: false, error: 'Product name and price are required.' });
     }
 
-    const prodId = body.id || ('prod-' + Date.now());
-    const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : 'SAMOSA');
+    if (!isDBConnected()) {
+      const connected = await connectDB();
+      if (!connected) {
+        return sendJson(res, 503, { success: false, error: 'MongoDB database is not connected. Product cannot be saved.' });
+      }
+    }
 
-    const newProduct = {
+    const prodId = (body.id && String(body.id).trim()) || ('prod-' + Date.now() + '-' + Math.floor(Math.random() * 10000));
+    let rawImg = body.imageBase64 || body.image || body.imageUrl || '';
+    if (rawImg && typeof rawImg === 'string' && rawImg.startsWith('data:image')) {
+      const savedPath = saveBase64Image(rawImg);
+      if (savedPath) rawImg = savedPath;
+    }
+    const now = new Date().toISOString();
+
+    const newProductData = {
+      ...body,
       id: prodId,
-      name: body.name || 'New Item',
-      nameUrdu: body.nameUrdu || '',
-      category: body.category || 'samosa',
-      categoryLabel: catLabel,
+      name: String(body.name).trim(),
+      nameUrdu: body.nameUrdu ? String(body.nameUrdu).trim() : '',
+      category: body.category ? String(body.category).trim() : 'samosa',
+      categoryLabel: body.categoryLabel || (body.category ? String(body.category).toUpperCase() : 'SAMOSA'),
       packQuantity: body.packQuantity || '12 pcs',
       price: Number(body.price) || 0,
-      rating: body.rating ? Number(body.rating) : 5.0,
-      reviewCount: body.reviewCount ? Number(body.reviewCount) : 1,
-      image: imageUrl,
+      rating: body.rating !== undefined ? Number(body.rating) : 5,
+      reviewCount: body.reviewCount !== undefined ? Number(body.reviewCount) : 1,
+      image: rawImg,
       badge: body.badge || '',
       description: body.description || '',
       isAvailable: body.isAvailable !== false && body.isAvailable !== 'false',
-      featured: body.featured === true || body.featured === 'true'
+      featured: body.featured === true || body.featured === 'true',
+      createdAt: now,
+      updatedAt: now
     };
 
     try {
-      // Step 1: Write to MongoDB Atlas (Authoritative Source of Truth) with retry
-      await executeDBQuery(() => Product.updateOne({ id: prodId }, { $set: newProduct }, { upsert: true }), 3, 10000);
-      
-      // Step 2: Verify write in MongoDB Atlas
-      const verified = await executeDBQuery(() => Product.findOne({ id: prodId }, { _id: 0, __v: 0 }).lean(), 2, 5000);
-      if (!verified) {
-        throw new Error('Verification read-back failed in MongoDB Atlas');
+      // Atomic MongoDB write (Primary Source of Truth)
+      const savedDoc = await executeDBQuery(
+        () => Product.findOneAndUpdate({ id: prodId }, { $set: newProductData }, { upsert: true, new: true, lean: true, projection: { _id: 0, __v: 0 } }),
+        2,
+        15000
+      );
+
+      if (!savedDoc) {
+        throw new Error('MongoDB save succeeded but document retrieval failed.');
       }
 
-      // Step 3: Update local products.json cache only after verified DB write
-      const products = readData('products.json', []);
-      const existingIdx = products.findIndex(p => p.id === prodId);
-      if (existingIdx !== -1) {
-        products[existingIdx] = verified;
-      } else {
-        products.unshift(verified);
-      }
-      writeData('products.json', products);
+      invalidateProductsCache();
 
-      console.log(`[Production Verified] Saved product ${prodId} (${verified.name}) to MongoDB Atlas`);
-      return sendJson(res, 200, { success: true, product: verified, source: 'mongodb' });
-    } catch (dbErr) {
-      console.error('[MongoDB Error] POST /api/products failed to save to MongoDB Atlas:', dbErr.message);
-      return sendJson(res, 500, { success: false, error: `Production save failed: MongoDB Atlas write error: ${dbErr.message}` });
+      // Update passive local snapshot
+      const local = readData('products.json', []);
+      const idx = local.findIndex(p => p.id === prodId);
+      if (idx >= 0) local[idx] = savedDoc;
+      else local.unshift(savedDoc);
+      writeData('products.json', local);
+
+      console.log(`[MongoDB Authoritative] Created product ${prodId} (${savedDoc.name})`);
+      return sendJson(res, 201, { success: true, product: savedDoc, source: 'mongodb' });
+    } catch (err) {
+      console.error('[MongoDB Error] POST /api/products failed:', err.message);
+      return sendJson(res, 500, { success: false, error: `MongoDB save failed: ${err.message}` });
     }
   }
 
-  // 6. PUT /api/products/:id (Update product)
+  // 6. PUT /api/products/:id (ID-based atomic update in MongoDB)
   if (pathname.startsWith('/api/products/') && method === 'PUT') {
-    const id = pathname.replace('/api/products/', '');
-    const body = await parseBody(req);
-
-    let finalImage = body.imageBase64 || body.image || body.imageUrl;
-    const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : 'SAMOSA');
-
-    // Read existing product state from MongoDB Atlas or local cache
-    let existing = null;
-    if (isDBConnected()) {
-      try {
-        existing = await executeDBQuery(() => Product.findOne({ id }).lean(), 2, 5000);
-      } catch (e) {}
+    const id = pathname.replace('/api/products/', '').trim();
+    if (!id) {
+      return sendJson(res, 400, { success: false, error: 'Product ID is required for update.' });
     }
-    if (!existing) {
+
+    if (!isDBConnected()) {
+      const connected = await connectDB();
+      if (!connected) {
+        return sendJson(res, 503, { success: false, error: 'MongoDB database is not connected. Product cannot be updated.' });
+      }
+    }
+
+    const body = await parseBody(req);
+    const now = new Date().toISOString();
+    let finalImage = body.imageBase64 || body.image || body.imageUrl;
+    if (finalImage && typeof finalImage === 'string' && finalImage.startsWith('data:image')) {
+      const savedPath = saveBase64Image(finalImage);
+      if (savedPath) finalImage = savedPath;
+    }
+
+    const updateFields = {
+      ...body,
+      id: id, // Strict immutable product ID
+      updatedAt: now
+    };
+
+    if (body.price !== undefined) updateFields.price = Number(body.price) || 0;
+    if (body.isAvailable !== undefined) updateFields.isAvailable = (body.isAvailable === true || body.isAvailable === 'true');
+    if (body.featured !== undefined) updateFields.featured = (body.featured === true || body.featured === 'true');
+    if (finalImage !== undefined && finalImage !== null) updateFields.image = finalImage;
+    if (body.category !== undefined && !body.categoryLabel) updateFields.categoryLabel = String(body.category).toUpperCase();
+
+    try {
+      // Atomic MongoDB update strictly by ID
+      const updatedDoc = await executeDBQuery(
+        () => Product.findOneAndUpdate({ id }, { $set: updateFields }, { new: true, lean: true, projection: { _id: 0, __v: 0 } }),
+        2,
+        15000
+      );
+
+      if (!updatedDoc) {
+        return sendJson(res, 404, { success: false, error: `Product with ID "${id}" was not found in MongoDB.` });
+      }
+
+      invalidateProductsCache();
+
+      // Update passive local snapshot
       const local = readData('products.json', []);
       const idx = local.findIndex(p => p.id === id);
-      if (idx !== -1) existing = local[idx];
-    }
+      if (idx >= 0) local[idx] = updatedDoc;
+      else local.unshift(updatedDoc);
+      writeData('products.json', local);
 
+<<<<<<< HEAD
     const updatedProduct = {
       id: id,
       name: body.name !== undefined ? body.name : (existing ? existing.name : 'Item'),
@@ -399,44 +562,63 @@ const server = http.createServer(async (req, res) => {
     } catch (dbErr) {
       console.error('[MongoDB Error] PUT /api/products failed to update in MongoDB Atlas:', dbErr.message);
       return sendJson(res, 500, { success: false, error: `Production update failed: MongoDB Atlas write error: ${dbErr.message}` });
+=======
+      console.log(`[MongoDB Authoritative] Updated product ${id} (${updatedDoc.name})`);
+      return sendJson(res, 200, { success: true, product: updatedDoc, source: 'mongodb' });
+    } catch (err) {
+      console.error('[MongoDB Error] PUT /api/products/:id failed:', err.message);
+      return sendJson(res, 500, { success: false, error: `MongoDB update failed: ${err.message}` });
+>>>>>>> 1671b7f (Enforce MongoDB single source of truth, optimize payload to lightweight images, and add memory cache accelerator)
     }
   }
 
-  // 7. DELETE /api/products/:id
+  // 7. DELETE /api/products/:id (ID-based deletion in MongoDB)
   if (pathname.startsWith('/api/products/') && method === 'DELETE') {
-    const id = pathname.replace('/api/products/', '');
+    const id = pathname.replace('/api/products/', '').trim();
+    if (!id) {
+      return sendJson(res, 400, { success: false, error: 'Product ID is required for deletion.' });
+    }
+
+    if (!isDBConnected()) {
+      const connected = await connectDB();
+      if (!connected) {
+        return sendJson(res, 503, { success: false, error: 'MongoDB database is not connected. Product cannot be deleted.' });
+      }
+    }
 
     try {
-      // Step 1: Delete from MongoDB Atlas (Authoritative Source of Truth)
-      await executeDBQuery(() => Product.deleteOne({ id }), 3, 10000);
-      
-      // Step 2: Remove from local products.json cache
-      let products = readData('products.json', []);
-      products = products.filter(p => p.id !== id);
-      writeData('products.json', products);
+      const delResult = await executeDBQuery(() => Product.deleteOne({ id }), 2, 10000);
 
-      console.log(`[Production Verified] Deleted product ${id} from MongoDB Atlas`);
-      return sendJson(res, 200, { success: true, message: 'Product deleted from MongoDB Atlas' });
-    } catch (dbErr) {
-      console.error('[MongoDB Error] DELETE /api/products failed in MongoDB Atlas:', dbErr.message);
-      return sendJson(res, 500, { success: false, error: `Production delete failed: MongoDB Atlas write error: ${dbErr.message}` });
+      invalidateProductsCache();
+
+      // Remove from passive local snapshot
+      let local = readData('products.json', []);
+      local = local.filter(p => p.id !== id);
+      writeData('products.json', local);
+
+      console.log(`[MongoDB Authoritative] Deleted product ${id} from MongoDB (deletedCount: ${delResult.deletedCount})`);
+      return sendJson(res, 200, { success: true, message: `Product ${id} successfully deleted from MongoDB.`, id });
+    } catch (err) {
+      console.error('[MongoDB Error] DELETE /api/products/:id failed:', err.message);
+      return sendJson(res, 500, { success: false, error: `MongoDB delete failed: ${err.message}` });
     }
   }
 
-  // 8. GET /api/orders
+  // 8. GET /api/orders (Authoritative from MongoDB)
   if (pathname === '/api/orders' && method === 'GET') {
     if (isDBConnected()) {
       try {
-        const dbOrders = await withTimeout(Order.find({}, { _id: 0, __v: 0 }).sort({ createdAt: -1 }).lean(), 3000);
-        if (dbOrders && dbOrders.length > 0) {
+        const dbOrders = await withTimeout(Order.find({}, { _id: 0, __v: 0 }).sort({ createdAt: -1 }).lean(), 5000);
+        if (Array.isArray(dbOrders)) {
+          writeData('orders.json', dbOrders);
           return sendJson(res, 200, { success: true, orders: dbOrders, source: 'mongodb' });
         }
       } catch (dbErr) {
         console.error('[MongoDB] GET /api/orders error:', dbErr.message);
       }
     }
-    const orders = readData('orders.json', []);
-    return sendJson(res, 200, { success: true, orders, source: 'local_json' });
+    const localOrders = readData('orders.json', []);
+    return sendJson(res, 200, { success: true, orders: localOrders, source: 'local_fallback', warning: 'MongoDB offline' });
   }
 
   // 9. GET /api/orders/:orderRef
@@ -492,20 +674,16 @@ const server = http.createServer(async (req, res) => {
         paymentSlipUrl: paymentSlipUrl
       },
       status: 'pending_verification',
-      notes: body.notes || ''
+      notes: body.notes || '',
+      updatedAt: orderDate.toISOString()
     };
-
-    if (isDBConnected()) {
-      try {
-        await Order.updateOne({ id: orderId }, { $set: newOrder }, { upsert: true });
-        console.log(`[MongoDB] Created order ${orderRef} in MongoDB Atlas`);
-      } catch (dbErr) {
-        console.error('[MongoDB] POST /api/orders DB error:', dbErr);
-      }
-    }
 
     orders.unshift(newOrder);
     writeData('orders.json', orders);
+    if (isDBConnected()) {
+      try { await executeDBQuery(() => Order.updateOne({ id: orderId }, { $set: newOrder }, { upsert: true }), 2, 6000); console.log(`[MongoDB] Created order ${orderRef} in MongoDB Atlas`); }
+      catch (e) { console.error('[MongoDB] POST /api/orders deferred sync:', e.message); }
+    }
 
     // Instant real-time WhatsApp alert to shop owner
     notifyOwnerNewOrder(newOrder).catch(err => console.error('Error notifying owner on WhatsApp:', err));
@@ -629,27 +807,55 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, result);
   }
 
-  // 15.5. PATCH /api/orders/:id/status (Update order status)
+  // 15.5. PATCH /api/orders/:id/status (Update order status in MongoDB)
   if (pathname.startsWith('/api/orders/') && pathname.endsWith('/status') && (method === 'PATCH' || method === 'POST')) {
-    const id = pathname.replace('/api/orders/', '').replace('/status', '');
+    const id = pathname.replace('/api/orders/', '').replace('/status', '').trim();
     const body = await parseBody(req);
+    const now = new Date().toISOString();
+
+    let updatedDoc = null;
+    if (isDBConnected()) {
+      try {
+        updatedDoc = await executeDBQuery(
+          () => Order.findOneAndUpdate({ $or: [{ id }, { orderRef: id }] }, { $set: { status: body.status, updatedAt: now } }, { new: true, lean: true, projection: { _id: 0, __v: 0 } }),
+          2,
+          5000
+        );
+      } catch (dbErr) {
+        console.error('[MongoDB] PATCH /api/orders/:id/status error:', dbErr.message);
+      }
+    }
+
     const orders = readData('orders.json', []);
     const idx = orders.findIndex(o => o.id === id || o.orderRef === id);
-    if (idx === -1) {
+    if (idx >= 0) {
+      orders[idx].status = body.status || orders[idx].status;
+      orders[idx].updatedAt = now;
+      writeData('orders.json', orders);
+    }
+
+    if (!updatedDoc && idx === -1) {
       return sendJson(res, 404, { success: false, message: 'Order not found' });
     }
-    orders[idx].status = body.status || orders[idx].status;
-    orders[idx].updatedAt = new Date().toISOString();
-    writeData('orders.json', orders);
-    return sendJson(res, 200, { success: true, message: 'Order status updated', order: orders[idx] });
+
+    return sendJson(res, 200, { success: true, message: 'Order status updated', order: updatedDoc || orders[idx] });
   }
 
-  // 16. DELETE /api/orders/:id (Delete order or delete all)
+  // 16. DELETE /api/orders/:id (Delete order in MongoDB)
   if (pathname.startsWith('/api/orders/') && method === 'DELETE') {
-    const id = pathname.replace('/api/orders/', '');
+    const id = pathname.replace('/api/orders/', '').trim();
     if (id === 'all') {
+      if (isDBConnected()) {
+        try { await executeDBQuery(() => Order.deleteMany({}), 2, 7000); }
+        catch (e) { console.error('[MongoDB] Delete all orders error:', e.message); }
+      }
       writeData('orders.json', []);
       return sendJson(res, 200, { success: true, message: 'All orders cleared successfully' });
+    }
+
+    if (isDBConnected()) {
+      try { await executeDBQuery(() => Order.deleteOne({ $or: [{ id }, { orderRef: id }] }), 2, 7000); }
+      catch (e) { console.error('[MongoDB] Delete order error:', e.message); }
     }
     let orders = readData('orders.json', []);
     orders = orders.filter(o => o.id !== id && o.orderRef !== id);

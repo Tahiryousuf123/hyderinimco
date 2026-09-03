@@ -2,20 +2,18 @@ import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, index: true },
-  customerName: { type: String, required: true },
-  customerPhone: { type: String, required: true },
-  customerAddress: { type: String, required: true },
-  karachiArea: { type: String, default: '' },
-  deliveryCharges: { type: Number, default: 0 },
+  orderRef: { type: String, index: true },
+  createdAt: { type: Date },
+  formattedDate: { type: String, default: '' },
+  customer: { type: mongoose.Schema.Types.Mixed, default: {} },
   items: { type: Array, default: [] },
-  subtotal: { type: Number, required: true, default: 0 },
-  totalAmount: { type: Number, required: true, default: 0 },
-  paymentMethod: { type: String, default: 'COD' },
-  paymentStatus: { type: String, default: 'Pending' },
-  orderStatus: { type: String, default: 'Received' },
+  subtotal: { type: Number, default: 0 },
+  deliveryFee: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 },
+  paymentMethod: { type: String, default: 'bank_transfer' },
+  paymentDetails: { type: mongoose.Schema.Types.Mixed, default: {} },
+  status: { type: String, default: 'pending_verification' },
   notes: { type: String, default: '' }
-}, {
-  timestamps: true
-});
+}, { timestamps: true, strict: false });
 
 export const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);

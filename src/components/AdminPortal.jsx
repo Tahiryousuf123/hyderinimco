@@ -109,12 +109,13 @@ export default function AdminPortal({
         body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
-      if (data.success) {
-        setOrders(orders.map(o => (o.id === orderId ? data.order : o)));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Failed to update order in database');
       }
+      setOrders(orders.map(o => (o.id === orderId ? (data.order || { ...o, status: newStatus }) : o)));
     } catch (err) {
-      // Local update
-      setOrders(orders.map(o => (o.id === orderId ? { ...o, status: newStatus } : o)));
+      console.error('Order status update error:', err);
+      alert('Failed to update order status: ' + (err.message || 'Database error'));
     }
   };
 
@@ -157,31 +158,36 @@ export default function AdminPortal({
       });
 
       const data = await res.json();
-      if (data.success) {
-        setShowProductModal(false);
-        setEditingProduct(null);
-        setProductImageFile(null);
-        if (typeof onRefreshProducts === 'function') {
-          onRefreshProducts();
-        }
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Failed to persist product to MongoDB');
+      }
+
+      setShowProductModal(false);
+      setEditingProduct(null);
+      setProductImageFile(null);
+      if (typeof onRefreshProducts === 'function') {
+        await onRefreshProducts();
       }
     } catch (err) {
       console.error('Save product error:', err);
-      setShowProductModal(false);
-      if (typeof onRefreshProducts === 'function') {
-        onRefreshProducts();
-      }
+      alert('Failed to save product: ' + (err.message || 'MongoDB error'));
     }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this menu item?')) return;
+    if (!window.confirm('Are you sure you want to delete this menu item from MongoDB?')) return;
     try {
-      await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      onRefreshProducts();
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Failed to delete from MongoDB');
+      }
+      if (typeof onRefreshProducts === 'function') {
+        await onRefreshProducts();
+      }
     } catch (err) {
       console.error('Delete product error:', err);
-      onRefreshProducts();
+      alert('Delete product error: ' + (err.message || 'MongoDB error'));
     }
   };
 

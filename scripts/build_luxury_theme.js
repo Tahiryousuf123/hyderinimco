@@ -1590,7 +1590,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         loadSettings();
         const pollInterval = setInterval(() => {
           loadProducts();
-        }, 8000);
+        }, 30000);
         const handleVisChange = () => {
           if (document.visibilityState === 'visible') {
             loadProducts();
@@ -2176,6 +2176,9 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                   }
                 ].map(d => {
                   const pObj = products.find(p => p.id === d.id) || { id: d.id, name: d.title, price: d.price, image: d.image, isDeal: true };
+                  const liveImg = pObj.image || d.image;
+                  const livePrice = (pObj.price !== undefined && pObj.price !== null) ? pObj.price : d.price;
+                  const liveTitle = pObj.name || d.title;
                   return (
                     <div key={d.id} className="bg-emeraldBrand-900/90 rounded-3xl border-2 border-goldBrand-400/60 hover:border-goldBrand-300 shadow-xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 group">
                       
@@ -2185,13 +2188,13 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                         className="relative w-full h-56 sm:h-64 md:h-72 cursor-pointer overflow-hidden bg-black/50"
                       >
                         <img
-                          src={d.image}
-                          alt={d.title}
+                          src={liveImg}
+                          alt={liveTitle}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'; }}
                         />
                         <div className="absolute top-3 left-3 bg-emeraldBrand-950 text-goldBrand-300 text-xs font-black px-3 py-1.5 rounded-xl border border-goldBrand-400 shadow">
-                          {isUrdu ? d.badgeUrdu : d.badge}
+                          {isUrdu ? (pObj.badgeUrdu || d.badgeUrdu) : (pObj.badge || d.badge)}
                         </div>
                         <div className="absolute top-3 right-3 bg-amber-500 text-emeraldBrand-950 text-xs font-black px-3 py-1.5 rounded-xl border border-goldBrand-300 shadow flex items-center gap-1">
                           <span>🛵</span>
@@ -2204,16 +2207,16 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                         <div>
                           <div className="flex items-center justify-between">
                             <h3 className="text-lg font-black text-goldBrand-200 font-serifBrand">
-                              {isUrdu ? d.titleUrdu : d.title}
+                              {isUrdu ? (pObj.nameUrdu || d.titleUrdu) : liveTitle}
                             </h3>
                             <span className="text-xs font-extrabold bg-goldBrand-500/20 text-goldBrand-300 px-2.5 py-1 rounded-lg border border-goldBrand-400/30">
-                              {d.pcs}
+                              {pObj.packQuantity || d.pcs}
                             </span>
                           </div>
 
                           {/* Items List */}
                           <ul className="mt-3 space-y-1.5 text-xs text-goldBrand-100/90 bg-emeraldBrand-950/60 p-3 rounded-2xl border border-goldBrand-400/20">
-                            {d.items.map((item, idx) => (
+                            {(pObj.itemsList && pObj.itemsList.length > 0 ? pObj.itemsList : d.items).map((item, idx) => (
                               <li key={idx} className="flex items-center gap-2">
                                 <span className="text-goldBrand-400 font-bold">★</span>
                                 <span className="truncate">{item}</span>
@@ -2227,7 +2230,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                           <div>
                             <span className="text-[10px] text-goldBrand-300/80 block font-bold uppercase">{isUrdu ? 'ڈیل کی قیمت' : 'Deal Price'}</span>
                             <span className="text-xl sm:text-2xl font-black text-white font-mono">
-                              Rs. {d.price}/-
+                              Rs. {livePrice}/-
                             </span>
                           </div>
 
@@ -2807,6 +2810,9 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                     }
                   ].map(d => {
                     const pObj = products.find(p => p.id === d.id) || { id: d.id, name: d.title, price: d.price, image: d.image, isDeal: true };
+                    const liveImg = pObj.image || d.image;
+                    const livePrice = (pObj.price !== undefined && pObj.price !== null) ? pObj.price : d.price;
+                    const liveTitle = pObj.name || d.title;
                     return (
                       <div key={d.id} className="bg-emeraldBrand-900/90 rounded-3xl border-2 border-goldBrand-400/60 hover:border-goldBrand-300 shadow-xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 group">
                         
@@ -2816,8 +2822,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                           className="relative w-full h-56 sm:h-64 md:h-72 cursor-pointer overflow-hidden bg-black/50"
                         >
                           <img
-                            src={d.image}
-                            alt={d.title}
+                            src={liveImg}
+                            alt={liveTitle}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'; }}
                           />
@@ -2835,15 +2841,15 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2">
                               <h3 className="font-extrabold text-base sm:text-lg text-goldBrand-200 font-serifBrand">
-                                {isUrdu ? d.titleUrdu : d.title}
+                                {isUrdu ? (pObj.nameUrdu || d.titleUrdu) : liveTitle}
                               </h3>
                               <span className="bg-goldBrand-500/20 text-goldBrand-300 text-xs font-black px-2.5 py-0.5 rounded-full border border-goldBrand-400/40 shrink-0">
-                                {d.pcs}
+                                {pObj.packQuantity || d.pcs}
                               </span>
                             </div>
 
                             <ul className="space-y-1 text-xs text-emeraldBrand-100/90 mb-4 bg-emeraldBrand-950/60 p-3 rounded-2xl border border-goldBrand-500/20">
-                              {d.items.map((it, idx) => (
+                              {(pObj.itemsList && pObj.itemsList.length > 0 ? pObj.itemsList : d.items).map((it, idx) => (
                                 <li key={idx} className="flex items-center gap-1.5">
                                   <span className="text-goldBrand-400 font-bold">✓</span>
                                   <span>{it}</span>
@@ -2855,7 +2861,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                           <div className="pt-3 border-t border-goldBrand-500/20 flex items-center justify-between gap-3">
                             <div>
                               <p className="text-[10px] uppercase text-emeraldBrand-200 font-bold">Combo Price</p>
-                              <p className="text-xl sm:text-2xl font-black text-goldBrand-300">Rs. {d.price.toLocaleString()}/-</p>
+                              <p className="text-xl sm:text-2xl font-black text-goldBrand-300">Rs. {Number(livePrice).toLocaleString()}/-</p>
                             </div>
                             <button
                               onClick={() => {
@@ -3937,7 +3943,6 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           </form>
         </div>
       );
-    }
 
     // Enterprise Dual-Role Admin Portal (SuperAdmin & Store Owner with Sales Dashboard)
     function AdminPortal({ isOpen, products, setProducts, settings, onClose, onRefreshProducts, onRefreshSettings }) {
@@ -4164,41 +4169,44 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           image: realImage
         };
 
-        setShowAddProd(false);
-        setEditProd(null);
-
-        if (typeof setProducts === 'function') {
+        setIsSavingProd(true);
+        try {
+          const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProd) });
+          let data = {}; try { data = await res.json(); } catch (e) {}
+          if (!res.ok || !data.success || !data.product) throw new Error(data.error || data.message || ('Save failed (HTTP ' + res.status + ')'));
+          const authoritative = data.product;
           setProducts(prev => {
             const list = Array.isArray(prev) ? prev : [];
-            let next;
-            if (currentEditProd) {
-              next = list.map(p => p.id === targetId ? { ...p, ...updatedProd } : p);
-            } else {
-              next = [updatedProd, ...list];
-            }
-            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(next)); } catch (err) {}
+            const next = currentEditProd ? list.map(p => p.id === targetId ? authoritative : p) : [authoritative, ...list.filter(p => p.id !== targetId)];
+            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(next)); } catch (e) {}
             return next;
           });
-        }
-
-        setToastMsg(currentEditProd ? '✅ Product details & picture updated successfully!' : '✅ New product & picture added successfully!');
-        setTimeout(() => setToastMsg(''), 4500);
-
-        try {
-          fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedProd)
-          }).catch(() => {});
-        } catch (err) {}
+          setShowAddProd(false); setEditProd(null);
+          setToastMsg(currentEditProd ? '✅ Product details & picture updated in MongoDB!' : '✅ New product & picture added to MongoDB!');
+          setTimeout(() => setToastMsg(''), 4500);
+          if (typeof onRefreshProducts === 'function') await onRefreshProducts();
+        } catch (err) { console.error('Product save failed:', err); alert('Product save failed: ' + (err?.message || 'Please try again.')); }
+        finally { setIsSavingProd(false); }
       };
 
       const handleDeleteProduct = async (id) => {
-        if (!confirm('Delete this item?')) return;
+        if (!confirm('Are you sure you want to permanently delete this product from MongoDB?')) return;
         try {
-          await fetch(getApiBase() + \`/api/products/\${id}\`, { method: 'DELETE' });
-          onRefreshProducts();
-        } catch (e) {}
+          const res = await fetch(getApiBase() + '/api/products/' + id, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || 'Failed to delete from MongoDB');
+          setProducts(prev => {
+            const list = Array.isArray(prev) ? prev.filter(p => p.id !== id) : [];
+            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(list)); } catch (e) {}
+            return list;
+          });
+          setToastMsg('🗑️ Product permanently deleted from MongoDB');
+          setTimeout(() => setToastMsg(''), 4500);
+          if (typeof onRefreshProducts === 'function') await onRefreshProducts();
+        } catch (e) {
+          console.error('Delete failed:', e);
+          alert('Delete failed: ' + (e?.message || 'Please try again.'));
+        }
       };
 
       const handleSaveSettings = async (e) => {

@@ -22,9 +22,10 @@ export async function connectDB() {
     console.log('[MongoDB] Connecting to MongoDB Atlas...');
     await mongoose.connect(uri, {
       maxPoolSize: 10,
-      minPoolSize: 2,
-      serverSelectionTimeoutMS: 10000,
+      minPoolSize: 1,
+      serverSelectionTimeoutMS: 15000,
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 15000,
       heartbeatFrequencyMS: 10000,
       autoIndex: false,
     });
@@ -69,17 +70,26 @@ export function isDBConnected() {
 }
 
 // Auto-reconnect periodic check every 20s
-setInterval(() => {
+const reconnectTimer = setInterval(() => {
   if (process.env.MONGODB_URI && mongoose.connection.readyState !== 1 && !isConnecting) {
     console.log('[MongoDB] Connection inactive. Attempting auto-reconnect...');
     connectDB().catch(() => {});
   }
 }, 20000);
+reconnectTimer.unref?.();
 
 /**
  * Robust DB Query Executor with Automatic Retry Loop and Backoff
  */
+<<<<<<< HEAD
 export async function executeDBQuery(queryFn, maxRetries = 3, timeoutMs = 15000) {
+=======
+export async function executeDBQuery(queryFn, maxRetries = 2, timeoutMs = 15000) {
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI environment variable is not defined.');
+  }
+
+>>>>>>> 1671b7f (Enforce MongoDB single source of truth, optimize payload to lightweight images, and add memory cache accelerator)
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -100,14 +110,18 @@ export async function executeDBQuery(queryFn, maxRetries = 3, timeoutMs = 15000)
       lastError = err;
       console.warn(`[MongoDB] Query attempt ${attempt}/${maxRetries} failed: ${err.message}`);
       if (attempt < maxRetries) {
+<<<<<<< HEAD
         await new Promise(res => setTimeout(res, attempt * 1000)); // 1s backoff delay
+=======
+        await new Promise(res => setTimeout(res, attempt * 400)); // Exponential backoff delay
+>>>>>>> 1671b7f (Enforce MongoDB single source of truth, optimize payload to lightweight images, and add memory cache accelerator)
       }
     }
   }
   throw lastError;
 }
 
-export function withTimeout(promise, ms = 5000) {
+export function withTimeout(promise, ms = 10000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`Operation timed out after ${ms}ms`));
