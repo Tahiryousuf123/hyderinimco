@@ -85,6 +85,24 @@ function parseBody(req) {
   });
 }
 
+// Helper to wrap promises with a maximum timeout (prevents database hangs)
+function withTimeout(promise, ms = 3000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${ms}ms`));
+    }, ms);
+    promise
+      .then(res => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch(err => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 // Helper to send JSON response with CORS
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -242,12 +260,12 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/products' && method === 'GET') {
     if (isDBConnected()) {
       try {
-        const dbProducts = await Product.find({}, { _id: 0, __v: 0 }).lean();
+        const dbProducts = await withTimeout(Product.find({}, { _id: 0, __v: 0 }).lean(), 3000);
         if (dbProducts && dbProducts.length > 0) {
           return sendJson(res, 200, { success: true, products: dbProducts, source: 'mongodb' });
         }
       } catch (dbErr) {
-        console.error('[MongoDB] GET /api/products error:', dbErr);
+        console.error('[MongoDB] GET /api/products error:', dbErr.message);
       }
     }
     const products = readData('products.json', []);
@@ -392,12 +410,12 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/orders' && method === 'GET') {
     if (isDBConnected()) {
       try {
-        const dbOrders = await Order.find({}, { _id: 0, __v: 0 }).sort({ createdAt: -1 }).lean();
+        const dbOrders = await withTimeout(Order.find({}, { _id: 0, __v: 0 }).sort({ createdAt: -1 }).lean(), 3000);
         if (dbOrders && dbOrders.length > 0) {
           return sendJson(res, 200, { success: true, orders: dbOrders, source: 'mongodb' });
         }
       } catch (dbErr) {
-        console.error('[MongoDB] GET /api/orders error:', dbErr);
+        console.error('[MongoDB] GET /api/orders error:', dbErr.message);
       }
     }
     const orders = readData('orders.json', []);
