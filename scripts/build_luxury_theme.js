@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const productsJson = fs.readFileSync(path.join(process.cwd(), 'server', 'data', 'products.json'), 'utf8');
+const productsJson = '[]';
 
 const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Persistence -->
 <!DOCTYPE html>
@@ -185,8 +185,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       { en: "Bahria Town Karachi (Express Chilled Delivery - Rs. 1,500)", ur: "بحریہ ٹاؤن کراچی (ایکسپریس ڈیلیوری - ۱۵۰۰ روپے)" },
       { en: "Other Karachi Area (Exact Bykea App Fare at Dispatch)", ur: "دیگر کراچی ایریاز (بائیکیا لائیو ریٹ)" }
     ];
-
-    const INITIAL_PRODUCTS = ${productsJson};
+    const INITIAL_PRODUCTS = [];
     /*
     "name": "Hyderi Premium Deal 5",
     "nameUrdu": "حیدری پریمیم ڈیل ۵",
@@ -1531,7 +1530,9 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     function App() {
 
       const [lang, setLang] = useState('en'); // 'en' | 'ur'
-      const [products, setProducts] = useState(() => INITIAL_PRODUCTS);
+      const [products, setProducts] = useState([]);
+      const [productsLoading, setProductsLoading] = useState(true);
+      const [productsError, setProductsError] = useState(null);
       const [settings, setSettings] = useState({});
       const [activeCategory, setActiveCategory] = useState('all');
       const [searchQuery, setSearchQuery] = useState('');
@@ -1560,11 +1561,20 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const loadProducts = async () => {
         try {
           const res = await fetch(getApiBase() + '/api/products');
+          if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
-          if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+          if (data.success && Array.isArray(data.products)) {
             setProducts(data.products);
+            setProductsError(null);
+          } else {
+            throw new Error(data.error || 'Failed to load catalog');
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn('[Storefront] Live MongoDB catalog load error:', e.message);
+          setProductsError('Unable to connect to live catalog. Retrying...');
+        } finally {
+          setProductsLoading(false);
+        }
       };
 
       const loadSettings = async () => {
@@ -2273,7 +2283,30 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
 
             {/* Products Grid & Organized Category Sections */}
-            {searchQuery.trim() ? (
+            {productsLoading && products.length === 0 ? (
+              <div className="py-20 text-center space-y-4">
+                <div className="inline-block w-12 h-12 border-4 border-goldBrand-400 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm font-bold text-emeraldBrand-950 font-serifBrand">
+                  {isUrdu ? 'تازہ مینو لائیو لوڈ ہو رہا ہے...' : 'Loading Fresh Live Menu from MongoDB Atlas...'}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto pt-4 opacity-40 animate-pulse">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-64 bg-emeraldBrand-950/10 rounded-2xl border border-goldBrand-400/20"></div>
+                  ))}
+                </div>
+              </div>
+            ) : productsError && products.length === 0 ? (
+              <div className="py-12 text-center space-y-4 bg-white/90 backdrop-blur border-2 border-red-300 rounded-3xl p-6 shadow-xl max-w-md mx-auto my-8">
+                <span className="text-4xl">⚠️</span>
+                <p className="text-sm font-bold text-red-700">{productsError}</p>
+                <button
+                  onClick={loadProducts}
+                  className="px-6 py-2.5 bg-emeraldBrand-950 text-goldBrand-300 font-black rounded-xl text-xs hover:scale-105 transition-transform shadow-lg border border-goldBrand-400"
+                >
+                  {isUrdu ? 'دوبارہ کوشش کریں' : 'Retry Connecting'}
+                </button>
+              </div>
+            ) : searchQuery.trim() ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-goldBrand-400/40">
                   <span className="text-xs font-bold text-gray-700">
