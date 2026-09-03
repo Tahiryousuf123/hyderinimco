@@ -2892,6 +2892,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             <AdminPortal
               isOpen={isAdminOpen}
               products={products}
+              setProducts={setProducts}
               settings={settings}
               onClose={() => setIsAdminOpen(false)}
               onRefreshProducts={loadProducts}
