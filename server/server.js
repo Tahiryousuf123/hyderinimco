@@ -37,6 +37,11 @@ async function autoCleanseBloatedAtlasImages() {
       console.log(`[MongoDB Cleanser] Successfully sanitized ${bloatedDocs.length} products in MongoDB Atlas to lightweight URLs.`);
       invalidateProductsCache();
     }
+    // Cleanse any legacy imageBase64 fields stored directly in Product collection
+    await Product.updateMany(
+      { $or: [{ imageBase64: { $exists: true } }, { rawImg: { $exists: true } }, { imageData: { $exists: true } }] },
+      { $unset: { imageBase64: 1, rawImg: 1, imageData: 1 } }
+    ).catch(() => {});
   } catch (err) {
     console.warn('[MongoDB Cleanser] Warning:', err.message);
   }
@@ -716,13 +721,17 @@ const server = http.createServer(async (req, res) => {
       createdAt: now,
       updatedAt: now
     };
+    // Ensure product document NEVER stores raw Base64 data (Requirement 3)
+    delete newProductData.imageBase64;
+    delete newProductData.rawImg;
+    delete newProductData.imageData;
 
     try {
       // Atomic MongoDB write (Primary Source of Truth)
       const savedDoc = await executeDBQuery(
         () => Product.findOneAndUpdate({ id: prodId }, { $set: newProductData }, { upsert: true, returnDocument: 'after', lean: true, projection: { _id: 0, __v: 0 } }),
         2,
-        15000
+        25000
       );
 
       if (!savedDoc) {
@@ -775,6 +784,11 @@ const server = http.createServer(async (req, res) => {
     if (body.featured !== undefined) updateFields.featured = (body.featured === true || body.featured === 'true');
     if (finalImage !== undefined && finalImage !== null) updateFields.image = finalImage;
     if (body.category !== undefined && !body.categoryLabel) updateFields.categoryLabel = String(body.category).toUpperCase();
+
+    // Ensure product document NEVER stores raw Base64 data (Requirement 3)
+    delete updateFields.imageBase64;
+    delete updateFields.rawImg;
+    delete updateFields.imageData;
 
     try {
       // Atomic MongoDB update strictly by ID
