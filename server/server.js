@@ -186,6 +186,66 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // 0.1. GET /api/debug/db (Database Diagnostic Tool)
+  if (pathname === '/api/debug/db' && method === 'GET') {
+    let mongoState = null;
+    try {
+      const mongooseMod = await import('mongoose');
+      const m = mongooseMod.default || mongooseMod;
+      const conn = m.connection;
+      const stateNames = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+      const diag = {
+        readyState: conn.readyState,
+        stateName: stateNames[conn.readyState] || 'unknown',
+        hasUri: !!process.env.MONGODB_URI,
+        uriLength: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
+        host: conn.host,
+        port: conn.port,
+        name: conn.name,
+      };
+
+      if (conn.readyState === 1 && conn.db) {
+        try {
+          const t0 = Date.now();
+          diag.ping = await conn.db.command({ ping: 1 });
+          diag.pingMs = Date.now() - t0;
+        } catch (pe) {
+          diag.pingError = pe.message;
+        }
+
+        try {
+          const t1 = Date.now();
+          const colls = await conn.db.listCollections().toArray();
+          diag.collections = colls.map(c => c.name);
+          diag.listCollectionsMs = Date.now() - t1;
+        } catch (ce) {
+          diag.collectionsError = ce.message;
+        }
+
+        try {
+          const t2 = Date.now();
+          diag.productCount = await Product.countDocuments();
+          diag.countMs = Date.now() - t2;
+        } catch (cde) {
+          diag.countError = cde.message;
+        }
+
+        try {
+          const t3 = Date.now();
+          const firstProd = await Product.findOne({}, { _id: 1, id: 1, name: 1 }).lean().maxTimeMS(5000);
+          diag.sampleProduct = firstProd;
+          diag.sampleMs = Date.now() - t3;
+        } catch (fe) {
+          diag.sampleError = fe.message;
+        }
+      }
+
+      return sendJson(res, 200, { success: true, diag });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message, stack: err.stack });
+    }
+  }
+
   // 1. GET /api/settings
   if (pathname === '/api/settings' && method === 'GET') {
     let settings = readData('settings.json', {});
