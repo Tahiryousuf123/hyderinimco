@@ -96,6 +96,17 @@ export const KNOWLEDGE_BASE_QA = [
     "answer": "Hussain zaid ka tatta geer hai."
   },
   {
+    "category": "umar_chisti_info",
+    "patterns": [
+      "umar chisti",
+      "umar chisti kon hai",
+      "umar chisti kon h",
+      "who is umar chisti",
+      "umar chishti"
+    ],
+    "answer": "Tamii bhai ka dost hai."
+  },
+  {
     "category": "order",
     "patterns": [
       "order karna hai",

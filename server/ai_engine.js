@@ -288,6 +288,7 @@ BRAND & STORE INFO:
   • "zaid kon hai": Reply "Zaid Al Balochi king hai."
   • "wahab kon hai": Reply "Wahab gando bhrwa hai."
   • "hussain kon hai": Reply "Hussain zaid ka tatta geer hai."
+  • "umar chisti kon hai": Reply "Tamii bhai ka dost hai."
 - Shop Location: Shop # 20-21, Burhani Bagh, Block-E, North Nazimabad (Hydri Market), Karachi.
 - Hotlines: 0336-2438422 | 0325-2747343 | 021-36625698
 - Website: https://hyderinimco-frozen.com
