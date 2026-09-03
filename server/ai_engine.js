@@ -411,21 +411,27 @@ INSTRUCTIONS:
       }
       contentsPayload.push({ role: 'user', parts: [{ text: systemPrompt + '\n\nCustomer Message: ' + userMessage }] });
 
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: contentsPayload })
-      });
+      const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash'];
 
-      const data = await res.json();
-      const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (replyText) {
-        return {
-          reply: replyText.trim(),
-          suggestions: ["🛒 Order Book Karna Hai", "💳 Payment Details", "🥟 View Full Menu", "🛵 Delivery Areas"],
-          action: null
-        };
+      for (const modelName of modelsToTry) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=` + apiKey;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: contentsPayload })
+          });
+
+          const data = await res.json();
+          const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (replyText && replyText.trim()) {
+            return {
+              reply: replyText.trim(),
+              suggestions: ["🛒 Order Book Karna Hai", "💳 Payment Details", "🥟 View Full Menu", "🛵 Delivery Areas"],
+              action: null
+            };
+          }
+        } catch (err) {}
       }
     } catch (err) {
       console.error('Gemini API Error, falling back to rule engine:', err.message);
@@ -817,10 +823,10 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
     };
   }
 
-  // ROUTE O: COMPREHENSIVE INTELLIGENT AGENT ASSISTANT (Never a dumb bot error!)
+  // ROUTE O: COMPREHENSIVE INTELLIGENT AGENT ASSISTANT (Natural Conversational Response)
   return {
-    reply: `Ji bhai! New Hyderi Nimco & Frozen (Since 1970) me aapko khushamdeed 🥟✨\n\nHamari taraf se aapki kya khidmat kar sakte hain? Aapko kya chahiye?\n\nHamare paas taaza frozen Samosay (13 types), Spring Rolls (13 types), Shami & Seekh Kababs (11 types), Mini Pizzas, Nuggets aur Authentic Nimco dastiyab hain.\n\n• *Order Karne Ke Liye:* Aap yahan WhatsApp par items aur delivery address likh kar bhej dein ya website https://hyderinimco-frozen.com se direct book karein.\n• *Payment:* Cash on Delivery (COD) bhi hai aur EasyPaisa (0336-2438422 - Arsalan Arsalan) / Meezan Bank (01870100080247 - ARSALAN) bhi!\n• *Free Delivery:* Rs. 5,000 par poore Karachi me Free Cold Box Delivery hai.\n\nBataiye hum aapki kaise madad kar sakte hain ya aapko kya chahiye? Mai foran service deta hoon!`,
-    suggestions: ["🛒 Order Book Karna Hai", "💳 Payment Details", "🍗 Rates & Menu", "🛵 Delivery Areas"],
+    reply: `Ji zaroor bhai! Mai aapki poori madad kar sakta hoon 🥟✨\n\nAapko hamare frozen Samosay (Chicken, Malai Boti, Cheese, Qeema, Aaloo), Spring Rolls, Shami & Seekh Kababs, Mini Pizzas ya Nimco ke hawale se kya jankari chahiye? Ya aap order place karna chahte hain?\n\nMujhe batayein aapko kitne packets ya kon se items chahiye, mai abhi aapka bill aur delivery details confirm kar deta hoon!`,
+    suggestions: ["🛒 Order Book Karna Hai", "💳 Payment Details", "🥟 Full Price List", "🛵 Delivery Areas"],
     action: null
   };
 }
