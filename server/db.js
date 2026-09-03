@@ -142,7 +142,7 @@ reconnectTimer.unref?.();
 /**
  * Robust DB Query Executor with Native Driver Error Transparency & Retry Loop
  */
-export async function executeDBQuery(queryFn, maxRetries = 2, timeoutMs = 15000) {
+export async function executeDBQuery(queryFn, maxRetries = 2, timeoutMs = 25000) {
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI environment variable is not defined.');
   }

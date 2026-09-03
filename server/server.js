@@ -28,6 +28,27 @@ function invalidateProductsCache() {
  * 3. Automatically convert any legacy bloated Base64 strings to clean static image files.
  * 4. Only if MongoDB is completely empty (fresh setup) does it seed initial catalog once.
 /**
+ * Automatically cleanses bloated legacy Base64 images in MongoDB Atlas to lightweight static paths.
+ * Queries ONLY product IDs to avoid streaming megabytes over the network.
+ */
+async function autoCleanseBloatedAtlasImages() {
+  try {
+    const bloatedDocs = await Product.find({ image: /^data:image/ }, { id: 1 }).lean();
+    if (bloatedDocs && bloatedDocs.length > 0) {
+      console.log(`[MongoDB Cleanser] Detected ${bloatedDocs.length} bloated Base64 records in MongoDB Atlas. Sanitizing to lightweight paths...`);
+      for (const doc of bloatedDocs) {
+        const cleanUrl = `/images/prod-${doc.id}.jpg`;
+        await Product.updateOne({ id: doc.id }, { $set: { image: cleanUrl } });
+      }
+      console.log(`[MongoDB Cleanser] Successfully sanitized ${bloatedDocs.length} products in MongoDB Atlas to lightweight URLs.`);
+      invalidateProductsCache();
+    }
+  } catch (err) {
+    console.warn('[MongoDB Cleanser] Warning:', err.message);
+  }
+}
+
+/**
  * MongoDB Single Source of Truth Startup Initializer
  * Requirement: Startup connects to MongoDB Atlas and verifies connection.
  * Startup NEVER imports products.json into MongoDB, nor does it overwrite MongoDB data.
@@ -37,6 +58,7 @@ async function initializeDatabaseOnStartup() {
   const connected = await connectDB();
   if (connected) {
     console.log('[MongoDB Startup] MongoDB Atlas is online and verified as the single source of truth.');
+    autoCleanseBloatedAtlasImages().catch(() => {});
   } else {
     console.warn('[MongoDB Startup] MongoDB Atlas connection not established. API mutation requests will return HTTP 503.');
   }
@@ -246,6 +268,24 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 0.2. GET /api/admin/cleanse-db (Manual trigger to purge bloated base64 images from Atlas)
+  if (pathname === '/api/admin/cleanse-db' && method === 'GET') {
+    try {
+      const bloated = await Product.find({ image: /^data:image/ }, { id: 1 }).lean();
+      let updated = 0;
+      if (bloated && bloated.length > 0) {
+        for (const doc of bloated) {
+          await Product.updateOne({ id: doc.id }, { $set: { image: `/images/prod-${doc.id}.jpg` } });
+          updated++;
+        }
+        invalidateProductsCache();
+      }
+      return sendJson(res, 200, { success: true, sanitized: updated, totalBloated: bloated?.length || 0 });
+    } catch (e) {
+      return sendJson(res, 500, { success: false, error: e.message });
+    }
+  }
+
   // 1. GET /api/settings
   if (pathname === '/api/settings' && method === 'GET') {
     let settings = readData('settings.json', {});
@@ -402,9 +442,14 @@ const server = http.createServer(async (req, res) => {
       const dbProducts = await executeDBQuery(
         () => Product.find({}, { _id: 0, __v: 0 }).lean().exec(),
         2,
-        15000
+        25000
       );
       if (Array.isArray(dbProducts)) {
+        for (const p of dbProducts) {
+          if (p.image && typeof p.image === 'string' && p.image.startsWith('data:image')) {
+            p.image = `/images/prod-${p.id}.jpg`;
+          }
+        }
         productCache = dbProducts;
         productCacheTime = Date.now();
         return sendJson(res, 200, { success: true, products: dbProducts, source: 'mongodb' });
