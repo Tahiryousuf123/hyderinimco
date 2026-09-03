@@ -15,6 +15,7 @@
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "lucide-react": "^1.16.0",
     "mongoose": "^9.9.4",
