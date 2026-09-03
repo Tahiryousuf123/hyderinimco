@@ -186,7 +186,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       { en: "Malir Cantt / Model Colony", ur: "ملیر کینٹ / ماڈل کالونی" },
       { en: "Scheme 33 / Safoora", ur: "اسکیم ۳۳ / صفورہ" },
       { en: "Korangi / Landhi", ur: "کورنگی / لانڈھی" },
-      { en: "Bahria Town Karachi (Express Chilled Delivery - Rs. 1500-2000)", ur: "بحریہ ٹاؤن کراچی (ایکسپریس چلیڈ ڈیلیوری - ۱۵۰۰ سے ۲۰۰۰ روپے)" },
+      { en: "Bahria Town Karachi (Special Delivery)", ur: "بحریہ ٹاؤن کراچی (اسپیشل ڈیلیوری)" },
       { en: "Other Karachi Area", ur: "دیگر کراچی ایریاز" }
     ];
 
@@ -1687,8 +1687,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const subtotal = cart.reduce((acc, it) => acc + (it.price * it.quantity), 0);
       const freeLimit = settings.freeDeliveryAbove || 5000;
       const isFree = subtotal >= freeLimit;
-      const deliveryFee = cart.length === 0 ? 0 : (isFree ? 0 : (settings.deliveryFee || 150));
-      const totalAmount = subtotal + deliveryFee;
+      const deliveryFee = 0;
+      const totalAmount = subtotal;
 
       const isUrdu = lang === 'ur';
 
