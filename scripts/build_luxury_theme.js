@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
+const productsJson = fs.readFileSync(path.join(process.cwd(), 'server', 'data', 'products.json'), 'utf8');
+
 const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Persistence -->
 <!DOCTYPE html>
 <html lang="en">
@@ -184,9 +186,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       { en: "Other Karachi Area (Exact Bykea App Fare at Dispatch)", ur: "دیگر کراچی ایریاز (بائیکیا لائیو ریٹ)" }
     ];
 
-    const INITIAL_PRODUCTS = [
-  {
-    "id": "deal-prem-5",
+    const INITIAL_PRODUCTS = ${productsJson};
+    /*
     "name": "Hyderi Premium Deal 5",
     "nameUrdu": "حیدری پریمیم ڈیل ۵",
     "category": "deals",
@@ -1490,6 +1491,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     "featured": false
   }
 ];
+    */
 
     // Official Hyderi Badge Logo Emblem Component
     function HyderiLogoEmblem({ size = "normal" }) {
