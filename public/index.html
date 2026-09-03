@@ -1575,14 +1575,18 @@
               if (saved) customList = JSON.parse(saved);
             } catch (e) {}
 
-            const merged = data.products.map(p => {
-              const localMatch = customList.find(c => c.id === p.id);
-              if (localMatch && localMatch.image && localMatch.image.startsWith('data:image')) {
-                return { ...p, image: localMatch.image };
-              }
-              return p;
-            });
+            const mergedMap = new Map();
+            data.products.forEach(p => mergedMap.set(p.id, p));
+            if (Array.isArray(customList)) {
+              customList.forEach(p => {
+                if (p && p.id) {
+                  const existing = mergedMap.get(p.id);
+                  mergedMap.set(p.id, { ...existing, ...p });
+                }
+              });
+            }
 
+            const merged = Array.from(mergedMap.values());
             setProducts(merged);
           }
         } catch (e) {}

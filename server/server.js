@@ -108,9 +108,13 @@ function saveBase64Image(base64Str) {
 
     // Save copy in public/images for static file serving
     try {
-      const publicPath = path.join(PUBLIC_DIR, 'images', filename);
+      const publicImgDir = path.join(PUBLIC_DIR, 'images');
+      if (!fs.existsSync(publicImgDir)) fs.mkdirSync(publicImgDir, { recursive: true });
+      const publicPath = path.join(publicImgDir, filename);
       fs.writeFileSync(publicPath, buffer);
-    } catch (err2) {}
+    } catch (err2) {
+      console.error('Error saving public image copy:', err2);
+    }
 
     return `/images/${filename}`;
   } catch (e) {
@@ -231,19 +235,29 @@ const server = http.createServer(async (req, res) => {
     let imageUrl = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
     const rawImg = body.imageBase64 || body.image || body.imageUrl;
     if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
-      imageUrl = rawImg;
+      if (rawImg.startsWith('data:image')) {
+        const saved = saveBase64Image(rawImg);
+        if (saved) {
+          imageUrl = saved;
+        }
+      } else {
+        imageUrl = rawImg;
+      }
     }
 
+    const prodId = body.id || ('prod-' + Date.now());
+    const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : 'SAMOSA');
+
     const newProduct = {
-      id: 'prod-' + Date.now(),
+      id: prodId,
       name: body.name || 'New Item',
       nameUrdu: body.nameUrdu || '',
       category: body.category || 'samosa',
-      categoryLabel: (body.category || 'samosa').toUpperCase(),
+      categoryLabel: catLabel,
       packQuantity: body.packQuantity || '12 pcs',
       price: Number(body.price) || 0,
-      rating: 5.0,
-      reviewCount: 1,
+      rating: body.rating ? Number(body.rating) : 5.0,
+      reviewCount: body.reviewCount ? Number(body.reviewCount) : 1,
       image: imageUrl,
       badge: body.badge || '',
       description: body.description || '',
@@ -251,7 +265,13 @@ const server = http.createServer(async (req, res) => {
       featured: body.featured === true || body.featured === 'true'
     };
 
-    products.unshift(newProduct);
+    const existingIdx = products.findIndex(p => p.id === prodId);
+    if (existingIdx !== -1) {
+      products[existingIdx] = newProduct;
+    } else {
+      products.unshift(newProduct);
+    }
+
     writeData('products.json', products);
     return sendJson(res, 200, { success: true, product: newProduct });
   }
@@ -261,16 +281,43 @@ const server = http.createServer(async (req, res) => {
     const id = pathname.replace('/api/products/', '');
     const body = await parseBody(req);
     const products = readData('products.json', []);
-    const idx = products.findIndex(p => p.id === id);
+    let idx = products.findIndex(p => p.id === id);
 
-    if (idx === -1) {
-      return sendJson(res, 404, { success: false, message: 'Product not found' });
-    }
-
-    let finalImage = products[idx].image;
+    let finalImage = idx !== -1 ? products[idx].image : 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80';
     const rawImg = body.imageBase64 || body.image || body.imageUrl;
     if (rawImg && typeof rawImg === 'string' && rawImg.trim()) {
-      finalImage = rawImg;
+      if (rawImg.startsWith('data:image')) {
+        const saved = saveBase64Image(rawImg);
+        if (saved) {
+          finalImage = saved;
+        }
+      } else {
+        finalImage = rawImg;
+      }
+    }
+
+    const catLabel = body.categoryLabel || (body.category ? body.category.toUpperCase() : (idx !== -1 ? products[idx].categoryLabel : 'SAMOSA'));
+
+    if (idx === -1) {
+      const newProduct = {
+        id: id,
+        name: body.name || 'New Item',
+        nameUrdu: body.nameUrdu || '',
+        category: body.category || 'samosa',
+        categoryLabel: catLabel,
+        packQuantity: body.packQuantity || '12 pcs',
+        price: Number(body.price) || 0,
+        rating: 5.0,
+        reviewCount: 1,
+        image: finalImage,
+        badge: body.badge || '',
+        description: body.description || '',
+        isAvailable: body.isAvailable !== false && body.isAvailable !== 'false',
+        featured: body.featured === true || body.featured === 'true'
+      };
+      products.unshift(newProduct);
+      writeData('products.json', products);
+      return sendJson(res, 200, { success: true, product: newProduct });
     }
 
     products[idx] = {
@@ -278,7 +325,7 @@ const server = http.createServer(async (req, res) => {
       name: body.name !== undefined ? body.name : products[idx].name,
       nameUrdu: body.nameUrdu !== undefined ? body.nameUrdu : products[idx].nameUrdu,
       category: body.category !== undefined ? body.category : products[idx].category,
-      categoryLabel: body.categoryLabel !== undefined ? body.categoryLabel : products[idx].categoryLabel,
+      categoryLabel: catLabel,
       packQuantity: body.packQuantity !== undefined ? body.packQuantity : products[idx].packQuantity,
       price: body.price !== undefined ? Number(body.price) : products[idx].price,
       badge: body.badge !== undefined ? body.badge : products[idx].badge,
