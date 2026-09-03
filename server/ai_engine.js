@@ -374,15 +374,17 @@ BRAND INFO & CONTACT:
 
 DELIVERY & PAYMENTS:
 - Free Delivery: Poore Karachi (except Bahria Town) me Rs. 5,000 ya us se zyada ke orders par Temperature-Controlled Express Delivery 100% FREE hai!
-- Area-wise Delivery Charges from Hydri (North Nazimabad) for orders under Rs. 5,000:
-  • North Nazimabad / Hydri Local: Rs. 50 (Shop Pickup Available)
-  • North Karachi / Buffer Zone / FB Area: Rs. 100
-  • Nazimabad / Gulberg: Rs. 120
-  • Gulshan-e-Iqbal / Johar / Scheme 33: Rs. 150 - 200
-  • PECHS / Tariq Road / Saddar: Rs. 200
-  • Clifton / Defence (DHA): Rs. 250
-  • Malir Cantt / Model Colony / Korangi / Landhi: Rs. 250 - 300
-  • Bahria Town Karachi: Rs. 1,500 se Rs. 2,000 (Special Express Chilled Rider)
+- Area-wise Bykea Distance Delivery Charges from Hydri (North Nazimabad) for orders under Rs. 5,000:
+  • North Nazimabad / Hydri Local: Rs. 100 (Shop Pickup Available)
+  • North Karachi / Buffer Zone / FB Area: Rs. 200
+  • Nazimabad / Liaquatabad / Gulberg: Rs. 250
+  • Gulshan-e-Iqbal / Johar / Stadium: Rs. 350
+  • Scheme 33 / Safoora / PECHS / Tariq Road: Rs. 400
+  • Saddar / Garden: Rs. 450
+  • Clifton / Defence DHA Phases 1-8: Rs. 500
+  • Malir Cantt / Model Colony: Rs. 550
+  • Korangi / Landhi: Rs. 600
+  • Bahria Town Karachi: Rs. 1,500 (Special Express Chilled Rider)
 - Payment Options: Cash on Delivery (COD), EasyPaisa (0336-2438422 - Title: Arsalan Arsalan), Meezan Bank (01870100080247 - Title: ARSALAN).
 
 SUPER SAVER COMBOS & PREMIUM DEALS:
