@@ -376,10 +376,10 @@ const server = http.createServer(async (req, res) => {
 
     try {
       // Step 1: Write to MongoDB Atlas (Authoritative Source of Truth) with retries
-      await executeDBQuery(() => Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true }), 3, 10000);
+      await executeDBQuery(() => Product.updateOne({ id }, { $set: updatedProduct }, { upsert: true }), 3, 15000);
       
       // Step 2: Verify write in MongoDB Atlas
-      const verified = await executeDBQuery(() => Product.findOne({ id }, { _id: 0, __v: 0 }).lean(), 2, 5000);
+      const verified = await executeDBQuery(() => Product.findOne({ id }, { _id: 0, __v: 0 }).lean(), 3, 10000);
       if (!verified || (finalImage && verified.image !== finalImage)) {
         throw new Error('Verification read-back failed in MongoDB Atlas');
       }

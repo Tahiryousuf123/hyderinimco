@@ -79,7 +79,7 @@ setInterval(() => {
 /**
  * Robust DB Query Executor with Automatic Retry Loop and Backoff
  */
-export async function executeDBQuery(queryFn, maxRetries = 3, timeoutMs = 8000) {
+export async function executeDBQuery(queryFn, maxRetries = 3, timeoutMs = 15000) {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -100,7 +100,7 @@ export async function executeDBQuery(queryFn, maxRetries = 3, timeoutMs = 8000) 
       lastError = err;
       console.warn(`[MongoDB] Query attempt ${attempt}/${maxRetries} failed: ${err.message}`);
       if (attempt < maxRetries) {
-        await new Promise(res => setTimeout(res, attempt * 500)); // Exponential backoff delay
+        await new Promise(res => setTimeout(res, attempt * 1000)); // 1s backoff delay
       }
     }
   }
