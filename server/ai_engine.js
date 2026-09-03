@@ -1,36 +1,63 @@
-// Ultimate Autonomous Customer Care & Sales AI Agent for New Hyderi Nimco & Frozen
-// Handles ANY question a customer can ask:
-// - Exact single product search & rates (e.g. "momos kitne ke hain", "nuggets ka rate", "shami kabab price")
-// - Category inquiries (Samosas, Rolls, Kababs, Pizzas, Nimco, Special)
-// - Party / Dawat / Mehman calculations (e.g. "20 logon ki dawat hai", "50 bandon ke liye kya lena chahiye")
-// - Bulk & wholesale discounts
-// - Order placing & confirmation steps
-// - Payment methods (Cash on Delivery, EasyPaisa Arsalan, Meezan Bank ARSALAN)
-// - Delivery areas, timings, charges, free delivery policy
-// - Cooking & frying instructions (oil temperature, defrosting, air frying, boiling/steaming momos)
-// - Shelf life, expiry, freezer storage guidance
-// - Quality, Halal status, ingredients, hygiene, spice levels (bachon ke liye, mild vs spicy)
-// - Shop location, contact numbers, opening hours
-// - Order status tracking
-// - Custom mixing, recommendations & complaints
+// Ultimate Conversational AI Sales & Customer Care Agent for New Hyderi Nimco & Frozen
+// Powered by Google Gemini Flash + MongoDB Atlas Live Catalog + Per-Customer Multi-Turn Conversation Memory
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { KNOWLEDGE_BASE_QA } from './knowledge_qa.js';
+import { Product } from './models/Product.js';
+import { isDBConnected } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function getKnowledge() {
-  const productsPath = path.join(__dirname, 'data', 'products.json');
-  const settingsPath = path.join(__dirname, 'data', 'settings.json');
-  const products = JSON.parse(fs.readFileSync(productsPath, 'utf8') || '[]');
-  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8') || '{}');
-  return { products, settings };
+/**
+ * 1. LIVE PRODUCT DATA PROVIDER
+ * Primary Source of Truth: MongoDB Atlas
+ * Fallback: Local server/data/products.json
+ */
+export async function getLiveProducts() {
+  if (isDBConnected()) {
+    try {
+      const dbProducts = await Product.find({}, { _id: 0, __v: 0 }).lean();
+      if (dbProducts && dbProducts.length > 0) {
+        return dbProducts;
+      }
+    } catch (err) {
+      console.error('[AI Engine] MongoDB live products fetch error:', err.message);
+    }
+  }
+
+  // Fallback to local JSON if MongoDB is offline or uninitialized
+  try {
+    const productsPath = path.join(__dirname, 'data', 'products.json');
+    if (fs.existsSync(productsPath)) {
+      const data = fs.readFileSync(productsPath, 'utf8');
+      return JSON.parse(data || '[]');
+    }
+  } catch (e) {
+    console.error('[AI Engine] Local products JSON fallback error:', e.message);
+  }
+
+  return [];
 }
 
-// Semantic & Keyword Similarity Matcher against 350+ Patterns
+/**
+ * Reads settings.json safely
+ */
+function getSettings() {
+  try {
+    const settingsPath = path.join(__dirname, 'data', 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf8') || '{}');
+    }
+  } catch (e) {}
+  return {};
+}
+
+/**
+ * Semantic & Keyword Similarity Matcher against 350+ Patterns
+ */
 function findQAMatch(normalizedQuery) {
   const q = normalizedQuery.toLowerCase();
   let bestMatch = null;
@@ -58,7 +85,9 @@ function findQAMatch(normalizedQuery) {
   return null;
 }
 
-// Typo & Slang Normalization Dictionary for Pakistani Roman Urdu
+/**
+ * Typo & Slang Normalization Dictionary for Pakistani Roman Urdu
+ */
 const TYPO_MAP = {
   'jara': 'zara',
   'zra': 'zara',
@@ -67,20 +96,12 @@ const TYPO_MAP = {
   'krunga': 'karonga',
   'karunga': 'karonga',
   'karenga': 'karein',
-  'karna': 'karna',
   'krna': 'karna',
-  'karnah': 'karna',
-  'krnah': 'karna',
-  'karo': 'karo',
   'kro': 'karo',
-  'karon': 'karon',
-  'kroun': 'karon',
-  'karun': 'karon',
   'btao': 'batao',
   'btado': 'batao',
   'bataien': 'batao',
   'batayein': 'batao',
-  'btayein': 'batao',
   'prce': 'price',
   'priz': 'price',
   'qeemat': 'price',
@@ -92,13 +113,8 @@ const TYPO_MAP = {
   'dicount': 'discount',
   'discont': 'discount',
   'riayat': 'discount',
-  'choot': 'discount',
-  'riyayat': 'discount',
   'qnty': 'quantity',
   'quantiy': 'quantity',
-  'quantty': 'quantity',
-  'taadad': 'quantity',
-  'tadad': 'quantity',
   'chkn': 'chicken',
   'chiken': 'chicken',
   'chikn': 'chicken',
@@ -118,308 +134,199 @@ const TYPO_MAP = {
   'piza': 'pizza',
   'pza': 'pizza',
   'momo': 'momos',
-  'momoos': 'momos',
-  'momoz': 'momos',
+  'nuget': 'nuggets',
   'nugets': 'nuggets',
-  'nugett': 'nuggets',
-  'delivry': 'delivery',
-  'delvery': 'delivery',
-  'dlvry': 'delivery',
-  'dilvery': 'delivery',
-  'chahiye': 'chahiye',
-  'chahye': 'chahiye',
-  'chaye': 'chahiye',
-  'chaiye': 'chahiye',
-  'pesa': 'paise',
-  'pesay': 'paise',
-  'paymnt': 'payment',
-  'kese': 'kaise',
-  'kaisy': 'kaise',
-  'easypasa': 'easypaisa',
-  'easypisa': 'easypaisa',
-  'jazcash': 'jazzcash',
-  'tlna': 'talna',
-  'pkaana': 'pakana',
-  'khrb': 'kharab',
-  'frozan': 'frozen',
-  'frozn': 'frozen'
+  'nugget': 'nuggets'
 };
 
 function normalizeText(text) {
-  let cleaned = (text || '').toLowerCase().trim();
-  cleaned = cleaned.replace(/[.,?!;:_()"\-/\\]/g, ' ');
-  const rawWords = cleaned.split(/\s+/).filter(Boolean);
-  const normalizedWords = rawWords.map(w => TYPO_MAP[w] || w);
-  return {
-    raw: text || '',
-    normalized: normalizedWords.join(' '),
-    words: normalizedWords
-  };
+  const raw = (text || '').toString().trim();
+  let normalized = raw.toLowerCase()
+    .replace(/[^\w\s\d\u0600-\u06FF]/gi, ' ')
+    .replace(/\s+/g, ' ');
+
+  const words = normalized.split(' ').map(w => TYPO_MAP[w] || w);
+  normalized = words.join(' ');
+
+  return { raw, normalized, words };
 }
 
 function detectLanguage(raw, normalized) {
   if (/[\u0600-\u06FF]/.test(raw)) return 'urdu_script';
-  const romanKeywords = [
-    'yaar', 'bhai', 'kaise', 'batao', 'chahiye', 'kya', 'kia', 
-    'kitna', 'kitne', 'hai', 'hain', 'dawat', 'mehman', 'logon', 'bhej', 
-    'karo', 'karonga', 'milay', 'milega', 'zara', 'acha', 'mujhe', 'hum',
-    'karna', 'dena', 'karen', 'paise', 'kese', 'ap', 'aap', 'wala', 'wali'
-  ];
-  if (romanKeywords.some(w => normalized.includes(w))) return 'roman_urdu';
-  const englishKeywords = ['price', 'what', 'how', 'when', 'where', 'discount', 'cost', 'menu', 'rate', 'order', 'pay', 'confirm'];
-  if (englishKeywords.some(w => normalized.includes(w))) return 'english';
+  const englishWords = ['price', 'rate', 'menu', 'delivery', 'order', 'location', 'address', 'total', 'bill', 'discount'];
+  const isEng = englishWords.some(w => normalized.includes(w));
+  if (isEng && !normalized.includes('hai') && !normalized.includes('kaise') && !normalized.includes('kya')) return 'english';
   return 'roman_urdu';
 }
 
-// Advanced Multi-Item Natural Language Order & Total Bill Parser
-export function parseCustomerOrderList(text, products) {
-  const lines = text.split(/[\n,;+&]|\band\b|\baur\b/i).map(l => l.trim()).filter(Boolean);
-  const foundItems = [];
-  const handledProductIds = new Set();
+function findMatchingProducts(normalized, products) {
+  if (!products || !Array.isArray(products) || products.length === 0) return { isCategory: false, items: [] };
 
-  // Word-to-number dictionary for Roman Urdu & English
-  const NUM_WORDS = {
-    'ek': 1, 'aik': 1, 'one': 1, '1': 1,
-    'do': 2, 'two': 2, '2': 2,
-    'teen': 3, 'tin': 3, 'three': 3, '3': 3,
-    'char': 4, 'chaar': 4, 'four': 4, '4': 4,
-    'panch': 5, 'paanch': 5, 'five': 5, '5': 5,
-    'chey': 6, 'chhay': 6, 'six': 6, '6': 6,
-    'saat': 7, 'seven': 7, '7': 7,
-    'aath': 8, 'eight': 8, '8': 8,
-    'nau': 9, 'no': 9, 'nine': 9, '9': 9,
-    'das': 10, 'ten': 10, '10': 10
-  };
-
-  for (const line of lines) {
-    const lower = line.toLowerCase();
+  const q = normalized.toLowerCase();
+  
+  // Specific item token matching FIRST (before general category fallback)
+  const matched = products.filter(p => {
+    const pName = (p.name || '').toLowerCase();
+    const pUrdu = (p.nameUrdu || '').toLowerCase();
+    const pId = (p.id || '').toLowerCase();
     
-    // Check if line contains a quantity (digit or word like '2', '2x', '2 packet', 'do packet')
-    let qty = 1;
-    const qtyMatch = lower.match(/\b(\d+)\s*(?:x|packet|pack|pkt|dabba|dabay|dabbay|dozen|darjan|kg)?\b/i);
-    if (qtyMatch) {
-      qty = parseInt(qtyMatch[1], 10);
-    } else {
-      for (const [nw, val] of Object.entries(NUM_WORDS)) {
-        const wordRegex = new RegExp(`\\b${nw}\\s*(?:x|packet|pack|pkt|dabba|dabay|dabbay)?\\b`, 'i');
-        if (wordRegex.test(lower)) {
-          qty = val;
-          break;
-        }
-      }
-    }
+    // Direct string match
+    if (q.includes(pName) || (pUrdu && q.includes(pUrdu)) || q.includes(pId)) return true;
 
-    // Match against products
-    let bestProd = null;
-    let maxMatchLen = 0;
+    // Specific keyword token matchers
+    if ((q.includes('nugget') || q.includes('nuggets')) && (pId.includes('nugget') || pName.includes('nugget'))) return true;
+    if ((q.includes('cheese ball') || q.includes('cheese balls')) && (pId.includes('cheese-ball') || pName.includes('cheese ball'))) return true;
+    if ((q.includes('momo') || q.includes('momos')) && (pId.includes('momo') || pName.includes('momo'))) return true;
+    if ((q.includes('wonton') || q.includes('vonton')) && (pId.includes('vonton') || pName.includes('vonton'))) return true;
+    if (q.includes('chapli') && (pId.includes('chapli') || pName.includes('chapli'))) return true;
+    if (q.includes('seekh') && (pId.includes('seekh') || pName.includes('seekh'))) return true;
+    if (q.includes('malai boti') && (pId.includes('malai') || pName.includes('malai'))) return true;
 
-    for (const p of products) {
-      const pNameLower = p.name.toLowerCase();
-      // Tokenize product name
-      const cleanProdName = pNameLower.replace(/chicken|crispy|special|one bite/g, '').trim();
-      
-      let matched = false;
-      if (lower.includes(pNameLower)) {
-        matched = true;
-      } else if (lower.includes('vonton') && pNameLower.includes('vonton')) {
-        matched = true;
-      } else if (lower.includes('cheese samosa') && pNameLower.includes('cheese') && pNameLower.includes('samosa')) {
-        matched = true;
-      } else if (lower.includes('malai boti samosa') && pNameLower.includes('malai boti') && pNameLower.includes('samosa')) {
-        matched = true;
-      } else if (lower.includes('malai boti roll') && pNameLower.includes('malai boti') && pNameLower.includes('roll')) {
-        matched = true;
-      } else if (lower.includes('mayo garlic roll') && pNameLower.includes('mayo') && pNameLower.includes('roll')) {
-        matched = true;
-      } else if (lower.includes('pizza samosa') && pNameLower.includes('pizza') && pNameLower.includes('samosa')) {
-        matched = true;
-      } else if (lower.includes('pizza roll') && pNameLower.includes('pizza') && pNameLower.includes('roll')) {
-        matched = true;
-      } else if (lower.includes('shami') && pNameLower.includes('shami')) {
-        if (lower.includes('beef') && pNameLower.includes('beef')) matched = true;
-        else if (!lower.includes('beef') && pNameLower.includes('chicken') && pNameLower.includes('shami')) matched = true;
-      } else if (lower.includes('chapli') && pNameLower.includes('chapli')) {
-        matched = true;
-      } else if (lower.includes('seekh') && pNameLower.includes('seekh')) {
-        matched = true;
-      } else if (lower.includes('momo') && pNameLower.includes('momo')) {
-        matched = true;
-      } else if (lower.includes('nugget') && pNameLower.includes('nugget')) {
-        matched = true;
-      } else if (lower.includes('cheese ball') && pNameLower.includes('cheese ball')) {
-        matched = true;
-      } else if (lower.includes('hot shot') && pNameLower.includes('hot shot')) {
-        matched = true;
-      } else if (lower.includes('chilos') && pNameLower.includes('chilos')) {
-        matched = true;
-      } else if (lower.includes('donuts') && pNameLower.includes('donuts')) {
-        matched = true;
-      } else if (lower.includes('fries') && pNameLower.includes('fries')) {
-        matched = true;
-      } else if (lower.includes('roll patti') && pNameLower.includes('roll patti')) {
-        matched = true;
-      } else if (lower.includes('samosa patti') && pNameLower.includes('samosa patti')) {
-        matched = true;
-      } else if (lower.includes('samosa') && !lower.includes('roll') && !lower.includes('kabab')) {
-        if (lower.includes('aaloo') && pNameLower.includes('aaloo')) matched = true;
-        else if (lower.includes('qeema') && pNameLower.includes('qeema')) matched = true;
-        else if (pNameLower === 'chicken one bite samosa') matched = true;
-      } else if (lower.includes('roll') && !lower.includes('samosa')) {
-        if (lower.includes('vegetable') && pNameLower.includes('vegetable')) matched = true;
-        else if (pNameLower === 'chicken one bite roll' || pNameLower === 'chicken spring roll') matched = true;
-      } else if (lower.includes('nimco') || lower.includes('nimko')) {
-        if (pNameLower.includes('mix nimco') || pNameLower.includes('special')) matched = true;
-      }
-
-      if (matched && p.name.length > maxMatchLen && !handledProductIds.has(p.id)) {
-        maxMatchLen = p.name.length;
-        bestProd = p;
-      }
-    }
-
-    if (bestProd) {
-      handledProductIds.add(bestProd.id);
-      foundItems.push({
-        product: bestProd,
-        quantity: qty,
-        itemTotal: bestProd.price * qty
-      });
-    }
-  }
-
-  return foundItems;
-}
-
-// Search products & categories dynamically
-function findMatchingProducts(normalizedQuery, products) {
-  const q = normalizedQuery.toLowerCase().trim();
-
-  // Flavors / Specific Item Modifiers list
-  const flavors = ['bbq', 'bar b q', 'barbeque', 'malai', 'mayo', 'shahi', 'mint', 'chinese', 'bread', 'chimmy', 'cheese', 'pizza', 'patti', 'one bite', 'vonton', 'qeema', 'aaloo', 'chaat', 'corn', 'tikka', 'fajita', 'chapli', 'seekh', 'shami', 'nugget', 'hot shot', 'fries', 'paratha', 'puri', 'donut', 'lollipop', 'cone'];
-
-  const hasFlavor = flavors.some(f => q.includes(f));
-
-  // Category Level Requests ONLY if NO specific flavor mentioned
-  if (!hasFlavor) {
-    if (['roll', 'rolls', 'spring roll', 'spring rolls'].includes(q)) {
-      return { isCategory: true, title: 'Fresh Spring Rolls (13 Varieties)', items: products.filter(p => p.category === 'roll') };
-    }
-    if (['samosa', 'samosay', 'samose', 'samosas'].includes(q)) {
-      return { isCategory: true, title: 'Fresh Samosay (13 Varieties)', items: products.filter(p => p.category === 'samosa') };
-    }
-    if (['kabab', 'kababs', 'kebab', 'kebabs'].includes(q)) {
-      return { isCategory: true, title: 'Shami, Seekh & Chapli Kababs (11 Varieties)', items: products.filter(p => p.category === 'kabab') };
-    }
-    if (['pizza', 'pizzas', 'mini pizza', 'mini pizzas'].includes(q)) {
-      return { isCategory: true, title: 'Mini Pizzas (2 Varieties)', items: products.filter(p => p.category === 'pizza') };
-    }
-  }
-
-  if (['deal', 'deals', 'combo', 'combos', 'offer', 'offers', 'bachat deal', 'package'].some(k => q.includes(k))) {
-    return { isCategory: true, title: '🔥 Super Saver Combos & Deals (Free Delivery Included!)', items: products.filter(p => p.category === 'deals') };
-  }
-  if (['nimco', 'nimko', 'namkeen'].includes(q) && !hasFlavor) {
-    return { isCategory: true, title: 'Authentic Nimco Varieties (Since 1970)', items: products.filter(p => p.category === 'special' && p.name.toLowerCase().includes('nimco')) };
-  }
-
-  // Specific Flavor & Item Match
-  const items = products.filter(p => {
-    const nameEn = p.name.toLowerCase();
-    const nameUr = (p.nameUrdu || '').toLowerCase();
-    if (q.includes(nameEn) || nameEn.includes(q)) return true;
-    if (nameUr && (q.includes(nameUr) || nameUr.includes(q))) return true;
-    if ((q.includes('bbq') || q.includes('bar b q') || q.includes('barbeque')) && (nameEn.includes('bbq') || nameEn.includes('bar b q'))) return true;
-    if (q.includes('malai boti') && nameEn.includes('malai boti')) return true;
-    if (q.includes('mayo garlic') && nameEn.includes('mayo garlic')) return true;
-    if (q.includes('pizza samosa') && nameEn.includes('pizza samosa')) return true;
-    if (q.includes('pizza roll') && nameEn.includes('pizza roll')) return true;
-    if (q.includes('shami') && nameEn.includes('shami')) return true;
-    if (q.includes('chapli') && nameEn.includes('chapli')) return true;
-    if (q.includes('seekh') && nameEn.includes('seekh')) return true;
-    if (q.includes('vonton') && nameEn.includes('vonton')) return true;
-    if (q.includes('momos') && nameEn.includes('momos')) return true;
-    if (q.includes('nugget') && nameEn.includes('nuggets')) return true;
-    if (q.includes('cheese ball') && nameEn.includes('cheese ball')) return true;
-    if (q.includes('hot shot') && nameEn.includes('hot shot')) return true;
-    if (q.includes('patti') && nameEn.includes('patti')) return true;
-    if (q.includes('fries') && nameEn.includes('fries')) return true;
-    if (q.includes('paratha') && nameEn.includes('paratha')) return true;
-    if (q.includes('puri') && nameEn.includes('puri')) return true;
     return false;
   });
 
-  return { isCategory: false, title: 'Items', items };
+  if (matched.length > 0) {
+    return { isCategory: false, title: 'Matched Items', items: matched };
+  }
+
+  // Category fallback if no specific item matched
+  if (q.includes('samosa') || q.includes('samosay') || q.includes('smosa')) {
+    const items = products.filter(p => p.category === 'samosa');
+    if (items.length > 0) return { isCategory: true, title: 'Samosay', items };
+  }
+  if (q.includes('roll') || q.includes('rolls') || q.includes('rol')) {
+    const items = products.filter(p => p.category === 'roll');
+    if (items.length > 0) return { isCategory: true, title: 'Spring & Specialty Rolls', items };
+  }
+  if (q.includes('kabab') || q.includes('kebab') || q.includes('shami')) {
+    const items = products.filter(p => p.category === 'kabab');
+    if (items.length > 0) return { isCategory: true, title: 'Kababs & Special Snacks', items };
+  }
+  if (q.includes('pizza') || q.includes('pizzas')) {
+    const items = products.filter(p => p.category === 'pizza');
+    if (items.length > 0) return { isCategory: true, title: 'Mini Pizzas', items };
+  }
+  if (q.includes('deal') || q.includes('combo') || q.includes('package')) {
+    const items = products.filter(p => p.isDeal || p.category === 'deals');
+    if (items.length > 0) return { isCategory: true, title: 'Super Saver & Premium Deals', items };
+  }
+
+  return { isCategory: false, title: 'Items', items: [] };
 }
 
-const DEFAULT_KEY = ['AQ', '.', 'Ab8RN6JLANyQnZtwPxuVDcaxl2pHfLXDEbfm_9PFMeeUvZovOA'].join('');
+function parseCustomerOrderList(userMessage, products) {
+  const lines = userMessage.toLowerCase().split(/[\n,.]+/);
+  const itemsFound = [];
 
+  for (const line of lines) {
+    const qMatch = line.match(/(\d+)\s*(packet|pack|pcs|pc|x|karo|bhej do)?/i);
+    let qty = qMatch ? parseInt(qMatch[1]) : 1;
+
+    for (const prod of products) {
+      const prodName = prod.name.toLowerCase();
+      const prodUrdu = (prod.nameUrdu || '').toLowerCase();
+      const prodId = prod.id.toLowerCase();
+
+      if (line.includes(prodName) || (prodUrdu && line.includes(prodUrdu)) || line.includes(prodId)) {
+        const existingIdx = itemsFound.findIndex(i => i.product.id === prod.id);
+        if (existingIdx !== -1) {
+          itemsFound[existingIdx].quantity += qty;
+          itemsFound[existingIdx].itemTotal = itemsFound[existingIdx].quantity * prod.price;
+        } else {
+          itemsFound.push({
+            product: prod,
+            quantity: qty,
+            itemTotal: qty * prod.price
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  return itemsFound;
+}
+
+/**
+ * 2. PRIMARY AI ENGINE: GOOGLE GEMINI FLASH (WITH MULTI-TURN CONVERSATION MEMORY)
+ */
 export async function generateAIResponseAsync(userMessage, conversationHistory = []) {
-  const { products, settings } = getKnowledge();
-  const apiKey = process.env.GEMINI_API_KEY || settings.geminiApiKey || DEFAULT_KEY;
+  const products = await getLiveProducts();
+  const settings = getSettings();
+  const apiKey = process.env.GEMINI_API_KEY || settings.geminiApiKey;
 
   if (apiKey) {
     try {
-      const catalogSummary = products.map(p => `- ${p.name} (${p.nameUrdu || ''}) [Pack: ${p.packQuantity}]: Rs. ${p.price}`).join('\n');
+      const catalogSummary = products.map(p => {
+        const avail = p.isAvailable === false ? '[CURRENTLY OUT OF STOCK ❌]' : '[AVAILABLE ✅]';
+        return `- ID: "${p.id}" | ${p.name} (${p.nameUrdu || ''}) | Pack: ${p.packQuantity} | Price: Rs. ${p.price} | Status: ${avail} ${p.badge ? '| Badge: ' + p.badge : ''}`;
+      }).join('\n');
 
-      const systemPrompt = `You are the official AI Sales & Customer Care Assistant for "New Hyderi Nimco & Frozen Foods (Since 1970)" on WhatsApp.
-Always speak friendly, polite, warm Roman Urdu with relevant food emojis 🥟✨.
+      const systemPrompt = `You are the official AI Sales & Customer Care Agent for "New Hyderi Nimco & Frozen Foods (Since 1970)" on WhatsApp.
+Your goal is to act like a real, helpful, respectful Pakistani sales employee. Speak warm, respectful Roman Urdu (or Urdu/English if customer speaks in Urdu/English). Use customer-friendly greetings ("Wa Alaikum Assalam 😊 Hyderi Nimco & Frozen mein khushamdeed!").
 
-BRAND INFO & CONTACT:
+NON-NEGOTIABLE PRICE & AVAILABILITY RULES:
+1. NEVER INVENT OR HALLUCINATE A PRODUCT PRICE, AVAILABILITY, OR PACK SIZE.
+2. Rely strictly on the LIVE PRODUCTS CATALOG provided below.
+3. If an item is [CURRENTLY OUT OF STOCK ❌], tell the customer politely that it is unavailable and suggest an available alternative.
+4. When stating a price, always state the exact current catalog price and pack size (e.g. "Chicken Nuggets 12 pcs pack — Rs. 450").
+5. When calculating totals, do exact arithmetic: (Quantities × Unit Prices) + Delivery Fee = Grand Total.
+6. Free Delivery applies to orders of Rs. 5,000 or above across Karachi. For orders below Rs. 5,000, use configured area delivery charges (North Nazimabad Rs. 100, FB Area/Nazimabad Rs. 200-250, Gulshan/Johar Rs. 350, Scheme 33/PECHS Rs. 400, DHA/Clifton Rs. 500, Malir Rs. 550, Korangi Rs. 600, Bahria Town Rs. 1,500).
+
+MULTI-TURN CONVERSATION CONTEXT & ORDERING:
+- Maintain context of previous messages. For example:
+  Customer: "nuggets kitne ke hain?" -> AI: "Chicken Nuggets 12 pcs pack — Rs. 450"
+  Customer: "2 packet" -> AI understands "2 packet" means 2 packets of Chicken Nuggets (Total Rs. 900).
+  Customer: "aur cheese balls?" -> AI treats as a new inquiry/addition while keeping previous nuggets in context.
+- If customer asks for party/dawat recommendation (e.g. "20 logon ki dawat hai"), calculate required packets from actual catalog.
+
+BRAND & STORE INFO:
 - Brand Name: New Hyderi Nimco & Frozen Foods (Since 1970)
 - Store Owner / Founder: Arsalan Bhai (Arsalan Arsalan)
-- If customer asks "Arsalan Bhai ki shop hai?" / "Arsalan Bhai kon hain?" / "Owner kon hai?": Confirm warmly that yes, this is Arsalan Bhai's official shop in Hydri North Nazimabad Karachi, operated under his direct supervision with 100% fresh Zabiha Halal items.
 - Shop Location: Shop # 20-21, Burhani Bagh, Block-E, North Nazimabad (Hydri Market), Karachi.
-- Phone Numbers: 0336-2438422 | 0325-2747343 | 021-36625698
+- Hotlines: 0336-2438422 | 0325-2747343 | 021-36625698
 - Website: https://hyderinimco-frozen.com
-
-DELIVERY & PAYMENTS:
-- Free Delivery: Poore Karachi (except Bahria Town) me Rs. 5,000 ya us se zyada ke orders par Temperature-Controlled Express Delivery 100% FREE hai!
-- Area-wise Bykea Distance Delivery Charges from Hydri (North Nazimabad) for orders under Rs. 5,000:
-  • North Nazimabad / Hydri Local: Rs. 100 (Shop Pickup Available)
-  • North Karachi / Buffer Zone / FB Area: Rs. 200
-  • Nazimabad / Liaquatabad / Gulberg: Rs. 250
-  • Gulshan-e-Iqbal / Johar / Stadium: Rs. 350
-  • Scheme 33 / Safoora / PECHS / Tariq Road: Rs. 400
-  • Saddar / Garden: Rs. 450
-  • Clifton / Defence DHA Phases 1-8: Rs. 500
-  • Malir Cantt / Model Colony: Rs. 550
-  • Korangi / Landhi: Rs. 600
-  • Bahria Town Karachi: Rs. 1,500 (Special Express Chilled Rider)
 - Payment Options: Cash on Delivery (COD), EasyPaisa (0336-2438422 - Title: Arsalan Arsalan), Meezan Bank (01870100080247 - Title: ARSALAN).
 
-SUPER SAVER COMBOS & PREMIUM DEALS:
-- Deal 1 (Rs. 2,200 - Free Delivery): Lollipop 6pcs + Nuggets 12pcs + Popcorn 30pcs + Finger 10pcs + Cheese Roll 24pcs. (82 pcs total)
-- Deal 2 (Rs. 2,500 - Free Delivery): Chimmy Changa 6pcs + Nuggets 24pcs + Popcorn 30pcs + BBQ Roll 12pcs + One Bite Samosa 24pcs. (96 pcs total)
-- Deal 3 (Rs. 2,400 - Free Delivery): Cheese Cone 6pcs + BBQ Samosa 12pcs + Chinese Roll 12pcs + Malai Boti Roll 24pcs + Burger Patty 6pcs. (66 pcs total)
-- Hyderi Premium Deal 1 (Rs. 2,600 - Free Delivery): BBQ Roll (12 pcs) + Malai Boti Samosa (12 pcs) + Beef Chapli (6 pcs) + Chimmy Changa (6 pcs) + Chicken Finger (10 pcs). (46 pcs total)
-- Hyderi Premium Deal 2 (Rs. 2,550 - Free Delivery): Mint Roll (12 pcs) + Aloo One Bite Samosa (24 pcs) + Cheese Ball (12 pcs) + Wonton (12 pcs) + Chinese Samosa (12 pcs) + Chicken Donuts (12 pcs). (84 pcs total)
-- Hyderi Premium Deal 3 (Rs. 2,800 - Free Delivery): Malai Boti Roll (12 pcs) + Qeema Samosa (12 pcs) + Seekh Kabab (12 pcs) + Chicken Burger Patty (6 pcs) + Chinese Roll (12 pcs) + Nuggets (12 pcs). (66 pcs total)
-- Hyderi Premium Deal 4 (Rs. 3,100 - Free Delivery): Chinese Roll (12 pcs) + Aloo Samosa (12 pcs) + Cheese Cone (6 pcs) + Wonton (12 pcs) + Small Nuggets (12 pcs) + Chicken Lolli Pop (6 pcs) + Mayo Garlic Roll (12 pcs) + Crispy Samosa (12 pcs). (78 pcs total)
-- Hyderi Premium Deal 5 (Rs. 2,650 - Free Delivery): Malai Boti Samosa (12 pcs) + Crispy Roll (12 pcs) + Chicken Chowmein (12 pcs) + Bread Roll (12 pcs) + Chicken Steak (6 pcs). (54 pcs total)
-
-FULL PRODUCTS CATALOG (57 ITEMS):
+LIVE PRODUCTS CATALOG (${products.length} ITEMS):
 ${catalogSummary}
 
-INSTRUCTIONS:
-1. Be extremely helpful, polite, and answer any customer question accurately.
-2. If customer inquires about any item, provide exact pack size and price.
-3. If customer asks for total or lists items, calculate exact math (Subtotal + Delivery Fee if < Rs. 5000 = Grand Total).
-4. If customer asks for party/dawat recommendation, suggest appropriate packages or deals.
-5. Format response cleanly for WhatsApp with bold headers (*heading*), bullet points (•), and clear totals.`;
+Format your response cleanly for WhatsApp using bold (*text*), bullet points (•), and clear totals. Keep messages natural, polite, and concise.`;
 
+      // Build Gemini contents payload including conversation history
       const contentsPayload = [];
-      if (conversationHistory && conversationHistory.length > 0) {
+
+      // System instruction as first user/system turn
+      contentsPayload.push({
+        role: 'user',
+        parts: [{ text: systemPrompt }]
+      });
+      contentsPayload.push({
+        role: 'model',
+        parts: [{ text: 'Ji bilkul! Mai New Hyderi Nimco & Frozen Foods ka AI Sales & Customer Care Agent hoon. Mai live catalog, prices, aur delivery rates ke mutabiq customers ko polite Roman Urdu me jawab doonga.' }]
+      });
+
+      // Append conversation history turns
+      if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
         for (const msg of conversationHistory) {
-          contentsPayload.push({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.text }] });
+          contentsPayload.push({
+            role: msg.sender === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.text || '' }]
+          });
         }
       }
-      contentsPayload.push({ role: 'user', parts: [{ text: systemPrompt + '\n\nCustomer Message: ' + userMessage }] });
+
+      // Append current user message
+      contentsPayload.push({
+        role: 'user',
+        parts: [{ text: userMessage }]
+      });
 
       const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash'];
 
       for (const modelName of modelsToTry) {
         try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=` + apiKey;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -438,103 +345,74 @@ INSTRUCTIONS:
         } catch (err) {}
       }
     } catch (err) {
-      console.error('Gemini API Error, falling back to rule engine:', err.message);
+      console.error('[AI Engine] Gemini API Error, falling back to deterministic engine:', err.message);
     }
   }
 
-  return generateAIResponse(userMessage, conversationHistory);
+  // Fallback to deterministic AI engine
+  return generateAIResponse(userMessage, conversationHistory, products);
 }
 
-export function generateAIResponse(userMessage, conversationHistory = []) {
-  const { products, settings } = getKnowledge();
+/**
+ * 3. FALLBACK DETERMINISTIC RULE ENGINE (USED IF GEMINI API KEY IS NOT SET OR FAILS)
+ */
+export function generateAIResponse(userMessage, conversationHistory = [], preloadedProducts = null) {
+  const products = preloadedProducts || (isDBConnected() ? [] : getKnowledgeProducts());
   const { raw, normalized, words } = normalizeText(userMessage);
   const lang = detectLanguage(raw, normalized);
 
   const has = (k) => normalized.includes(k);
   const hasAny = (list) => list.some(k => normalized.includes(k));
 
-  // ==========================================
-  // 1. DYNAMIC INDIVIDUAL PRODUCT RATE MATCHING
-  // If customer asks for a specific item e.g. "momos kitne ke hain", "nuggets ka rate", "shami kabab price", "vonton", "pizza"
-  // ==========================================
-  const matchedCatalog = findMatchingProducts(normalized, products);
-  const matchedProds = matchedCatalog.items || [];
-  const isAskingPrice = hasAny(['price', 'rate', 'kitne', 'kitna', 'cost', 'qeemat', 'keemat', 'batao', 'chahiye']);
+  // Multi-turn context extraction: Check if user is supplying quantity for previously asked product
+  let lastProduct = null;
+  if (conversationHistory && conversationHistory.length > 0) {
+    for (let i = conversationHistory.length - 1; i >= 0; i--) {
+      const msg = conversationHistory[i];
+      const match = findMatchingProducts(normalizeText(msg.text).normalized, products);
+      if (match.items && match.items.length > 0) {
+        lastProduct = match.items[0];
+        break;
+      }
+    }
+  }
 
-  // ==========================================
-  // 12. ORDER TRACKING / COMPLAINT
-  // "mera order kahan pohncha", "status kya hai", "rider nahi aaya", "complaint"
-  // ==========================================
-  const isTrackingOrComplaint = hasAny(['tracking', 'track', 'status', 'kahan pohncha', 'rider kahan', 'der ho gai', 'late', 'shikayat', 'kab tak aayega']);
-
-  // ==========================================
-  // 2. ORDER PLACEMENT & CONFIRMATION INTENT
-  // "order krna hai", "order confirm karo", "order book karo", "mangwana hai", "pack karo"
-  // (Exclude status/tracking)
-  // ==========================================
-  const isOrder = !isTrackingOrComplaint && hasAny(['order karna', 'order confirm', 'order book', 'order place', 'mangwana', 'kharidna', 'bhej do', 'bhejo', 'deliver karo', 'pack karo', 'order lena', 'order do']);
+  // Check if message is a quantity response e.g. "2 packet", "2 packet chahiye", "2 pack", "do packet"
+  const qtyMatch = normalized.match(/^(\d+)\s*(packet|pack|pcs|pc|x|chahiye|de do|karo)?$/i) ||
+                   normalized.match(/^(do|teen|chaar|paanch|che)\s*(packet|pack|pcs)?$/i);
   
-  // Also if message is just "order" or "order krna hai"
-  const isDirectOrder = !isTrackingOrComplaint && (normalized.includes('order') && !normalized.includes('status') && !normalized.includes('track'));
+  if (qtyMatch && lastProduct) {
+    let qty = 1;
+    if (qtyMatch[1] === 'do') qty = 2;
+    else if (qtyMatch[1] === 'teen') qty = 3;
+    else if (qtyMatch[1] === 'chaar') qty = 4;
+    else if (qtyMatch[1] === 'paanch') qty = 5;
+    else qty = parseInt(qtyMatch[1]) || 1;
 
-  // ==========================================
-  // 3. PAYMENT INTENT
-  // "payment kese karo", "paise kaise doon", "cod", "advance", "easypaisa", "meezan"
-  // ==========================================
-  const isPayment = hasAny(['payment', 'kaise karo', 'kese karo', 'kaise karu', 'paise', 'pesay', 'cod', 'cash', 'advance', 'easypaisa', 'meezan', 'bank', 'account', 'tid']);
+    const total = qty * lastProduct.price;
+    const isFreeDelivery = total >= 5000;
+    const deliveryFee = isFreeDelivery ? 0 : 150;
+    const grandTotal = total + deliveryFee;
 
-  // ==========================================
-  // 4. PARTY / EVENT / GUESTS CALCULATION
-  // "20 logon ki dawat hai", "50 mehman hain", "party order", "catering"
-  // ==========================================
-  const isParty = hasAny(['dawat', 'mehman', 'logon', 'guest', 'party', 'catering', 'event', 'shaadi', 'birthday', 'khatam', 'majlis', 'iftar']);
+    let replyMsg = `Ji bilkul! ${qty} packets *${lastProduct.name}* (${lastProduct.packQuantity}) noted. 👍\n\n` +
+      `• Rate: Rs. ${lastProduct.price} × ${qty} = *Rs. ${total}/-*\n` +
+      `• Delivery Fee: ${isFreeDelivery ? '🎉 *FREE*' : 'Rs. 150/-'}\n` +
+      `• *Total Bill:* *Rs. ${grandTotal}/-*\n\n` +
+      `Aur kuch add karna hai ya order confirm kar dein? COD (Cash on Delivery) ke liye apna delivery address bhej dein! 🥟✨`;
 
-  // ==========================================
-  // 5. BULK DISCOUNT / WHOLESALE / RIYAYAT (Only if bulk/discount keywords, not general 'kam')
-  // ==========================================
-  const isBulkOrDiscount = hasAny(['discount', 'bulk', 'wholesale', 'concession', 'choot', 'riyayat', 'quantity me discount', 'zyada packet']);
+    return {
+      reply: replyMsg,
+      suggestions: ["✅ Confirm Order (COD)", "💳 Payment Details", "🥟 View Full Menu"],
+      action: 'scroll_menu'
+    };
+  }
 
-  // ==========================================
-  // 10. SHOP LOCATION, VISIT, TIMINGS, CONTACTS
-  // ==========================================
-  const isLocation = hasAny(['location', 'address', 'shop', 'kahan hai', 'kahan pe', 'dukan', 'branch', 'north nazimabad', 'hydri', 'block e', 'phone', 'contact', 'number', 'visit', 'shop timing', 'dukan timing', 'open']);
-
-  // ==========================================
-  // 6. DELIVERY TIMINGS, AREAS, CHARGES
-  // ==========================================
-  const isDelivery = !isLocation && hasAny(['delivery', 'charges', 'free delivery', 'rider', 'kitni der', 'kab tak pohnche', 'pohnchega', 'defense', 'clifton', 'gulshan', 'johar']);
-
-  // ==========================================
-  // 7. COOKING, FRYING, DEFROSTING, AIR FRYER
-  // ==========================================
-  const isCooking = hasAny(['talna', 'fry', 'cooking', 'pakana', 'recipe', 'oil', 'tail', 'aanch', 'phat', 'burst', 'defrost', 'air fryer', 'bake', 'steam', 'ubal']);
-
-  // ==========================================
-  // 8. SHELF LIFE, STORAGE, EXPIRY, FRESHNESS
-  // ==========================================
-  const isStorageOrShelfLife = hasAny(['shelf life', 'expire', 'expiry', 'kharab', 'kitne din', 'kitna arsa', 'freezer me', 'freezer', 'rakh sakte', 'taaza kab tak']);
-
-  // ==========================================
-  // 9. QUALITY, HALAL, INGREDIENTS, HYGIENE, SPICE LEVEL (Kids / Bachon ke liye)
-  // ==========================================
-  const isQualityOrSpice = hasAny(['halal', 'kam mirch', 'mirch', 'masala', 'spicy', 'kids', 'bacho', 'bachon', 'safai', 'hygiene', 'quality', 'meat', 'zabiha', 'mild']);
-
-  // ==========================================
-  // 11. MENU GENERAL
-  // ==========================================
-  const isMenuGeneral = hasAny(['menu', 'card', 'list', 'variety', 'brochure', 'kya kya hai', 'items', 'options']);
-
-
-  // -------------------------------------------------------------------------
-  // EXECUTION ROUTER:
-  // -------------------------------------------------------------------------
+  const matchedCatalog = findMatchingProducts(normalized, products);
 
   // ROUTE 0-BILL: DYNAMIC MULTI-ITEM ORDER & TOTAL BILL CALCULATOR
-  // Triggered when customer sends a list of items e.g.:
-  // "2 packet chicken samosa aur 1 packet shami kabab total kitne hue"
-  // "1 wonton, 2 cheese samosa, 1 beef shami kitne paise banenge"
   const parsedItems = parseCustomerOrderList(userMessage, products);
   const isAskingTotal = hasAny(['total', 'kitne huwe', 'kitne hue', 'kitna bana', 'kitne paise', 'kitne banenge', 'bill', 'hisab', 'batao kitna', 'batao kitne', 'kitna hua']);
+  const isOrder = hasAny(['order karna', 'order confirm', 'order book', 'order place', 'mangwana', 'kharidna', 'bhej do', 'bhejo', 'deliver karo', 'pack karo']);
 
   if (parsedItems.length > 0 && (parsedItems.length >= 2 || isAskingTotal || isOrder)) {
     const subtotal = parsedItems.reduce((sum, item) => sum + item.itemTotal, 0);
@@ -553,19 +431,9 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
       `🛒 *Subtotal:* Rs. ${subtotal}/-\n` +
       `🛵 *Delivery Charges:* ${isFreeDelivery ? '🎉 *FREE* (Order Rs. 5,000+ par Free)' : 'Rs. 150/- (Poore Karachi me)'}\n` +
       `💰 *Grand Total (Kul Raqam):* *Rs. ${grandTotal}/-*\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n\n`;
-
-    if (isFreeDelivery) {
-      replyMsg += `🎁 *Mubarak ho!* Aapka order Rs. 5,000 se zyada hai is liye poore Karachi me Express Cold Box Delivery bilkul *FREE* hai!\n\n`;
-    } else {
-      const neededForFree = 5000 - subtotal;
-      replyMsg += `💡 *Tip:* Agar aap sirf *Rs. ${neededForFree}/-* ka koi mazeed item shamil kar lein to aapki Rs. 150 delivery fee bhi bilkul *FREE* ho jayegi!\n\n`;
-    }
-
-    replyMsg += `🛵 *Order Book Karne Ke Liye:*\n` +
-      `1. Bas apna *Delivery Address* aur *Naam* yahan bhej dein.\n` +
-      `2. Payment aap *Cash on Delivery (COD)* par bhi kar sakte hain ya *EasyPaisa (0336-2438422 - Arsalan Arsalan)* / *Meezan Bank (01870100080247 - ARSALAN)* me transfer kar sakte hain.\n\n` +
-      `Kya mai ye order aapke liye abhi confirm kar doon?`;
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `🛵 *Order Book Karne Ke Liye:*\n` +
+      `Bas apna *Delivery Address* aur *Naam* yahan bhej dein. COD (Cash on Delivery) par deliver ho jayega!`;
 
     return {
       reply: replyMsg,
@@ -574,22 +442,20 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
     };
   }
 
-  // ROUTE BAHRIA: BAHRIA TOWN KARACHI DELIVERY & CHARGES
+  // ROUTE BAHRIA: BAHRIA TOWN KARACHI DELIVERY
   if (hasAny(['bahria', 'bahria town', 'bahria city'])) {
     return {
       reply: `Ji bilkul bhai! Hyderi Nimco & Frozen ki delivery *Bahria Town Karachi* me bhi bilkul dastiyab hai! 🚚📦✨\n\n` +
         `🧊 *Bahria Town Express Chilled Delivery Details:*\n` +
-        `• Bahria Town ke liye hum special Temperature-Controlled Cold Box me fresh frozen items rider ke zariye bhejte hain taake raste me items frozen & fresh rahein.\n` +
-        `• 💰 *Delivery Charges:* Distance aur express chilled packing ki wajah se Bahria Town ke delivery charges *Rs. 1,500 se Rs. 2,000/-* tak hotay hain.\n\n` +
-        `💳 *Payment Options:* Cash on Delivery (COD), EasyPaisa (0336-2438422 - Title: Arsalan Arsalan) ya Meezan Bank (01870100080247 - Title: ARSALAN).\n\n` +
-        `Order book karne ke liye apne required items, packets ki taadad aur Bahria Town ka Precinct / Villa number bhej dein! 🥟✨`,
+        `• Bahria Town ke liye hum special Temperature-Controlled Cold Box me fresh frozen items rider ke zariye bhejte hain.\n` +
+        `• 💰 *Delivery Charges:* Distance aur chilled packing ki wajah se Bahria Town ke delivery charges *Rs. 1,500/-* hotay hain.\n\n` +
+        `Order book karne ke liye required items, packets ki taadad aur Bahria Town ka Precinct number bhej dein! 🥟✨`,
       suggestions: ["🛒 Order Book Karna Hai", "💳 EasyPaisa Details", "🥟 View Menu"],
       action: null
     };
   }
 
-  // ROUTE 0: 350+ NEURAL KNOWLEDGE BASE DIRECT HIT
-  // If matched a specific customer pattern from the extensive knowledge base
+  // ROUTE 0: KNOWLEDGE BASE DIRECT HIT
   const qaMatch = findQAMatch(normalized);
   if (qaMatch) {
     return {
@@ -599,238 +465,48 @@ export function generateAIResponse(userMessage, conversationHistory = []) {
     };
   }
 
-  // ROUTE A: ORDER CONFIRMATION + PAYMENT
-  if (isOrder && isPayment) {
+  // ROUTE B: SPECIFIC PRODUCT OR CATEGORY INQUIRY
+  if (matchedCatalog && matchedCatalog.items && matchedCatalog.items.length > 0) {
+    const list = matchedCatalog.items.map(p => {
+      const statusStr = p.isAvailable === false ? ' [Out of Stock ❌]' : '';
+      return `• *${p.name}* (${p.packQuantity}) — *Rs. ${p.price}/-*${statusStr}`;
+    }).join('\n');
+
     return {
-      reply: `Bhai order confirm karne aur payment ka bohot aasan aur safe tareeqa hai! 🥟✨\n\n` +
-        `📋 *1. Order Confirm Kaise Hoga?*\n` +
-        `Aap mujhe yahan WhatsApp par bas ye 3 cheezein likh kar bhej dein:\n` +
-        `• Kon kon se items aur kitne packets chahiye? (e.g. 2x Chicken One Bite, 1x Shami Kabab)\n` +
-        `• Aapka Naam, Phone Number aur Mukammal Address (Karachi ka area)\n` +
-        `• Payment ka tareeqa (COD ya Online)\n\n` +
-        `💳 *2. Payment Kese Karni Hai (2 Options):*\n` +
-        `• 💵 *Cash on Delivery (COD):* Pehle advance paise bhejne ki zaroorat nahi hai. Jab rider aapke ghar parcel pohnchaye ga tab aap mouqay par cash ada kar dein.\n` +
-        `• 📱 *EasyPaisa:* 0336-2438422 (Title: Arsalan Arsalan)\n` +
-        `• 🏦 *Meezan Bank:* 01870100080247 (Title: ARSALAN)\n\n` +
-        `🌐 *Website Se Direct Order:* Aap direct https://hyderinimco-frozen.com par ja kar cart me add kar ke bhi 1-click checkout kar sakte hain!\n\n` +
-        `Aap batayein aapko kon se items mangwane hain aur aapka address kya hai? Mai abhi order book kar ke kitchen me alert bhejta hoon!`,
-      suggestions: ["💵 Cash on Delivery (COD)", "📱 EasyPaisa Details", "🌐 Open Website"],
+      reply: `Ji bilkul bhai! Ye lijiye rate details: 🥟✨\n\n` +
+        `${list}\n\n` +
+        `✨ *100% Fresh & Frozen:* Temperature-controlled cold box me pack ho kar deliver hota hai.\n` +
+        `🛵 *Free Delivery:* Rs. 5,000 par poore Karachi me Delivery FREE!\n\n` +
+        `Order book karne ke liye packets ki taadad aur apna delivery address bhej dein!`,
+      suggestions: ["🛒 Order Book Karna Hai", "🥟 View Full Menu", "💵 Cash on Delivery"],
       action: 'scroll_menu'
     };
   }
 
-  // ROUTE B: SPECIFIC PRODUCT OR CATEGORY INQUIRY (e.g. "malai boti", "roll", "samosa", "shami", "momos kitne ke hain")
-  if (matchedCatalog && matchedCatalog.items && matchedCatalog.items.length > 0 && !isParty) {
-    if (matchedCatalog.isCategory) {
-      const list = matchedCatalog.items.map(p => `• *${p.name}* (${p.packQuantity}) — *Rs. ${p.price}/-*`).join('\n');
-      return {
-        reply: `Ji bhai! Ye lijiye New Hyderi Nimco & Frozen ki *${matchedCatalog.title}* ki complete rate list: 🥟✨\n\n` +
-          `${list}\n\n` +
-          `✨ *100% Halal & Fresh Frozen:* Temperature-controlled cold box me deliver hotay hain.\n` +
-          `🛵 *Free Delivery:* Rs. 5,000 par poore Karachi me Delivery FREE!\n\n` +
-          `Aap batayein in me se kon sa item aur kitne packets deliver karwane hain? COD (Cash on Delivery) par mangwane ke liye address bhej dein!`,
-        suggestions: ["🛒 Order Book Karna Hai", "🥟 Aur Samosay Dekhein", "💵 Cash on Delivery"],
-        action: 'scroll_menu'
-      };
-    } else {
-      const list = matchedCatalog.items.map(p => `• *${p.name}* (${p.packQuantity}) — *Rs. ${p.price}/-*\n  _${p.description}_`).join('\n\n');
-      return {
-        reply: `Ji bhai! Ye lijiye aapke matlooba items ki complete rate list: 🥟✨\n\n` +
-          `${list}\n\n` +
-          `✨ *100% Fresh & Frozen:* Cold box me pack ho kar aayega. Rs. 5,000 par Free Delivery hai!\n\n` +
-          `Order book karne ke liye bas packets ki taadad aur apna delivery address bhej dein, ya Cash on Delivery (COD) par mangwa lein!`,
-        suggestions: ["🛒 Order This Item", "🥟 View Full Menu", "💵 Cash on Delivery"],
-        action: 'scroll_menu'
-      };
-    }
-  }
-
-  // ROUTE C: PARTY / DAWAT / MEHMAN CALCULATION (e.g. "20 logon ki dawat hai", "50 bandon ke liye")
-  if (isParty) {
-    let countMatch = normalized.match(/\b(\d+)\b/);
-    let count = countMatch ? parseInt(countMatch[1]) : 25;
-    if (count < 5) count = 25;
-
-    const samosaPacks = Math.ceil((count * 2) / 24);
-    const rollPacks = Math.ceil((count * 1.5) / 12);
-    const kababPacks = Math.ceil((count * 1) / 12);
-
-    return {
-      reply: `🎉 *MashAllah! ${count} Mehmanon Ki Dawat / Party Ka Ideal Estimation:* 🥟✨\n\n` +
-        `Har guest ke liye standard 2 One-Bite Samosay, 1 Spring Roll aur 1 Kabab behtareen rehta hai:\n\n` +
-        `• 🥟 *Chicken One Bite Samosa:* ${samosaPacks} Packets (${samosaPacks * 24} pcs) = Rs. ${samosaPacks * 400}/-\n` +
-        `• 🌯 *Chicken Spring Rolls:* ${rollPacks} Packets (${rollPacks * 12} pcs) = Rs. ${rollPacks * 500}/-\n` +
-        `• 🍢 *Chicken Shami Kabab:* ${kababPacks} Packets (${kababPacks * 12} pcs) = Rs. ${kababPacks * 600}/-\n` +
-        `• 🥜 *Hyderi Special Mix Nimco:* 1 KG (Chai aur snacks ke sath) = Rs. 480/-\n\n` +
-        `🎁 *Dawat Special Offer:*\n` +
-        `1. Poore Karachi me Temperature-Controlled Express Delivery bilkul *FREE* hogi (Rs. 5,000+ orders par)!\n` +
-        `2. Sath me Hyderi Special Nimco ka complimentary packet gift milega!\n` +
-        `3. Cash on Delivery (COD) ya EasyPaisa/Meezan Bank se payment kar sakte hain.\n\n` +
-        `Kya mai ye party package aapke liye confirm kar doon? Apna delivery address aur timing bata dein!`,
-      suggestions: ["🛒 Confirm Party Package", "🌯 Change Items in Package", "💵 Cash on Delivery"],
-      action: 'scroll_menu'
-    };
-  }
-
-  // ROUTE D: ORDER PLACEMENT GENERAL ("order krna hai", "order book karo")
-  if (isOrder && !isPayment) {
-    return {
-      reply: `Ji bilkul bhai, order abhi book kar letay hain! 🥟✨\n\n` +
-        `Aap mujhe yahan WhatsApp par ye details bhej dein:\n` +
-        `1. *Items & Quantity:* Konsay items chahiye aur kitne packets? (e.g. 2 packet Chicken Samosa, 1 packet Roll)\n` +
-        `2. *Delivery Address:* Aapka Naam, Phone Number aur Karachi ka area/address.\n` +
-        `3. *Payment Choice:* Cash on Delivery (COD) par mangwana hai ya EasyPaisa / Meezan Bank se advance bhejenge?\n\n` +
-        `✨ *Free Delivery:* Agar aapka order Rs. 5,000 ya is se bara hai to poore Karachi me delivery bilkul FREE hai!\n\n` +
-        `Ya aap direct hamari website https://hyderinimco-frozen.com par ja kar bhi order place kar sakte hain. Bataiye aapko kya kya mangwana hai?`,
-      suggestions: ["🥟 Chicken Samosay", "🌯 Spring Rolls", "💵 Cash on Delivery"],
-      action: 'scroll_menu'
-    };
-  }
-
-  // ROUTE E: PAYMENT HOW-TO ("payment kese karo", "paise kaise bhejne hain")
-  if (isPayment) {
-    return {
-      reply: `💳 *Payment Ke 2 Bohot Aasan Tareeqay Hain:*\n\n` +
-        `1. 💵 *Cash on Delivery (COD):*\n` +
-        `   Aapko pehle advance paise dene ki zaroorat nahi hai. Parcel milne par rider ko cash haath me ada kar dein.\n\n` +
-        `2. 📱 *Online Advance Payment:*\n` +
-        `   • *EasyPaisa:* 0336-2438422 (Account Title: *Arsalan Arsalan*)\n` +
-        `   • *Meezan Bank:* 01870100080247 (Account Title: *ARSALAN*)\n\n` +
-        `Paise transfer kar ke Transaction ID (TID) ya screenshot yahan bhej dein, dukan wale ko foran WhatsApp par alert mil jata hai aur order pack ho jata hai!`,
-      suggestions: ["💵 Cash on Delivery", "📱 EasyPaisa", "🏦 Meezan Bank"],
-      action: null
-    };
-  }
-
-  // ROUTE F: BULK & DISCOUNT ("quantity me discount milega?", "wholesale rate")
-  if (isBulkOrDiscount) {
-    return {
-      reply: `Ji bilkul bhai! New Hyderi Nimco & Frozen par bulk, party aur dawat ke orders par special concessions milti hain:\n\n` +
-        `• *100% Free Delivery:* Rs. 5,000 se baray order par poore Karachi me delivery bilkul FREE hai!\n` +
-        `• *Bulk / Wholesale Discount:* 10+ packets ya baray catering order par hum customized discount aur complimentary Nimco pack offer karte hain.\n` +
-        `• *Payment Flexibility:* Cash on Delivery (COD) bhi available hai aur Meezan Bank / EasyPaisa bhi.\n\n` +
-        `Aapko kon kon se items (Samosa, Roll, Kabab) kitni quantity me chahiye? Mujhe batayein, mai aapka special quote tayar kar deta hoon!`,
-      suggestions: ["🥟 View Samosa Rates", "🍢 View Kabab Rates", "🛵 Check Delivery Areas"],
-      action: null
-    };
-  }
-
-  // ROUTE G: COOKING, FRYING & AIR FRYER ("talte kaise hain", "oil kitna garm ho", "phat to nahi jayega")
-  if (isCooking) {
-    return {
-      reply: `🔥 *Perfect Golden & Crispy Fry Karne Ka Behtareen Tareeqa:*\n\n` +
-        `1. ❌ *Defrost Mat Karein:* Samosay aur rolls freezer se nikal kar direct garm tail me dalein. Agar defrost kiya to patti naram par sakti hai aur phat sakti hai.\n` +
-        `2. 🌡️ *Tail Ka Temperature:* Tail ko darmiyani aanch (medium heat) par pehle se garm karein. Bohat tez aanch par bahar se jal jayenge aur andar se kachay rahenge.\n` +
-        `3. ⏱️ *Frying Time:* Darmiyani aanch par 4 se 5 minute tak golden brown hone tak talein.\n` +
-        `4. 💨 *Air Fryer / Oven:* 180°C par 8 se 10 minute halka sa oil brush kar ke bake karein.\n` +
-        `5. 🥟 *Momos:* Steamed momos ko 7-8 minute steam karein, ya fried momos ko 3-4 minute medium oil me fry karein.\n\n` +
-        `Nateeja: 100% crispy patti, zero oil absorption aur juicy filling!`,
-      suggestions: ["🥟 Chicken Samosay Dekhein", "🌯 Rolls Dekhein", "🛒 Order Now"],
-      action: null
-    };
-  }
-
-  // ROUTE H: SHELF LIFE & STORAGE ("kitne din chalega", "freezer me kitna arsa rakh sakte hain", "kharab to nahi hoga")
-  if (isStorageOrShelfLife) {
-    return {
-      reply: `❄️ *Storage & Shelf Life (Expiry) Ki Tafseel:*\n\n` +
-        `• 🧊 *Freezer Life:* Hamare tamam frozen items deep freezer me **۳ ماہ (3 Months)** tak bilkul taaza aur fresh rehte hain.\n` +
-        `• 🚫 *Preservative Free:* Hamare items me koi harmful chemicals nahi hote, natural blast freezing ke zariye taaza rakha jata hai.\n` +
-        `• 📦 *Air-Tight Packing:* Packet se nikal kar zaroorat ke mutabiq talein aur baki packet ko air-tight ziplock me band kar ke freezer me wapas rakh dein.\n` +
-        `• 🥜 *Nimco Shelf Life:* Nimco ko normal room temperature par air-tight jar me 2 mahine tak crispy rakha ja sakta hai!`,
-      suggestions: ["🥟 Menu Items", "🛒 Add to Cart", "🛵 Order Now"],
-      action: null
-    };
-  }
-
-  // ROUTE I: QUALITY, HALAL, INGREDIENTS & SPICE LEVEL (Kids / Bachon ke liye)
-  if (isQualityOrSpice) {
-    return {
-      reply: `🍗 *Quality, Halal & Spice Level Ki Tafseel:*\n\n` +
-        `• 🕌 *100% Halal Certified:* Hamara tamam chicken aur beef 100% Shariah-compliant Zabiha Halal aur certified suppliers se aata hai.\n` +
-        `• 👶 *Bachon Aur Mild Masalay Walay Items:* Agar aapko kam mirch ya bacho ke liye chahiye to ye best hain:\n` +
-        `  - Chicken Malai Boti Samosa / Roll (Bohat creamy aur mild)\n` +
-        `  - Chicken Nuggets & Cheese Ball (Kids Favorite)\n` +
-        `  - Chicken Cheese Crispy Samosa\n` +
-        `  - Mini Pizza (Malai Boti)\n` +
-        `• 🌶️ *Chatpatay / Traditional Items:* Bar B Q Samosa, Qeema Samosa, Chapli Kabab aur Mayo Garlic Roll.\n` +
-        `• 🧼 *100% Hygienic:* Stainless steel modern kitchen me gloves aur hairnets ke sath tayar hota hai.`,
-      suggestions: ["🍗 Kids Items", "🥟 Malai Boti Samosa", "🛒 Order Now"],
-      action: null
-    };
-  }
-
-  // ROUTE J: DELIVERY TIMINGS & AREAS ("kahan kahan deliver karte hain", "kitni der me aayega")
-  if (isDelivery) {
-    return {
-      reply: `🛵 *Delivery Information & Karachi Coverage:*\n\n` +
-        `• 📍 *Coverage:* Poore Karachi me delivery active hai (North Nazimabad, Gulshan, Johar, DHA, Clifton, Malir, Gulberg, FB Area, PECHS, Nazimabad wagera).\n` +
-        `• ⏱️ *Timing:* Rozana subah **10:00 AM se raat 11:00 PM** tak.\n` +
-        `• 🚀 *Speed:* North Nazimabad aur qareebi ilaqon me 30 se 45 minute, baki Karachi me same-day temperature-controlled cold box me dispatch hota hai taake items fresh aur frozen rahein.\n` +
-        `• ✨ *FREE Delivery:* **Rs. 5,000** ya is se baray order par poore Karachi me delivery bilkul **FREE** hai! (Aam delivery fee sirf Rs. 150/- hai).\n` +
-        `• 💵 *Cash on Delivery (COD) Available!*`,
-      suggestions: ["✨ Free Delivery Check", "📍 Send My Location", "🛒 Order Now"],
-      action: null
-    };
-  }
-
-  // ROUTE K: LOCATION, ADDRESS & CONTACT NUMBERS
-  if (isLocation) {
-    return {
-      reply: `📍 *New Hyderi Nimco & Frozen Shop Location:*\n\n` +
-        `🏢 *Address:* Shop # 20, 21, Burhani Bagh, Block-E, Hydri, North Nazimabad, Karachi.\n` +
-        `📞 *Hotlines:* 0336-2438422 | 0325-2747343 | 021-36625698\n` +
-        `🕒 *Timing:* 10:00 AM to 11:00 PM (Monday to Sunday Open)\n` +
-        `🌐 *Website:* https://hyderinimco-frozen.com\n\n` +
-        `Aap dukan par direct visit bhi kar sakte hain aur website ya WhatsApp se home delivery bhi karwa sakte hain!`,
-      suggestions: ["🗺️ Google Map", "🥟 Menu Card", "🛵 Home Delivery"],
-      action: null
-    };
-  }
-
-  // ROUTE L: TRACKING & COMPLAINT
-  if (isTrackingOrComplaint) {
-    return {
-      reply: `📦 *Order Tracking & Customer Support:*\n\n` +
-        `Aapka order hamare liye nihayat ahem hai! Agar aapko order track karna hai ya koi bhi sawal hai:\n\n` +
-        `1. Apna **Order Tracking Number (HYD-XXXX)** yahan likh kar bhej dein.\n` +
-        `2. Ya direct hamari helpline par call karein: **0336-2438422** / **0325-2747343**.\n` +
-        `3. Website par bhi 'Track Order' ka button daba kar live status dekh sakte hain.\n\n` +
-        `Bataiye aapka order ref number kya hai? Mai foran rider aur kitchen se update le kar batata hoon!`,
-      suggestions: ["📞 Call Hotline", "📦 Order Status", "🌐 Track on Website"],
-      action: null
-    };
-  }
-
-  // ROUTE M: MENU GENERAL
-  if (isMenuGeneral) {
-    return {
-      reply: `📜 *New Hyderi Nimco & Frozen Official Menu (54 Items):*\n\n` +
-        `🥟 *1. SAMOSA (13 Items):* Chicken Vonton (Rs. 240), One Bite (Rs. 400), Cheese Crispy (Rs. 500), Malai Boti (Rs. 500), Pizza Samosa (Rs. 550), Qeema (Rs. 350), Aaloo (Rs. 300)...\n\n` +
-        `🌯 *2. ROLL (13 Items):* One Bite Roll (Rs. 500), Cheese Crispy (Rs. 550), Malai Boti (Rs. 500), Mayo Garlic (Rs. 500), Pizza Roll (Rs. 550)...\n\n` +
-        `🍢 *3. KABAB (11 Items):* Chicken Shami (Rs. 600), Beef Shami (Rs. 600), Seekh (Rs. 650), Chapli (Rs. 500), Momos (Rs. 400)...\n\n` +
-        `🍕 *4. PIZZA (2 Items):* BBQ Mini Pizza (Rs. 450), Malai Boti Pizza (Rs. 500)\n\n` +
-        `🍗 *5. OTHER SPECIAL (15 Items):* Hot Shot (Rs. 450), Nuggets (Rs. 550), Cheese Ball (Rs. 500), Fries (Rs. 250), Roll Patti (Rs. 320).\n\n` +
-        `Website https://hyderinimco-frozen.com par pora card mojood hai!`,
-      suggestions: ["📜 View Menu Card", "🥟 Chicken Samosas", "🌯 Spring Rolls"],
-      action: 'scroll_menu'
-    };
-  }
-
-  // ROUTE N: PURE GREETING (Only 1 or 2 words)
+  // ROUTE N: PURE GREETING
   const isPureGreeting = words.length <= 2 && hasAny(['hi', 'hello', 'salam', 'assalam', 'aoa', 'hey', 'adaab']);
   if (isPureGreeting) {
     return {
-      reply: `Walaikum Assalam bhai! New Hyderi Nimco & Frozen Foods (Since 1970) me welcome! 🥟✨\n\nHamari taraf se aapki kya khidmat kar sakte hain? Aapko kya chahiye?\n\nAap mujh se:\n• 🥟 *Menu & Rates:* Samosay, Rolls, Kababs, Pizzas ya Nimco ke rates\n• 🛒 *Order:* Direct home delivery order book karwana\n• 💵 *Payment:* Cash on Delivery (COD) ya EasyPaisa / Meezan Bank\n• 🎁 *Party & Dawat:* Bulk discount aur guests estimation\n• 🛵 *Free Delivery:* Rs. 5,000 par poore Karachi me Free Delivery\n\njo bhi chahein pooch sakte hain! Bataiye hum aapki kaise madad kar sakte hain ya aapko kya chahiye?`,
+      reply: `Wa Alaikum Assalam 😊 Hyderi Nimco & Frozen (Since 1970) mein khushamdeed! 🥟✨\n\nBatayein bhai, aap ko kis item ya deal ke bare mein maloomat chahiye? Mai aapki mukammal madad kar sakta hoon!`,
       suggestions: ["🥟 Samosay & Rolls", "🎁 Bulk Discounts", "💵 Cash on Delivery", "🛒 Order Kaise Karein"],
       action: null
     };
   }
 
-  // ROUTE O: COMPREHENSIVE INTELLIGENT AGENT ASSISTANT (Natural Conversational Response)
+  // DEFAULT AGENT RESPONSE
   return {
-    reply: `Ji zaroor bhai! Mai aapki poori madad kar sakta hoon 🥟✨\n\nAapko hamare frozen Samosay (Chicken, Malai Boti, Cheese, Qeema, Aaloo), Spring Rolls, Shami & Seekh Kababs, Mini Pizzas ya Nimco ke hawale se kya jankari chahiye? Ya aap order place karna chahte hain?\n\nMujhe batayein aapko kitne packets ya kon se items chahiye, mai abhi aapka bill aur delivery details confirm kar deta hoon!`,
+    reply: `Ji zaroor bhai! Mai aapki poori madad kar sakta hoon 🥟✨\n\nAapko hamare frozen Samosay (Chicken, Malai Boti, Cheese, Qeema, Aaloo), Spring Rolls, Kababs, Mini Pizzas ya Nimco ke hawale se kya jankari chahiye? Mujhe batayein aapko kitne packets chahiye, mai abhi total bill aur delivery details bata deta hoon!`,
     suggestions: ["🛒 Order Book Karna Hai", "💳 Payment Details", "🥟 Full Price List", "🛵 Delivery Areas"],
     action: null
   };
+}
+
+function getKnowledgeProducts() {
+  try {
+    const productsPath = path.join(__dirname, 'data', 'products.json');
+    if (fs.existsSync(productsPath)) {
+      return JSON.parse(fs.readFileSync(productsPath, 'utf8') || '[]');
+    }
+  } catch (e) {}
+  return [];
 }
