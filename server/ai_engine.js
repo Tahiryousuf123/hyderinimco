@@ -14,6 +14,27 @@ import { Product } from './models/Product.js';
 import { Order } from './models/Order.js';
 import { isDBConnected, withTimeout } from './db.js';
 
+/**
+ * Calculates Karachi delivery charges based on Bykea rider distance
+ */
+export function calculateAreaDeliveryFee(areaName) {
+  const a = (areaName || '').toLowerCase();
+  if (a.includes('bahria')) return 1500;
+  if (a.includes('korangi') || a.includes('landhi') || a.includes('industrial')) return 600;
+  if (a.includes('malir') || a.includes('cantt') || a.includes('airport') || a.includes('model colony')) return 550;
+  if (a.includes('clifton') || a.includes('defence') || a.includes('dha')) return 500;
+  if (a.includes('saddar') || a.includes('garden') || a.includes('lines area')) return 450;
+  if (a.includes('scheme 33') || a.includes('safoora') || a.includes('pechs') || a.includes('tariq road') || a.includes('bahadurabad')) return 400;
+  if (a.includes('gulshan') || a.includes('johar') || a.includes('stadium')) return 350;
+  if (a.includes('nazimabad') || a.includes('liaquatabad') || a.includes('gulberg')) {
+    if (a.includes('north nazimabad') || a.includes('hydri')) return 100;
+    return 250;
+  }
+  if (a.includes('north karachi') || a.includes('buffer zone') || a.includes('fb area') || a.includes('federal b')) return 200;
+  if (a.includes('hydri') || a.includes('north nazimabad') || a.includes('pickup')) return 100;
+  return 300; // Other Karachi areas default
+}
+
 // ---------------------------------------------------------------------------
 // TOOL DEFINITIONS — sent to Gemini as function declarations
 // ---------------------------------------------------------------------------
@@ -253,8 +274,8 @@ async function executeToolCall(toolName, args, customerPhone) {
         return { success: false, error: 'Delivery address is required and must be specific' };
       }
 
-      // Compute delivery fee using backend rules (same as website)
-      const deliveryFee = subtotal >= 5000 ? 0 : 150;
+      // Compute area-based delivery fee according to Bykea rates
+      const deliveryFee = calculateAreaDeliveryFee(args.delivery_area || args.delivery_address);
       const totalAmount = subtotal + deliveryFee;
 
       // Generate order reference
@@ -374,9 +395,20 @@ ORDER FLOW — MANDATORY:
    - Payment method (default to COD if not specified)
 7. If any required info is missing, ask for it naturally before confirming.
 
-DELIVERY FEE (do not change these numbers):
-- Orders Rs. 5,000 or above: FREE delivery
-- Orders below Rs. 5,000: Rs. 150 flat delivery charge
+DELIVERY CHARGES (BYKEA EXPRESS COLD-BOX DELIVERY):
+Delivery charges are based strictly on Bykea area distance (no free delivery):
+- North Nazimabad / Hydri Local: Rs. 100
+- North Karachi / Buffer Zone / FB Area: Rs. 200
+- Nazimabad / Liaquatabad / Gulberg: Rs. 250
+- Gulshan-e-Iqbal / Johar / Stadium: Rs. 350
+- Scheme 33 / Safoora / PECHS / Tariq Road: Rs. 400
+- Saddar / Garden: Rs. 450
+- Clifton / Defence DHA: Rs. 500
+- Malir Cantt / Model Colony / Airport: Rs. 550
+- Korangi / Landhi: Rs. 600
+- Bahria Town Karachi: Rs. 1,500
+- Other Karachi areas: Rs. 300
+When quoting total bills, always calculate: Subtotal + Area Delivery Fee = Grand Total.
 
 PAYMENT OPTIONS:
 - Cash on Delivery (COD) — default

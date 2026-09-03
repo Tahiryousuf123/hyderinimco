@@ -172,18 +172,18 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     ];
 
     const KARACHI_AREAS = [
-      { en: "North Nazimabad / Hydri Local (Bykea Nearby - Rs. 100 / Shop Pickup)", ur: "نارتھ ناظم آباد / حیدری (بائیکیا - ۱۰۰ روپے)" },
-      { en: "North Karachi / Buffer Zone / FB Area (Bykea Rider - Rs. 200)", ur: "نارتھ کراچی / بفر زون / فیڈرل بی (بائیکیا - ۲۰۰ روپے)" },
-      { en: "Nazimabad / Liaquatabad / Gulberg (Bykea Rider - Rs. 250)", ur: "ناظم آباد / لیاقت آباد / گلبرگ (بائیکیا - ۲۵۰ روپے)" },
-      { en: "Gulshan-e-Iqbal / Johar / Stadium (Bykea Rider - Rs. 350)", ur: "گلشنِ اقبال / جوہر / اسٹیڈیم (بائیکیا - ۳۵۰ روپے)" },
-      { en: "Scheme 33 / Safoora Goth (Bykea Rider - Rs. 400)", ur: "اسکیم ۳۳ / صفورہ گوٹھ (بائیکیا - ۴۰۰ روپے)" },
-      { en: "PECHS / Tariq Road / Bahadurabad (Bykea Rider - Rs. 400)", ur: "پی ای سی ایچ ایس / طارق روڈ (بائیکیا - ۴۰۰ روپے)" },
-      { en: "Saddar / Garden / Lines Area (Bykea Rider - Rs. 450)", ur: "صدر / گارڈن (بائیکیا - ۴۵۰ روپے)" },
-      { en: "Clifton / Defence DHA Phases 1-8 (Bykea Rider - Rs. 500)", ur: "کلفٹن / ڈیفنس (بائیکیا - ۵۰۰ روپے)" },
-      { en: "Malir Cantt / Model Colony / Airport (Bykea Rider - Rs. 550)", ur: "ملیر کینٹ / ماڈل کالونی (بائیکیا - ۵۵۰ روپے)" },
-      { en: "Korangi / Landhi / Industrial Area (Bykea Rider - Rs. 600)", ur: "کورنگی / لانڈھی (بائیکیا - ۶۰۰ روپے)" },
-      { en: "Bahria Town Karachi (Express Chilled Delivery - Rs. 1,500)", ur: "بحریہ ٹاؤن کراچی (ایکسپریس ڈیلیوری - ۱۵۰۰ روپے)" },
-      { en: "Other Karachi Area (Exact Bykea App Fare at Dispatch)", ur: "دیگر کراچی ایریاز (بائیکیا لائیو ریٹ)" }
+      { en: "North Nazimabad / Hydri Local (Bykea Nearby - Rs. 100 / Shop Pickup)", ur: "نارتھ ناظم آباد / حیدری (بائیکیا - ۱۰۰ روپے)", fee: 100 },
+      { en: "North Karachi / Buffer Zone / FB Area (Bykea Rider - Rs. 200)", ur: "نارتھ کراچی / بفر زون / فیڈرل بی (بائیکیا - ۲۰۰ روپے)", fee: 200 },
+      { en: "Nazimabad / Liaquatabad / Gulberg (Bykea Rider - Rs. 250)", ur: "ناظم آباد / لیاقت آباد / گلبرگ (بائیکیا - ۲۵۰ روپے)", fee: 250 },
+      { en: "Gulshan-e-Iqbal / Johar / Stadium (Bykea Rider - Rs. 350)", ur: "گلشنِ اقبال / جوہر / اسٹیڈیم (بائیکیا - ۳۵۰ روپے)", fee: 350 },
+      { en: "Scheme 33 / Safoora Goth (Bykea Rider - Rs. 400)", ur: "اسکیم ۳۳ / صفورہ گوٹھ (بائیکیا - ۴۰۰ روپے)", fee: 400 },
+      { en: "PECHS / Tariq Road / Bahadurabad (Bykea Rider - Rs. 400)", ur: "پی ای سی ایچ ایس / طارق روڈ (بائیکیا - ۴۰۰ روپے)", fee: 400 },
+      { en: "Saddar / Garden / Lines Area (Bykea Rider - Rs. 450)", ur: "صدر / گارڈن (بائیکیا - ۴۵۰ روپے)", fee: 450 },
+      { en: "Clifton / Defence DHA Phases 1-8 (Bykea Rider - Rs. 500)", ur: "کلفٹن / ڈیفنس (بائیکیا - ۵۰۰ روپے)", fee: 500 },
+      { en: "Malir Cantt / Model Colony / Airport (Bykea Rider - Rs. 550)", ur: "ملیر کینٹ / ماڈل کالونی (بائیکیا - ۵۵۰ روپے)", fee: 550 },
+      { en: "Korangi / Landhi / Industrial Area (Bykea Rider - Rs. 600)", ur: "کورنگی / لانڈھی (بائیکیا - ۶۰۰ روپے)", fee: 600 },
+      { en: "Bahria Town Karachi (Express Chilled Delivery - Rs. 1,500)", ur: "بحریہ ٹاؤن کراچی (ایکسپریس ڈیلیوری - ۱۵۰۰ روپے)", fee: 1500 },
+      { en: "Other Karachi Area (Bykea Dispatch Rate - Rs. 300)", ur: "دیگر کراچی ایریاز (بائیکیا ریٹ - ۳۰۰ روپے)", fee: 300 }
     ];
     const INITIAL_PRODUCTS = [];
     /*
@@ -1672,9 +1672,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
       const cartCount = cart.reduce((acc, it) => acc + it.quantity, 0);
       const subtotal = cart.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-      const freeLimit = settings.freeDeliveryAbove || 5000;
-      const isFree = subtotal >= freeLimit;
-      const deliveryFee = 0;
+      // Delivery fee is always area-based (no free delivery). Default to 300 until area is selected at checkout.
+      const deliveryFee = 0; // shown as TBD in cart; calculated at checkout based on selected area
       const totalAmount = subtotal;
 
       const isUrdu = lang === 'ur';
@@ -1688,13 +1687,13 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <span className="bg-goldBrand-500 text-emeraldBrand-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    {isUrdu ? 'کراچی ایکسپریس ڈیلیوری' : 'Karachi Express'}
+                    {isUrdu ? 'کراچی بائیکیا ڈیلیوری' : 'Bykea Express Delivery'}
                   </span>
                   <span className="text-goldBrand-100 font-medium hidden sm:inline">
-                    {isUrdu ? '✨ ۵۰۰۰ روپے سے زائد کے آرڈر پر پورے کراچی میں فری ڈیلیوری! ۱۹۷۰ سے تازہ اور لذیذ ذائقہ۔' : (settings.announcement || '✨ FREE DELIVERY across Karachi on orders above Rs. 5,000!')}
+                    {isUrdu ? '🛵 پورے کراچی میں بائیکیا کولڈ باکس ڈیلیوری! علاقے کے مطابق معمولی ڈیلیوری چارجز — ۱۹۷۰ سے تازہ ذائقہ۔' : (settings.announcement || '🛵 Bykea Cold-Box Express Delivery across Karachi! Area-wise charges apply.')}
                   </span>
                   <span className="text-goldBrand-100 font-medium sm:hidden">
-                    {isUrdu ? '۵۰۰۰ روپے پر فری ڈیلیوری!' : 'Free Delivery above Rs. 5,000!'}
+                    {isUrdu ? '🛵 بائیکیا ڈیلیوری — علاقہ وار چارجز' : '🛵 Bykea Delivery — Area-wise Charges'}
                   </span>
                 </div>
 
@@ -2679,10 +2678,6 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeItem}
               subtotal={subtotal}
-              deliveryFee={deliveryFee}
-              totalAmount={totalAmount}
-              isFree={isFree}
-              freeLimit={freeLimit}
               onProceedCheckout={() => {
                 setIsCartOpen(false);
                 setIsCheckoutOpen(true);
@@ -2698,8 +2693,6 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               onClose={() => setIsCheckoutOpen(false)}
               cart={cart}
               subtotal={subtotal}
-              deliveryFee={deliveryFee}
-              totalAmount={totalAmount}
               settings={settings}
               onOrderComplete={(order) => {
                 setCompletedOrder(order);
@@ -3127,7 +3120,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     }
 
     // Shopping Cart Drawer Component
-    function CartDrawer({ isOpen, isUrdu, onClose, cart, onUpdateQuantity, onRemoveItem, subtotal, deliveryFee, totalAmount, isFree, freeLimit, onProceedCheckout }) {
+    function CartDrawer({ isOpen, isUrdu, onClose, cart, onUpdateQuantity, onRemoveItem, subtotal, onProceedCheckout }) {
       if (!isOpen) return null;
 
       return (
@@ -3202,12 +3195,12 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                     <span className="font-mono font-bold">Rs. {subtotal}/-</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
-                    <span>{isUrdu ? 'ڈیلیوری چارجز:' : 'Delivery Fee:'}</span>
-                    <span className="font-mono font-bold text-emeraldBrand-800">{isFree ? (isUrdu ? 'مفت (FREE)' : 'FREE') : \`Rs. \${deliveryFee}/-\`}</span>
+                    <span>{isUrdu ? 'ڈیلیوری چارجز (بائیکیا):' : 'Delivery (Bykea):'}</span>
+                    <span className="font-mono font-bold text-emeraldBrand-800">{isUrdu ? 'چیک آؤٹ پر منتخب کریں' : 'By area at checkout'}</span>
                   </div>
                   <div className="flex justify-between font-black text-sm text-emeraldBrand-950 pt-1.5 border-t border-gray-200">
-                    <span>{isUrdu ? 'کل رقم:' : 'Total Amount:'}</span>
-                    <span className="font-mono text-base text-emeraldBrand-900">Rs. {totalAmount}/-</span>
+                    <span>{isUrdu ? 'سب ٹوٹل:' : 'Subtotal:'}</span>
+                    <span className="font-mono text-base text-emeraldBrand-900">Rs. {subtotal}/-</span>
                   </div>
                 </div>
 
@@ -3215,7 +3208,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                   onClick={onProceedCheckout}
                   className="w-full py-3.5 bg-gradient-to-r from-emeraldBrand-800 to-emeraldBrand-950 hover:from-emeraldBrand-900 hover:to-emeraldBrand-950 text-goldBrand-200 font-black text-xs sm:text-sm rounded-2xl shadow-xl border border-goldBrand-400 flex items-center justify-center gap-2 active:scale-98"
                 >
-                  <span>{isUrdu ? \`آن لائن چیک آؤٹ (\${totalAmount} روپے)\` : \`Proceed to Pre-Paid Checkout (Rs. \${totalAmount}/-)\`}</span>
+                  <span>{isUrdu ? \`آن لائن چیک آؤٹ — ابھی علاقہ منتخب کریں\` : \`Proceed to Checkout — Select Delivery Area\`}</span>
                   <span>➔</span>
                 </button>
               </div>
@@ -3227,11 +3220,16 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     }
 
     // Professional Digital Checkout Modal (No COD)
-    function CheckoutModal({ isOpen, isUrdu, onClose, cart, subtotal, deliveryFee, totalAmount, settings, onOrderComplete }) {
+    function CheckoutModal({ isOpen, isUrdu, onClose, cart, subtotal, settings, onOrderComplete }) {
       const [step, setStep] = useState(1);
       const [customer, setCustomer] = useState({
         fullName: '', phone: '', area: KARACHI_AREAS[0].en, address: '', notes: ''
       });
+
+      // Derive delivery fee from the selected area
+      const selectedArea = KARACHI_AREAS.find(a => a.en === customer.area) || KARACHI_AREAS[0];
+      const deliveryFee = selectedArea.fee;
+      const totalAmount = subtotal + deliveryFee;
       const [paymentMethod, setPaymentMethod] = useState('cod');
       const [senderName, setSenderName] = useState('');
       const [tid, setTid] = useState('');
@@ -3641,17 +3639,17 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             </div>
 
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto text-xs">
-              {/* Automatic Shop Alert Notification Badge */}
+              {/* Automatic Shop Alert + Customer Slip Badge */}
               <div className="bg-emerald-50 border-2 border-emerald-400/60 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-emerald-950 shadow-sm">
                 <span className="text-2xl">🔔</span>
                 <div>
                   <p className="font-black text-emerald-950">
-                    {isUrdu ? 'دکان والے کو فوری الرٹ پہنچ گیا!' : 'Shop Owner Alerted Instantly!'}
+                    {isUrdu ? 'دکان والے کو فوری واٹس ایپ الرٹ پہنچ گیا!' : 'Shop Owner Alerted via WhatsApp!'}
                   </p>
                   <p className="text-[11px] text-emerald-800 mt-0.5">
                     {isUrdu
-                      ? 'اس آرڈر کی مکمل تفصیل دکان کے نمبر (0336-2438422) پر واٹس ایپ کر دی گئی ہے۔'
-                      : 'Complete order receipt automatically dispatched to shop owner (0336-2438422).'}
+                      ? 'آپ کو بھی آپ کے نمبر پر آرڈر رسید واٹس ایپ پر بھیجی جا رہی ہے۔'
+                      : 'An official order receipt slip is being sent to your WhatsApp number.'}
                   </p>
                 </div>
               </div>
@@ -4473,6 +4471,16 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                   {/* 1. SALES ANALYTICS DASHBOARD */}
                   {tab === 'sales' && (
                     <div className="space-y-6">
+                      {/* CSV Download Button */}
+                      <div className="flex justify-end">
+                        <a
+                          href={getApiBase() + '/api/admin/sales/export.csv'}
+                          download
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emeraldBrand-900 hover:bg-emeraldBrand-800 text-goldBrand-200 text-xs font-black rounded-2xl border border-goldBrand-400/60 shadow-sm transition-all"
+                        >
+                          📥 Download Sales Report (Excel / CSV)
+                        </a>
+                      </div>
                       
                       {/* Metric KPI Cards */}
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -4599,6 +4607,17 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                   {/* 2. CUSTOMER ORDERS MANAGEMENT */}
                   {tab === 'orders' && (
                     <div className="space-y-3">
+                      {orders.length > 0 && (
+                        <div className="flex justify-end">
+                          <a
+                            href={getApiBase() + '/api/admin/sales/export.csv'}
+                            download
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-emeraldBrand-900 hover:bg-emeraldBrand-800 text-goldBrand-200 text-xs font-black rounded-2xl border border-goldBrand-400/60 shadow-sm"
+                          >
+                            📥 Download Orders CSV
+                          </a>
+                        </div>
+                      )}
                       {orders.length === 0 ? (
                         <div className="bg-white p-12 text-center rounded-3xl border border-goldBrand-400/40 space-y-2">
                           <span className="text-3xl">📦</span>

@@ -7,9 +7,9 @@ import { Product } from './models/Product.js';
 import { ProductImage } from './models/ProductImage.js';
 import { Order } from './models/Order.js';
 import { Setting } from './models/Setting.js';
-import { generateAIResponse, generateAIResponseAsync } from './ai_engine.js';
+import { generateAIResponse, generateAIResponseAsync, calculateAreaDeliveryFee } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
-import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast } from './whatsapp_service.js';
+import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast } from './whatsapp_service.js';
 
 // In-memory catalog cache accelerator (prevents hammering MongoDB on rapid client polling)
 let productCache = null;
@@ -546,6 +546,43 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 3.5. GET /api/admin/sales/export.csv (Direct Excel CSV Sales Report Download)
+  if (pathname === '/api/admin/sales/export.csv' && method === 'GET') {
+    if (!isDBConnected()) await connectDB();
+    try {
+      const orders = await executeDBQuery(() => Order.find({}, { _id: 0, __v: 0 }).sort({ createdAt: -1 }).lean(), 2, 10000);
+      const headers = ['Order Ref', 'Date', 'Customer Name', 'Phone', 'Area', 'Address', 'Items Summary', 'Subtotal', 'Delivery Fee', 'Total Amount', 'Payment Method', 'Transaction ID', 'Status', 'Notes'];
+      const rows = (orders || []).map(o => {
+        const itemsStr = (o.items || []).map(i => `${i.quantity}x ${i.name} (${i.packQuantity || ''}) - Rs.${i.price * i.quantity}`).join('; ');
+        return [
+          `"${(o.orderRef || o.id || '').replace(/"/g, '""')}"`,
+          `"${(o.formattedDate || (o.createdAt ? new Date(o.createdAt).toLocaleString('en-PK') : '')).replace(/"/g, '""')}"`,
+          `"${(o.customer?.fullName || '').replace(/"/g, '""')}"`,
+          `"${(o.customer?.phone || '').replace(/"/g, '""')}"`,
+          `"${(o.customer?.area || '').replace(/"/g, '""')}"`,
+          `"${(o.customer?.address || '').replace(/"/g, '""')}"`,
+          `"${itemsStr.replace(/"/g, '""')}"`,
+          o.subtotal || 0,
+          o.deliveryFee || 0,
+          o.totalAmount || 0,
+          `"${(o.paymentMethod || '').toUpperCase()}"`,
+          `"${(o.paymentDetails?.transactionId || '').replace(/"/g, '""')}"`,
+          `"${(o.status || '').replace(/"/g, '""')}"`,
+          `"${(o.notes || '').replace(/"/g, '""')}"`
+        ].join(',');
+      });
+      const csv = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="Hyderi_Nimco_Sales_${Date.now()}.csv"`,
+        'Access-Control-Allow-Origin': '*'
+      });
+      return res.end(csv);
+    } catch (e) {
+      return sendJson(res, 500, { success: false, error: e.message });
+    }
+  }
+
   // 4.5. POST /api/products/batch (Explicit bulk catalog import to MongoDB)
   if (pathname === '/api/products/batch' && method === 'POST') {
     const body = await parseBody(req);
@@ -921,6 +958,10 @@ const server = http.createServer(async (req, res) => {
     const orderRef = 'HYD-' + Math.floor(100000 + Math.random() * 900000);
     const orderId = 'ord-' + Date.now();
 
+    const deliveryFee = Number(body.deliveryFee) > 0 ? Number(body.deliveryFee) : calculateAreaDeliveryFee(body.customer?.area || body.customer?.address);
+    const subtotal = Number(body.subtotal) || 0;
+    const totalAmount = subtotal + deliveryFee;
+
     const newOrder = {
       id: orderId,
       orderRef: orderRef,
@@ -928,9 +969,9 @@ const server = http.createServer(async (req, res) => {
       formattedDate: orderDate.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       customer: body.customer || {},
       items: body.items || [],
-      subtotal: Number(body.subtotal) || 0,
-      deliveryFee: Number(body.deliveryFee) || 0,
-      totalAmount: Number(body.totalAmount) || 0,
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      totalAmount: totalAmount,
       paymentMethod: body.paymentMethod || 'bank_transfer',
       paymentDetails: {
         bankName: body.bankName || '',
@@ -953,6 +994,8 @@ const server = http.createServer(async (req, res) => {
       console.log(`[MongoDB Authoritative] Created order ${orderRef} (${orderId}) in MongoDB Atlas`);
       // Instant real-time WhatsApp alert to shop owner
       notifyOwnerNewOrder(newOrder).catch(err => console.error('Error notifying owner on WhatsApp:', err));
+      // Instant WhatsApp receipt slip to customer
+      sendCustomerOrderSlip(newOrder).catch(err => console.error('Error sending customer slip on WhatsApp:', err));
 
       return sendJson(res, 200, { success: true, message: 'Order placed successfully', order: savedOrder || newOrder });
     } catch (e) {
