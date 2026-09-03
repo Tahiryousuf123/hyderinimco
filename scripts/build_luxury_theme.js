@@ -1573,34 +1573,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           const res = await fetch(getApiBase() + '/api/products');
           const data = await res.json();
           if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-            let customList = [];
-            try {
-              const saved = localStorage.getItem('hyderi_custom_products');
-              if (saved) customList = JSON.parse(saved);
-            } catch (e) {}
-
-            const mergedMap = new Map();
-            data.products.forEach(p => mergedMap.set(p.id, p));
-            if (Array.isArray(customList)) {
-              customList.forEach(p => {
-                if (p && p.id) {
-                  const existing = mergedMap.get(p.id);
-                  mergedMap.set(p.id, { ...existing, ...p });
-                }
-              });
-            }
-
-            const merged = Array.from(mergedMap.values());
-            setProducts(merged);
-          }
-        } catch (e) {}
-      };
-      const _dummy_loadProducts = async () => {
-        try {
-          const res = await fetch(getApiBase() + '/api/products');
-          const data = await res.json();
-          if (data.success && data.products) {
             setProducts(data.products);
+            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(data.products)); } catch (e) {}
           }
         } catch (e) {}
       };
@@ -1618,6 +1592,20 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       useEffect(() => {
         loadProducts();
         loadSettings();
+        const pollInterval = setInterval(() => {
+          loadProducts();
+        }, 8000);
+        const handleVisChange = () => {
+          if (document.visibilityState === 'visible') {
+            loadProducts();
+            loadSettings();
+          }
+        };
+        document.addEventListener('visibilitychange', handleVisChange);
+        return () => {
+          clearInterval(pollInterval);
+          document.removeEventListener('visibilitychange', handleVisChange);
+        };
       }, []);
 
       const addToCart = (product, quantity = 1) => {
@@ -3951,6 +3939,60 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const [tab, setTab] = useState('sales');
       const [orders, setOrders] = useState([]);
       const [slipModal, setSlipModal] = useState(null);
+
+      const handleSaveProduct = async (e) => {
+        e.preventDefault();
+        const currentEditProd = editProd;
+        const targetId = currentEditProd ? currentEditProd.id : 'prod-' + Date.now();
+        const url = currentEditProd ? '/api/products/' + targetId : '/api/products';
+        const method = currentEditProd ? 'PUT' : 'POST';
+
+        let realImage = '';
+        if (window._pendingUploadedImage) {
+          realImage = window._pendingUploadedImage;
+        } else if (prodForm.imageBase64 && prodForm.imageBase64.startsWith('data:image')) {
+          realImage = prodForm.imageBase64;
+        } else if (currentEditProd) {
+          realImage = currentEditProd.image;
+        }
+
+        const updatedProd = { ...prodForm, id: targetId, image: realImage };
+        
+        setToastMsg(currentEditProd ? '✅ Product details & picture updated successfully!' : '✅ New product & picture added successfully!');
+        setTimeout(() => setToastMsg(''), 4500);
+
+        try {
+          const fullUrl = getApiBase() + url;
+          fetch(fullUrl, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedProd)
+          }).then(res => res.json()).then(data => {
+            if (typeof onRefreshProducts === 'function') onRefreshProducts();
+          }).catch(() => {});
+
+          // Also push batch cloud sync to Render server so all phones/tablets get live updates
+          if (typeof setProducts === 'function') {
+            setProducts(currentList => {
+              const list = Array.isArray(currentList) ? currentList : [];
+              fetch(getApiBase() + '/api/products/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ products: list })
+              }).catch(() => {});
+              return list;
+            });
+          }
+        } catch (err) {}
+      };
+
+      const handleDeleteProduct = async (id) => {
+        if (!confirm('Delete this item?')) return;
+        try {
+          await fetch(getApiBase() + '/api/products/' + id, { method: 'DELETE' });
+          if (typeof onRefreshProducts === 'function') onRefreshProducts();
+        } catch (e) {}
+      };
 
       // WhatsApp Simulator State
       const [waSimInput, setWaSimInput] = useState('');
