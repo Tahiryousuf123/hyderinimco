@@ -3482,12 +3482,13 @@
                       {/* Card Image */}
                       <div
                         onClick={() => setSelectedProduct(pObj)}
-                        className="relative aspect-[3/4] w-full cursor-pointer overflow-hidden bg-black/50"
+                        className="relative w-full h-56 sm:h-64 md:h-72 cursor-pointer overflow-hidden bg-black/50"
                       >
                         <img
                           src={d.image}
                           alt={d.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'; }}
                         />
                         <div className="absolute top-3 left-3 bg-emeraldBrand-950 text-goldBrand-300 text-xs font-black px-3 py-1.5 rounded-xl border border-goldBrand-400 shadow">
                           {isUrdu ? d.badgeUrdu : d.badge}
@@ -4112,12 +4113,13 @@
                         {/* Poster Image */}
                         <div
                           onClick={() => { setSelectedProduct(pObj); setShowMoreDealsModal(false); }}
-                          className="relative aspect-[3/4] w-full cursor-pointer overflow-hidden bg-black/50"
+                          className="relative w-full h-56 sm:h-64 md:h-72 cursor-pointer overflow-hidden bg-black/50"
                         >
                           <img
                             src={d.image}
                             alt={d.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'; }}
                           />
                           <div className="absolute top-3 left-3 bg-emeraldBrand-950 text-goldBrand-300 text-xs font-black px-3 py-1.5 rounded-xl border border-goldBrand-400 shadow">
                             ⭐ PREMIUM DEAL
@@ -4216,11 +4218,12 @@
           className={"group bg-white rounded-3xl border-2 " + (isDeal ? "border-goldBrand-500 ring-2 ring-goldBrand-400/30" : "border-goldBrand-400/40 hover:border-goldBrand-500") + " shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden cursor-pointer hover:-translate-y-1"}
         >
           {/* Card Top Food Photo */}
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-parchment-200">
+          <div className="relative w-full h-36 sm:h-44 md:h-48 overflow-hidden bg-parchment-200">
             <img
-              src={product.image}
+              src={product.image || 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'}
               alt={title}
               className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
+              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'; }}
             />
             {product.badge && (
               <div className="absolute top-2.5 left-2.5 bg-emeraldBrand-950 text-goldBrand-300 text-[10px] font-black px-2.5 py-1 rounded-lg border border-goldBrand-400/60 shadow uppercase tracking-wider">
@@ -4316,8 +4319,13 @@
 
             {/* Scrollable Modal Body */}
             <div className="overflow-y-auto flex-1">
-              <div className="relative aspect-[16/10] w-full bg-parchment-200">
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              <div className="relative w-full h-48 sm:h-64 bg-parchment-200">
+                <img
+                  src={product.image || 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'; }}
+                />
                 {product.badge && (
                   <span className="absolute bottom-3 left-3 bg-emeraldBrand-950 text-goldBrand-300 text-xs font-black px-3 py-1 rounded-xl border border-goldBrand-400 shadow">
                     {isUrdu ? (product.badgeUrdu || product.badge) : product.badge}
@@ -6015,8 +6023,13 @@
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                       {products.map(p => (
                         <div key={p.id} className="bg-white rounded-3xl border border-goldBrand-400/40 p-3 flex flex-col justify-between text-xs space-y-2.5 shadow-xs">
-                          <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-parchment-200">
-                            <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                          <div className="relative w-full h-32 sm:h-40 rounded-2xl overflow-hidden bg-parchment-200">
+                            <img
+                              src={p.image || 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'}
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'; }}
+                            />
                             <div className="absolute top-2 right-2 bg-black/70 text-goldBrand-300 text-[10px] font-bold px-2 py-0.5 rounded-md">
                               {p.packQuantity}
                             </div>
