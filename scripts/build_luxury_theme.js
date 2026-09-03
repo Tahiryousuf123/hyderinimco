@@ -1529,16 +1529,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     function App() {
 
       const [lang, setLang] = useState('en'); // 'en' | 'ur'
-      const [products, setProducts] = useState(() => {
-        try {
-          const saved = localStorage.getItem('hyderi_custom_products');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          }
-        } catch (e) {}
-        return INITIAL_PRODUCTS;
-      });
+      const [products, setProducts] = useState(() => INITIAL_PRODUCTS);
       const [settings, setSettings] = useState({});
       const [activeCategory, setActiveCategory] = useState('all');
       const [searchQuery, setSearchQuery] = useState('');
@@ -1570,7 +1561,6 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           const data = await res.json();
           if (data.success && Array.isArray(data.products) && data.products.length > 0) {
             setProducts(data.products);
-            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(data.products)); } catch (e) {}
           }
         } catch (e) {}
       };
@@ -4151,17 +4141,13 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         const method = currentEditProd ? 'PUT' : 'POST';
 
         let realImage = '';
-        if (window._pendingUploadedImage) {
-          realImage = window._pendingUploadedImage;
-        } else if (prodForm.imageBase64 && prodForm.imageBase64.startsWith('data:image')) {
+        if (prodForm.imageBase64 && prodForm.imageBase64.startsWith('data:image')) {
           realImage = prodForm.imageBase64;
         } else if (prodForm.image && !prodForm.image.includes('Custom File')) {
           realImage = prodForm.image;
         } else if (currentEditProd && currentEditProd.image) {
           realImage = currentEditProd.image;
         }
-
-        window._pendingUploadedImage = null;
 
         const updatedProd = {
           ...prodForm,
@@ -4177,9 +4163,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           const authoritative = data.product;
           setProducts(prev => {
             const list = Array.isArray(prev) ? prev : [];
-            const next = currentEditProd ? list.map(p => p.id === targetId ? authoritative : p) : [authoritative, ...list.filter(p => p.id !== targetId)];
-            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(next)); } catch (e) {}
-            return next;
+            return currentEditProd ? list.map(p => p.id === targetId ? authoritative : p) : [authoritative, ...list.filter(p => p.id !== targetId)];
           });
           setShowAddProd(false); setEditProd(null);
           setToastMsg(currentEditProd ? '✅ Product details & picture updated in MongoDB!' : '✅ New product & picture added to MongoDB!');
@@ -4196,9 +4180,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           const data = await res.json();
           if (!res.ok || !data.success) throw new Error(data.error || 'Failed to delete from MongoDB');
           setProducts(prev => {
-            const list = Array.isArray(prev) ? prev.filter(p => p.id !== id) : [];
-            try { localStorage.setItem('hyderi_custom_products', JSON.stringify(list)); } catch (e) {}
-            return list;
+            return Array.isArray(prev) ? prev.filter(p => p.id !== id) : [];
           });
           setToastMsg('🗑️ Product permanently deleted from MongoDB');
           setTimeout(() => setToastMsg(''), 4500);
@@ -4706,7 +4688,6 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                                         imageBase64: (p.image && p.image.startsWith('data:image')) ? p.image : (p.imageBase64 || null)
                                       }));
                                       setProducts(sanitized);
-                                      try { localStorage.setItem('hyderi_custom_products', JSON.stringify(sanitized)); } catch (err) {}
                                       fetch(getApiBase() + '/api/products/batch', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
@@ -4753,7 +4734,6 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                           <div className="flex justify-between items-center pt-2 border-t text-xs">
                             <button
                               onClick={() => {
-                                window._pendingUploadedImage = null;
                                 setEditProd(p);
                                 setProdForm(p);
                                 setShowAddProd(true);
