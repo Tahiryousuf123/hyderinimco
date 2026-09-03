@@ -71,7 +71,7 @@ export const KNOWLEDGE_BASE_QA = [
       "zaid kon h",
       "who is zaid"
     ],
-    "answer": "Zaid Al Balochi hai."
+    "answer": "Zaid Al Balochi king hai."
   },
   {
     "category": "wahab_info",
@@ -93,7 +93,7 @@ export const KNOWLEDGE_BASE_QA = [
       "hussain kon h",
       "who is hussain"
     ],
-    "answer": "Hussain chutiya hai."
+    "answer": "Hussain zaid ka tatta geer hai."
   },
   {
     "category": "order",
