@@ -3810,16 +3810,34 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             }
           }
         } catch (err) {
+          const lower = text.toLowerCase();
+          let replyText = 'وعلیکم السلام! نیو حیدری نمکو اینڈ فروزن فوڈز میں خوش آمدید 🥟✨\n\n🥟 **ہمارے خستہ سموسے:** Chicken Vonton (12 pcs) — Rs. 240/-, Aaloo One Bite (24 pcs) — Rs. 350/-, Chicken Cheese (24 pcs) — Rs. 500/-\n\n💳 **ادائیگی:** Meezan Bank, EasyPaisa, Raast pre-paid accepted.\n📍 **شاپ ایڈریس:** Shop # 20, 21, Burhani Bagh, North Nazimabad, Karachi.';
+          let localAction = null;
+
+          if (lower.includes('samosa') || lower.includes('سموسہ') || lower.includes('price') || lower.includes('ریٹ')) {
+            replyText = '🥟 **ہمارے مشہور خستہ سموسے:**\n• Chicken Vonton (12 pcs) — Rs. 240/-\n• Aaloo One Bite Samosa (24 pcs) — Rs. 350/-\n• Chicken One Bite Samosa (24 pcs) — Rs. 400/-\n• Chicken Cheese Crispy Samosa (24 pcs) — Rs. 500/-';
+            localAction = 'filter_samosa';
+          } else if (lower.includes('roll') || lower.includes('رول')) {
+            replyText = '🌯 **ہمارے ڈلیشیس اسپرنگ رولز:**\n• Chicken Spring Roll (24 pcs) — Rs. 500/-\n• Malai Boti Roll (12 pcs) — Rs. 500/-\n• Cheese One Bite Roll (24 pcs) — Rs. 450/-';
+            localAction = 'filter_roll';
+          } else if (lower.includes('pay') || lower.includes('bank') || lower.includes('easypaisa') || lower.includes('پیمنٹ')) {
+            replyText = '💳 **آن لائن بینکنگ و پیمنٹ میتھڈز:**\n• Meezan Bank (01010102030405)\n• EasyPaisa / Raast (0336-2438422)\n\n*آرڈر کی منتقلی پر سلپ واٹس ایپ کیجیے۔*';
+          } else if (lower.includes('address') || lower.includes('location') || lower.includes('ایڈریس')) {
+            replyText = '📍 **نیو حیدری نمکو اینڈ فروزن فوڈز:**\nشاپ نمبر ۲۰، ۲۱، برہانی باغ بلڈنگ، بلاک E، نارتھ ناظم آباد، حیدری مارکیٹ، کراچی۔\n📞 0336-2438422 / 0325-2747343';
+          }
+
           setMessages(prev => [
             ...prev,
             {
               sender: 'ai',
-              text: isUrdu
-                ? 'معذرت، ابھی رابطہ نہیں ہو سکا۔ برائے مہربانی واٹس ایپ 0336-2438422 پر رابطہ فرمائیں۔'
-                : 'Could not connect to AI service. Please contact our WhatsApp hotline at 0336-2438422.',
-              suggestions: []
+              text: replyText,
+              suggestions: ['🥟 Samosas & Prices', '🌯 Spring Rolls', '💳 Payment Methods', '📍 Shop Location'],
+              action: localAction
             }
           ]);
+
+          if (localAction === 'filter_samosa' && onSelectCategory) onSelectCategory('samosa');
+          if (localAction === 'filter_roll' && onSelectCategory) onSelectCategory('roll');
         } finally {
           setLoading(false);
         }
@@ -4916,10 +4934,18 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                               </div>
                             </div>
                           ) : (
-                            <div className="bg-emeraldBrand-950 text-white p-8 rounded-2xl border border-goldBrand-500/40 flex flex-col items-center justify-center text-center space-y-3">
-                              <div className="w-8 h-8 border-3 border-goldBrand-400 border-t-transparent rounded-full animate-spin"></div>
-                              <p className="text-xs text-goldBrand-200 font-bold">Connecting to WhatsApp Multi-Device Server...</p>
-                              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                            <div className="bg-emeraldBrand-950 text-white p-6 rounded-2xl border border-goldBrand-500/40 flex flex-col items-center justify-center text-center space-y-3">
+                              <div className="w-10 h-10 rounded-full bg-goldBrand-500/20 text-goldBrand-300 flex items-center justify-center text-xl animate-pulse">
+                                📲
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-xs text-goldBrand-300">WhatsApp Multi-Device QR Pairing</h4>
+                                <p className="text-[11px] text-gray-300 mt-1">
+                                  Server connecting... Click "Refresh Live QR Code" below to fetch live pairing QR code.
+                                </p>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -4928,17 +4954,17 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                                       .then(data => { if (data.success) setWaStatus(data); })
                                       .catch(() => {});
                                   }}
-                                  className="px-3 py-1.5 bg-goldBrand-500/20 hover:bg-goldBrand-500/30 text-goldBrand-300 border border-goldBrand-400/50 rounded-xl text-[10px] font-bold cursor-pointer transition-all active:scale-95"
+                                  className="px-3.5 py-2 bg-goldBrand-500 text-emeraldBrand-950 hover:bg-goldBrand-400 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 shadow-md"
                                 >
-                                  🔄 Refresh Status
+                                  🔄 Refresh Live QR Code
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={handleWaDisconnect}
-                                  className="px-3 py-1.5 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-400/50 rounded-xl text-[10px] font-bold cursor-pointer transition-all active:scale-95"
+                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 shadow-md"
                                 >
-                                  📲 Generate New QR Code
+                                  ⚡ Force Re-Generate QR
                                 </button>
                               </div>
                             </div>
