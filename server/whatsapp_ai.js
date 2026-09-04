@@ -26,6 +26,23 @@ const processedMsgIds = new Map();
 
 const MAX_HISTORY = 20;
 const MAX_PROCESSED_IDS = 50;
+const MAX_TRACKED_CUSTOMERS = 500;
+
+// Periodic memory hygiene: prune inactive customer sessions older than 24 hours
+const memoryCleanupInterval = setInterval(() => {
+  try {
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    for (const [phone, history] of conversationStore.entries()) {
+      const lastMsg = history[history.length - 1];
+      const lastTime = lastMsg ? new Date(lastMsg.timestamp).getTime() : 0;
+      if (lastTime < oneDayAgo) {
+        conversationStore.delete(phone);
+        processedMsgIds.delete(phone);
+      }
+    }
+  } catch (err) {}
+}, 4 * 60 * 60 * 1000);
+memoryCleanupInterval.unref?.();
 
 // ---------------------------------------------------------------------------
 // HELPERS
@@ -42,6 +59,15 @@ export function getCustomerHistory(phone) {
 export function saveCustomerMessage(phone, sender, text) {
   const p = normalizePhone(phone);
   if (!p || !text) return;
+
+  // Evict oldest customer if memory exceeds bound
+  if (conversationStore.size >= MAX_TRACKED_CUSTOMERS && !conversationStore.has(p)) {
+    const oldestKey = conversationStore.keys().next().value;
+    if (oldestKey) {
+      conversationStore.delete(oldestKey);
+      processedMsgIds.delete(oldestKey);
+    }
+  }
 
   const history = conversationStore.get(p) || [];
   history.push({

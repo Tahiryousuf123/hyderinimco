@@ -12,6 +12,15 @@ import { generateAIResponse, generateAIResponseAsync, calculateAreaDeliveryFee }
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast, sendMetaWhatsAppMessage } from './whatsapp_service.js';
 
+// Top-Level Global Crash Prevention Listeners (Keeps Node.js running 24/7 in production)
+process.on('unhandledRejection', (reason) => {
+  console.error('🛡️ [Global Process Safety] Unhandled Rejection:', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('🛡️ [Global Process Safety] Uncaught Exception:', err?.message || err);
+});
+
 // In-memory catalog cache accelerator (prevents hammering MongoDB on rapid client polling)
 let productCache = null;
 let productCacheTime = 0;
@@ -1118,16 +1127,32 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { success: false, error: 'Broadcast message content is required.' });
     }
 
-    // If recipients not explicitly passed, extract unique customer phones from orders.json
+    // If recipients not explicitly passed, extract unique customer phones from MongoDB Atlas orders
     if (!Array.isArray(recipients) || recipients.length === 0) {
-      const orders = readData('orders.json', []);
       const phoneSet = new Set();
-      orders.forEach(o => {
-        if (o.customer?.phone) {
-          let p = String(o.customer.phone).replace(/[^0-9]/g, '');
-          if (p) phoneSet.add(p);
+      if (isDBConnected()) {
+        try {
+          const dbOrders = await Order.find({}, { 'customer.phone': 1 }).lean();
+          dbOrders.forEach(o => {
+            if (o.customer?.phone) {
+              let p = String(o.customer.phone).replace(/[^0-9]/g, '');
+              if (p) phoneSet.add(p);
+            }
+          });
+        } catch (e) {
+          console.warn('[Broadcast] Error loading customer phones from MongoDB:', e.message);
         }
-      });
+      }
+      // Fallback to local data if database had no orders
+      if (phoneSet.size === 0) {
+        const orders = readData('orders.json', []);
+        orders.forEach(o => {
+          if (o.customer?.phone) {
+            let p = String(o.customer.phone).replace(/[^0-9]/g, '');
+            if (p) phoneSet.add(p);
+          }
+        });
+      }
       recipients = Array.from(phoneSet);
     }
 
@@ -1275,19 +1300,12 @@ server.listen(PORT, () => {
 
   // 24/7 Render Keep-Alive Self-Ping Engine
   // Prevents Render Free Tier from going to sleep after inactivity
-  const pingUrl = process.env.RENDER_EXTERNAL_URL || 'https://hyderinimco-frozen.com';
+  const pingUrl = process.env.RENDER_EXTERNAL_URL || 'https://hyderinimco.onrender.com';
   console.log(`🚀 [KeepAlive] 24/7 Active Ping configured for: ${pingUrl}`);
   setInterval(() => {
     try {
       const urlToPing = `${pingUrl}/api/health`;
-      http.get(urlToPing, (res) => {
-        // success keep-alive
-      }).on('error', () => {
-        // fallback to direct https fetch
-        try {
-          fetch(urlToPing).catch(() => {});
-        } catch (e) {}
-      });
+      fetch(urlToPing).catch(() => {});
     } catch (err) {}
   }, 8 * 60 * 1000); // pings every 8 minutes (Render sleeps at 15 mins)
 });

@@ -311,6 +311,12 @@ async function executeToolCall(toolName, args, customerPhone) {
       try {
         await Order.create(orderDoc);
         console.log(`[WhatsApp Order] Created order ${orderRef} for phone ${customerPhone} — Rs. ${totalAmount}`);
+
+        // Notify shop owner immediately on WhatsApp
+        import('./whatsapp_service.js').then(m => {
+          if (m.notifyOwnerNewOrder) m.notifyOwnerNewOrder(orderDoc).catch(() => {});
+        }).catch(() => {});
+
         return {
           success: true,
           orderRef,
