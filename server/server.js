@@ -10,7 +10,7 @@ import { Order } from './models/Order.js';
 import { Setting } from './models/Setting.js';
 import { generateAIResponse, generateAIResponseAsync, calculateAreaDeliveryFee } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
-import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast } from './whatsapp_service.js';
+import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast, sendMetaWhatsAppMessage } from './whatsapp_service.js';
 
 // In-memory catalog cache accelerator (prevents hammering MongoDB on rapid client polling)
 let productCache = null;
@@ -1053,8 +1053,29 @@ const server = http.createServer(async (req, res) => {
       messageText = body.message || body.text || '';
     }
 
-    const autoReply = await handleWhatsAppIncoming(from, messageText);
-    return sendJson(res, 200, { success: true, autoReply });
+    // Acknowledge immediately to Meta to prevent timeout/retries
+    sendJson(res, 200, { success: true });
+
+    // Asynchronous human-like processing with natural delay
+    (async () => {
+      try {
+        if (!messageText.trim()) return;
+
+        // Realistic human reading + typing delay (2.5s to 5.5s)
+        const humanDelay = Math.min(5500, Math.max(2500, (messageText.length || 10) * 35)) + Math.floor(Math.random() * 1000);
+        console.log(`⏳ [Meta WhatsApp] Simulating human delay for ${humanDelay}ms before replying to ${from}...`);
+        await new Promise(r => setTimeout(r, humanDelay));
+
+        const autoReply = await handleWhatsAppIncoming(from, messageText);
+        if (autoReply?.message && process.env.WHATSAPP_ACCESS_TOKEN) {
+          await sendMetaWhatsAppMessage(from, autoReply.message);
+          console.log(`🤖 [Meta WhatsApp] Dispatched Cloud API reply to ${from}`);
+        }
+      } catch (err) {
+        console.error('[Meta WhatsApp Webhook Async Error]:', err);
+      }
+    })();
+    return;
   }
 
   // 15. POST /api/whatsapp/simulate (Admin Live WhatsApp AI Bot Simulator)

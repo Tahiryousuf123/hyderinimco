@@ -239,23 +239,48 @@ export async function startWhatsAppService() {
         }
 
         try {
-          // Generate Intelligent Response via Gemini AI Agent (function calling + MongoDB tools)
+          // 1. Natural Human Reading Delay (1.5 - 3.5s based on incoming message length)
+          const readDelayMs = Math.min(3500, Math.max(1500, (text.length || 10) * 35)) + Math.floor(Math.random() * 800);
+          await new Promise(r => setTimeout(r, readDelayMs));
+
+          // 2. Mark message as read & send "typing..." presence on WhatsApp
+          try {
+            await sock.readMessages([msg.key]);
+            await sock.sendPresenceUpdate('composing', remoteJid);
+          } catch (pErr) {}
+
+          // 3. Generate Intelligent Response via AI Agent (Groq / Gemini)
           const aiResponse = await handleWhatsAppIncoming(customerPhone, text, messageId);
 
           // Skip sending if duplicate message was detected
           if (aiResponse._duplicate) {
             console.log(`⚡ [WhatsApp AI] Duplicate message skipped for ${customerPhone}`);
+            try { await sock.sendPresenceUpdate('paused', remoteJid); } catch (e) {}
             continue;
           }
 
           const replyText = aiResponse?.message || '';
-          if (!replyText) continue;
+          if (!replyText) {
+            try { await sock.sendPresenceUpdate('paused', remoteJid); } catch (e) {}
+            continue;
+          }
 
-          // Send auto-reply back to the customer on WhatsApp
+          // 4. Realistic Human Typing Duration (2.5s - 6s depending on reply length)
+          // Real humans take time to type. This prevents WhatsApp anti-bot / anti-spam account bans.
+          const typingDurationMs = Math.min(6000, Math.max(2500, (replyText.length || 50) * 25)) + Math.floor(Math.random() * 1000);
+          console.log(`⌨️ [WhatsApp AI] Simulating human typing presence for ${typingDurationMs}ms to ${customerPhone}...`);
+          await new Promise(r => setTimeout(r, typingDurationMs));
+
+          // 5. Pause presence and send message
+          try {
+            await sock.sendPresenceUpdate('paused', remoteJid);
+          } catch (e) {}
+
           await sock.sendMessage(remoteJid, { text: replyText });
-          console.log(`🤖 [WhatsApp AI] Auto-replied to ${customerPhone}`);
+          console.log(`🤖 [WhatsApp AI] Natural human-like reply sent to ${customerPhone}`);
         } catch (sendErr) {
           console.error(`❌ Failed to send WhatsApp auto-reply to ${remoteJid}:`, sendErr);
+          try { await sock.sendPresenceUpdate('paused', remoteJid); } catch (e) {}
         }
       }
     });
@@ -465,5 +490,39 @@ export async function sendCustomerOrderSlip(order) {
     console.log(`✅ [WhatsApp Service] Direct customer order slip sent to customer ${phone}!`);
   } catch (err) {
     console.warn(`[WhatsApp Service] Could not send direct slip to customer ${phone}:`, err.message);
+  }
+}
+
+/**
+ * Send an outbound message via Meta WhatsApp Cloud API (Graph API)
+ */
+export async function sendMetaWhatsAppMessage(to, text) {
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneId || !token) return null;
+
+  try {
+    let cleanTo = String(to).replace(/[^0-9]/g, '');
+    if (cleanTo.startsWith('03')) cleanTo = '92' + cleanTo.slice(1);
+
+    const res = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: cleanTo,
+        type: 'text',
+        text: { preview_url: false, body: text }
+      })
+    });
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error('[Meta Cloud API] Send error:', e.message);
+    return null;
   }
 }
