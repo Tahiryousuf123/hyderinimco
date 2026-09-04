@@ -494,7 +494,18 @@ export async function notifyOwnerNewOrder(order) {
     (order.notes ? `📝 *Customer Notes:* ${order.notes}\n` : '') +
     `\n⏰ *Time:* ${new Date().toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })}`;
 
-  const recipientPhones = ['923362438422', '923252747343'];
+  const settings = getSettings();
+  const rawList = (settings.ownerNotificationPhones && settings.ownerNotificationPhones.length > 0)
+    ? settings.ownerNotificationPhones
+    : ['923252747343'];
+
+  const recipientPhones = rawList.map(p => {
+    let clean = String(p).replace(/[^0-9]/g, '');
+    if (clean.startsWith('03')) clean = '92' + clean.slice(1);
+    else if (!clean.startsWith('92')) clean = '92' + clean;
+    return clean;
+  }).filter(Boolean);
+
   for (const phone of recipientPhones) {
     try {
       const jid = `${phone}@s.whatsapp.net`;
