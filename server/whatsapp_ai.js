@@ -138,21 +138,17 @@ export async function handleWhatsAppIncoming(from, messageText, messageId = '') 
 
   const replyText = aiResult.reply || '';
 
-  // 4. Append WhatsApp footer branding (once, if not already present)
-  let whatsappFormatted = replyText;
-  const footerMarker = 'NEW HYDERI NIMCO';
-  if (replyText.length > 0 && !whatsappFormatted.includes(footerMarker)) {
-    whatsappFormatted += `\n\n━━━━━━━━━━━━━━━━━━━━\n🥟 *NEW HYDERI NIMCO & FROZEN*\n📍 _Shop # 20-21, Burhani Bagh, Block-E, Hydri, Karachi_\n🌐 https://hyderinimco-frozen.com\n📞 0336-2438422 | 0325-2747343 | 021-36625698`;
-  }
+  // 4. Clean any trailing dividers or formatting if present
+  const cleanReply = replyText.split('━━━━━━━━━━━━━━━━━━━━')[0].trim();
 
   // 5. Save AI reply to history
-  if (replyText.length > 0) {
-    saveCustomerMessage(cleanFrom, 'assistant', replyText);
+  if (cleanReply.length > 0) {
+    saveCustomerMessage(cleanFrom, 'assistant', cleanReply);
   }
 
   return {
     recipient: cleanFrom,
-    message: whatsappFormatted,
+    message: cleanReply,
     suggestions: aiResult.suggestions || [],
     action: aiResult.action || null,
     timestamp: new Date().toISOString()

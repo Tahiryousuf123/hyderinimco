@@ -434,6 +434,8 @@ FORMAT:
 - Use WhatsApp bold (*text*) and bullet points (•)
 - Keep messages concise and natural
 - Always show itemized breakdown before confirming order
+- CRITICAL: Do NOT append any automated footer, disclaimer, address card, contact signature, or line dividers (such as ━━━━━━━━━━━━━━━━━━━━) at the end of messages.
+- Talk naturally like a real human shop employee on WhatsApp. Only mention store address or phone numbers if the customer specifically asks for them.
 
 Remember: MongoDB is the ONLY source of truth. Use tools, not memory.`;
 }
@@ -688,10 +690,13 @@ async function generateGeminiResponseAsync(userMessage, conversationHistory = []
 
   // Append history (last 20 messages)
   for (const msg of (conversationHistory || [])) {
-    contentsPayload.push({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text || '' }]
-    });
+    const cleanMsgText = (msg.text || '').split('━━━━━━━━━━━━━━━━━━━━')[0].trim();
+    if (cleanMsgText) {
+      contentsPayload.push({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: cleanMsgText }]
+      });
+    }
   }
 
   // Append current user message

@@ -77,11 +77,17 @@ async function restoreAuthFromDB() {
     const docs = await WASession.find({}).lean();
     if (docs && docs.length > 0) {
       if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+      let restoredCount = 0;
       for (const doc of docs) {
-        const filepath = path.join(AUTH_DIR, doc.key);
-        fs.writeFileSync(filepath, doc.data, 'utf8');
+        try {
+          const filepath = path.join(AUTH_DIR, doc.key);
+          fs.writeFileSync(filepath, doc.data, 'utf8');
+          restoredCount++;
+        } catch (fErr) {
+          // Ignore write error for any corrupt file entry
+        }
       }
-      console.log(`✅ [WhatsApp Auth Sync] Successfully restored ${docs.length} session key files from MongoDB Atlas.`);
+      console.log(`✅ [WhatsApp Auth Sync] Successfully restored ${restoredCount} session key files from MongoDB Atlas.`);
       return true;
     }
   } catch (e) {
@@ -90,21 +96,76 @@ async function restoreAuthFromDB() {
   return false;
 }
 
-// Backup Local WhatsApp Session Files from Local Ephemeral Disk to MongoDB Atlas
+// Thread-safe debounced backup of session files from Local Ephemeral Disk to MongoDB Atlas
+let isBackingUp = false;
+let backupPending = false;
+let backupTimer = null;
+
+export function scheduleAuthBackup(delayMs = 1200) {
+  if (backupTimer) clearTimeout(backupTimer);
+  backupTimer = setTimeout(() => {
+    backupAuthToDB().catch(() => {});
+  }, delayMs);
+}
+
 async function backupAuthToDB() {
   if (!isDBConnected() || !fs.existsSync(AUTH_DIR)) return;
+  if (isBackingUp) {
+    backupPending = true;
+    return;
+  }
+  isBackingUp = true;
+  backupPending = false;
+
   try {
-    const files = fs.readdirSync(AUTH_DIR);
+    let files = [];
+    try {
+      files = fs.readdirSync(AUTH_DIR);
+    } catch (rErr) {
+      return;
+    }
+
+    const bulkOps = [];
+    const activeKeys = [];
+
     for (const file of files) {
       const filepath = path.join(AUTH_DIR, file);
-      if (fs.statSync(filepath).isFile()) {
+      try {
+        if (!fs.existsSync(filepath)) continue;
+        const stat = fs.statSync(filepath);
+        if (!stat.isFile()) continue;
         const content = fs.readFileSync(filepath, 'utf8');
-        await WASession.updateOne({ key: file }, { $set: { key: file, data: content } }, { upsert: true });
+        if (!content) continue;
+
+        activeKeys.push(file);
+        bulkOps.push({
+          updateOne: {
+            filter: { key: file },
+            update: { $set: { key: file, data: content } },
+            upsert: true
+          }
+        });
+      } catch (perFileErr) {
+        // Baileys deleted or updated a temporary pre-key concurrently. Safely ignore and continue.
+        continue;
       }
     }
-    console.log(`💾 [WhatsApp Auth Sync] Successfully backed up ${files.length} auth key files to MongoDB Atlas.`);
+
+    if (bulkOps.length > 0) {
+      await WASession.bulkWrite(bulkOps, { ordered: false });
+      // Remove stale/consumed pre-keys from MongoDB that Baileys unlinked on disk
+      if (activeKeys.length > 0) {
+        await WASession.deleteMany({ key: { $nin: activeKeys } }).catch(() => {});
+      }
+      console.log(`💾 [WhatsApp Auth Sync] Successfully backed up ${bulkOps.length} auth key files to MongoDB Atlas.`);
+    }
   } catch (e) {
     console.error('[WhatsApp Auth Sync] Warning: Failed to backup session to MongoDB Atlas:', e.message);
+  } finally {
+    isBackingUp = false;
+    if (backupPending) {
+      scheduleAuthBackup(500);
+    }
   }
 }
 
@@ -138,7 +199,7 @@ export async function startWhatsAppService() {
 
     sock.ev.on('creds.update', async () => {
       await saveCreds();
-      backupAuthToDB().catch(() => {});
+      scheduleAuthBackup(1200);
     });
 
     sock.ev.on('connection.update', async (update) => {
@@ -199,7 +260,7 @@ export async function startWhatsAppService() {
         console.log(`✅ [WhatsApp Service] WhatsApp AI Successfully Connected! Phone: ${connectedPhone}`);
 
         // Persist fresh authenticated credentials to MongoDB Atlas
-        backupAuthToDB().catch(() => {});
+        scheduleAuthBackup(500);
       }
     });
 
@@ -312,14 +373,9 @@ function runAiFollowUpCheck() {
     if (elapsed >= THREE_HOURS_MS) {
       const followUpText = 
         `Assalam o Alaikum! 👋✨\n\n` +
-        `Umeed hai aap khairiyat se honge. Aap ne thodi der pehle Hyderi Nimco & Frozen se Samosas & Deals ke bare me maloomat li thi.\n\n` +
-        `🥟 **Kya aap ko aaj ka fresh order book karwane me koi madad chahiye?**\n` +
-        `Karachi ke tamam areas me fresh express delivery dastiyab hai!\n\n` +
-        `🛍️ Order karne ke liye hamari website visit karein: https://hyderinimco-frozen.com\n` +
-        `ya hamen yahan WhatsApp par reply farmaiye! 🤝\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `🥟 *HYDERI NIMCO & FROZEN*\n` +
-        `📍 North Nazimabad, Karachi • Since 1970`;
+        `Umeed hai aap khairiyat se honge. Aap ne kuch der pehle Hyderi Nimco & Frozen se maloomat li thi.\n\n` +
+        `🥟 Kya aap ko aaj ka fresh order book karwane me koi madad chahiye? Karachi ke tamam areas me fresh express delivery dastiyab hai!\n\n` +
+        `Aap yahan WhatsApp par hi apna order bata sakte hain ya website visit karein: https://hyderinimco-frozen.com 🤝`;
 
       let cleanPhone = phone.replace(/[^0-9]/g, '');
       if (cleanPhone.startsWith('03')) cleanPhone = '92' + cleanPhone.slice(1);
