@@ -550,10 +550,10 @@ async function generateGroqResponseAsync(userMessage, conversationHistory = [], 
   if (!apiKey) return null;
 
   const groqModels = [
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
     'qwen/qwen3.6-27b',
-    'qwen/qwen3.8-27b'
+    'qwen/qwen3.8-27b',
+    'openai/gpt-oss-20b',
+    'openai/gpt-oss-120b'
   ];
 
   const systemPrompt = buildSystemPrompt();
@@ -561,11 +561,16 @@ async function generateGroqResponseAsync(userMessage, conversationHistory = [], 
     { role: 'system', content: systemPrompt }
   ];
 
-  for (const msg of (conversationHistory || [])) {
-    messages.push({
-      role: msg.sender === 'user' ? 'user' : 'assistant',
-      content: msg.text || ''
-    });
+  // Keep last 6 messages and strip repetitive branding footers to preserve token limits (TPM)
+  const recentHistory = (conversationHistory || []).slice(-6);
+  for (const msg of recentHistory) {
+    const cleanText = (msg.text || '').split('━━━━━━━━━━━━━━━━━━━━')[0].trim();
+    if (cleanText) {
+      messages.push({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: cleanText
+      });
+    }
   }
   messages.push({ role: 'user', content: userMessage });
 
@@ -605,7 +610,7 @@ async function generateGroqResponseAsync(userMessage, conversationHistory = [], 
 
         const toolCalls = msg.tool_calls || [];
         if (toolCalls.length === 0) {
-          finalReply = (msg.content || '').trim();
+          finalReply = (msg.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
           console.log(`[AI Engine:Groq] ${modelName} responded in ${Date.now() - t0}ms (${finalReply.length} chars)`);
           break;
         }
@@ -668,9 +673,10 @@ async function generateGeminiResponseAsync(userMessage, conversationHistory = []
   }
 
   const modelsToTry = [
-    'gemini-3.6-flash',
-    'gemini-3.5-flash-lite',
-    'gemini-3-flash-preview'
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b'
   ];
   const systemPrompt = buildSystemPrompt();
 

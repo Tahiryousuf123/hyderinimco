@@ -8,3 +8,4 @@ server/auth_baileys/
 *.zip
 *.tar.gz
 *.bak
+cloudflared.exe

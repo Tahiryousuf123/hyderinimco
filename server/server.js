@@ -1017,20 +1017,26 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true, ...aiResult });
   }
 
-  // 13. GET /api/whatsapp/webhook (Meta WhatsApp Webhook Verification)
-  if (pathname === '/api/whatsapp/webhook' && method === 'GET') {
+  // 13. GET /api/whatsapp/webhook & /webhook (Meta WhatsApp Cloud API Webhook Verification)
+  if ((pathname === '/api/whatsapp/webhook' || pathname === '/webhook') && method === 'GET') {
     const mode = parsedUrl.query['hub.mode'];
     const token = parsedUrl.query['hub.verify_token'];
     const challenge = parsedUrl.query['hub.challenge'];
-    if (mode === 'subscribe' && (token === 'hyderi_whatsapp_token_786' || token === '7860')) {
+    const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN || 'hyderi_nimco_token_2026';
+
+    if (mode === 'subscribe' && (token === expectedToken || token === 'hyderi_nimco_token_2026' || token === 'hyderi_whatsapp_token_786' || token === '7860')) {
+      console.log('✅ [Meta WhatsApp Webhook] Verified successfully by Meta!');
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       return res.end(challenge || 'VERIFIED');
+    } else {
+      console.warn('❌ [Meta WhatsApp Webhook] Verification failed! Token mismatch or invalid mode.');
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      return res.end('Forbidden');
     }
-    return sendJson(res, 403, { error: 'Forbidden' });
   }
 
-  // 14. POST /api/whatsapp/webhook (Meta WhatsApp Cloud API / Twilio Incoming Messages)
-  if (pathname === '/api/whatsapp/webhook' && method === 'POST') {
+  // 14. POST /api/whatsapp/webhook & /webhook (Meta WhatsApp Cloud API / Twilio Incoming Messages)
+  if ((pathname === '/api/whatsapp/webhook' || pathname === '/webhook') && method === 'POST') {
     const body = await parseBody(req);
     let from = '923362438422';
     let messageText = '';
