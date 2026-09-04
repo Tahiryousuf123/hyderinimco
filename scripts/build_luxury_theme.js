@@ -2678,6 +2678,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeItem}
               subtotal={subtotal}
+              settings={settings}
               onProceedCheckout={() => {
                 setIsCartOpen(false);
                 setIsCheckoutOpen(true);
@@ -3120,8 +3121,11 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     }
 
     // Shopping Cart Drawer Component
-    function CartDrawer({ isOpen, isUrdu, onClose, cart, onUpdateQuantity, onRemoveItem, subtotal, onProceedCheckout }) {
+    function CartDrawer({ isOpen, isUrdu, onClose, cart, onUpdateQuantity, onRemoveItem, subtotal, settings, onProceedCheckout }) {
       if (!isOpen) return null;
+
+      const freeLimit = Number(settings?.freeDeliveryAbove) || 5000;
+      const isFree = subtotal >= freeLimit;
 
       return (
         <div className="fixed inset-0 z-50 overflow-hidden bg-black/75 backdrop-blur-xs flex justify-end">
@@ -3196,7 +3200,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>{isUrdu ? 'ڈیلیوری چارجز (بائیکیا):' : 'Delivery (Bykea):'}</span>
-                    <span className="font-mono font-bold text-emeraldBrand-800">{isUrdu ? 'چیک آؤٹ پر منتخب کریں' : 'By area at checkout'}</span>
+                    <span className="font-mono font-bold text-emeraldBrand-800">{isFree ? (isUrdu ? 'مفت (FREE)' : 'FREE') : (isUrdu ? 'چیک آؤٹ پر منتخب کریں' : 'By area at checkout')}</span>
                   </div>
                   <div className="flex justify-between font-black text-sm text-emeraldBrand-950 pt-1.5 border-t border-gray-200">
                     <span>{isUrdu ? 'سب ٹوٹل:' : 'Subtotal:'}</span>
@@ -3226,9 +3230,11 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         fullName: '', phone: '', area: KARACHI_AREAS[0].en, address: '', notes: ''
       });
 
-      // Derive delivery fee from the selected area
+      // Derive delivery fee from the selected area (waived if free delivery threshold reached)
       const selectedArea = KARACHI_AREAS.find(a => a.en === customer.area) || KARACHI_AREAS[0];
-      const deliveryFee = selectedArea.fee;
+      const freeLimit = Number(settings?.freeDeliveryAbove) || 5000;
+      const isFreeDelivery = subtotal >= freeLimit;
+      const deliveryFee = isFreeDelivery ? 0 : selectedArea.fee;
       const totalAmount = subtotal + deliveryFee;
       const [paymentMethod, setPaymentMethod] = useState('cod');
       const [senderName, setSenderName] = useState('');

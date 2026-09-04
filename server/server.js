@@ -959,8 +959,11 @@ const server = http.createServer(async (req, res) => {
     const orderRef = 'HYD-' + Math.floor(100000 + Math.random() * 900000);
     const orderId = 'ord-' + Date.now();
 
-    const deliveryFee = Number(body.deliveryFee) > 0 ? Number(body.deliveryFee) : calculateAreaDeliveryFee(body.customer?.area || body.customer?.address);
+    const currentSettings = settingsCache || readData('settings.json', {});
+    const freeLimit = Number(currentSettings?.freeDeliveryAbove) || 5000;
     const subtotal = Number(body.subtotal) || 0;
+    const isFreeDelivery = subtotal >= freeLimit;
+    const deliveryFee = isFreeDelivery ? 0 : (Number(body.deliveryFee) > 0 ? Number(body.deliveryFee) : calculateAreaDeliveryFee(body.customer?.area || body.customer?.address));
     const totalAmount = subtotal + deliveryFee;
 
     const newOrder = {
