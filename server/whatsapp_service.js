@@ -1,4 +1,4 @@
-import makeWASocket, { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, useMultiFileAuthState, Browsers } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import pino from 'pino';
 import path from 'path';
@@ -191,7 +191,7 @@ export async function startWhatsAppService() {
       auth: state,
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
-      browser: ['Hyderi Nimco & Frozen', 'Chrome', '1.0.0'],
+      browser: Browsers.windows('Desktop'),
       syncFullHistory: false,
       connectTimeoutMs: 30000,
       keepAliveIntervalMs: 15000
@@ -230,11 +230,15 @@ export async function startWhatsAppService() {
 
         const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403;
         if (isLoggedOut) {
-          console.log('⚠️ [WhatsApp Service] Device unlinked by phone/user. Wiping session keys...');
+          console.log('⚠️ [WhatsApp Service] Device unlinked or restricted by WhatsApp (code: ' + statusCode + '). Wiping session keys...');
           try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (e) {}
           if (isDBConnected()) {
             try { await WASession.deleteMany({}); } catch (e) {}
           }
+          connectedPhone = null;
+          // Halt auto-reconnect immediately so WhatsApp servers are not hit repeatedly
+          console.log('🛑 [WhatsApp Service] Auto-reconnect halted to protect account from automated flagging.');
+          return;
         }
 
         const hasCreds = fs.existsSync(path.join(AUTH_DIR, 'creds.json'));
