@@ -33,7 +33,7 @@ export function normalizePhoneNumber(phone) {
  */
 export function getMetaConfig() {
   const token = (process.env.META_ACCESS_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN || '').trim();
-  const phoneId = (process.env.WHATSAPP_PHONE_NUMBER_ID || '1337779412741642').trim();
+  const phoneId = (process.env.WHATSAPP_PHONE_NUMBER_ID || '1288268431037180').trim();
   const businessAccountId = (process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '').trim();
   const verifyToken = (process.env.META_VERIFY_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN || 'HyderiWhatsApp2026Secure').trim();
   const graphApiVersion = (process.env.META_GRAPH_API_VERSION || 'v20.0').trim();

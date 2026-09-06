@@ -52,7 +52,7 @@ async function runMetaCloudApiTestSuite() {
   const status = getCloudApiStatus();
   assert(status.transport === 'meta_cloud_api', 'Transport is meta_cloud_api');
   assert(status.productionNumber === '+92 325 2747343', 'Production number matches +92 325 2747343');
-  assert(status.phoneNumberId === '1337779412741642', 'Phone Number ID matches 1337779412741642');
+  assert(status.phoneNumberId === '1288268431037180', 'Phone Number ID matches 1288268431037180');
   assert(typeof status.hasToken === 'boolean', 'hasToken is boolean indicator');
   assert(!status.token && !status.accessToken, 'Access token is NEVER exposed in status object');
 
@@ -205,7 +205,7 @@ async function runMetaCloudApiTestSuite() {
 
   // Test 10: Environment Configuration Consistency
   console.log('\n--- TEST 10: Environment Variables Verification ---');
-  assert(process.env.WHATSAPP_PHONE_NUMBER_ID === '1337779412741642', 'WHATSAPP_PHONE_NUMBER_ID is 1337779412741642');
+  assert(process.env.WHATSAPP_PHONE_NUMBER_ID === '1288268431037180', 'WHATSAPP_PHONE_NUMBER_ID is 1288268431037180');
   assert(process.env.WHATSAPP_VERIFY_TOKEN === 'HyderiWhatsApp2026Secure', 'WHATSAPP_VERIFY_TOKEN is HyderiWhatsApp2026Secure');
 
   console.log('\n===============================================================');
