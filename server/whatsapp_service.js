@@ -499,6 +499,13 @@ export async function notifyOwnerNewOrder(order) {
     .map(it => `• *${it.quantity}x* ${it.name} (${it.packQuantity}) - Rs. ${it.price * it.quantity}/-`)
     .join('\n');
 
+  const baseUrl = process.env.RENDER_EXTERNAL_URL || 'https://hyderinimco.onrender.com';
+  const slipUrl = order.paymentDetails?.paymentSlipUrl
+    ? (order.paymentDetails.paymentSlipUrl.startsWith('http')
+        ? order.paymentDetails.paymentSlipUrl
+        : `${baseUrl}${order.paymentDetails.paymentSlipUrl}`)
+    : null;
+
   const text = `🔔 *NEW ORDER RECEIVED - HYDERI NIMCO & FROZEN* 🥟\n\n` +
     `📋 *Order Ref:* ${order.orderRef}\n` +
     `👤 *Customer Name:* ${order.customer?.fullName || 'N/A'}\n` +
@@ -512,26 +519,46 @@ export async function notifyOwnerNewOrder(order) {
     `💳 *Payment Method:* ${order.paymentMethod === 'cod' ? '💵 CASH ON DELIVERY (COD)' : order.paymentMethod.toUpperCase()}\n` +
     (order.paymentDetails?.transactionId ? `🔢 *TID:* ${order.paymentDetails.transactionId}\n` : '') +
     (order.paymentDetails?.senderAccountName ? `👤 *Sender Title:* ${order.paymentDetails.senderAccountName}\n` : '') +
+    (slipUrl ? `🧾 *Payment Slip:* ${slipUrl}\n` : '') +
     (order.notes ? `📝 *Customer Notes:* ${order.notes}\n` : '') +
     `\n⏰ *Time:* ${new Date().toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })}`;
 
   const settings = getSettings();
-  const rawList = (settings.ownerNotificationPhones && settings.ownerNotificationPhones.length > 0)
-    ? settings.ownerNotificationPhones
-    : ['923252747343'];
+  const envOwnerPhone = process.env.OWNER_NOTIFICATION_PHONE || process.env.SHOP_OWNER_PHONE;
+  let rawList = [];
 
-  const recipientPhones = rawList.map(p => {
+  if (envOwnerPhone) {
+    rawList.push(...envOwnerPhone.split(',').map(s => s.trim()));
+  }
+  if (settings.ownerNotificationPhones && Array.isArray(settings.ownerNotificationPhones) && settings.ownerNotificationPhones.length > 0) {
+    rawList.push(...settings.ownerNotificationPhones);
+  }
+  if (rawList.length === 0) {
+    rawList = ['923363925950', '923362438422'];
+  }
+
+  // Filter out the Meta Cloud API sender number (923252747343) so sender does not send to itself
+  const senderNumber = '923252747343';
+  const recipientPhones = Array.from(new Set(rawList.map(p => {
     let clean = String(p).replace(/[^0-9]/g, '');
     if (clean.startsWith('03')) clean = '92' + clean.slice(1);
     else if (!clean.startsWith('92')) clean = '92' + clean;
     return clean;
-  }).filter(Boolean);
+  }).filter(p => p && p !== senderNumber)));
+
+  if (recipientPhones.length === 0) {
+    recipientPhones.push('923363925950');
+  }
 
   for (const phone of recipientPhones) {
     try {
       if (useCloudApi) {
-        await sendTextMessage(phone, text);
-        console.log(`✅ [Meta Cloud API] Direct order alert sent to shop owner ${phone}!`);
+        const sendRes = await sendTextMessage(phone, text);
+        if (sendRes.success) {
+          console.log(`✅ [Meta Cloud API] Direct order alert sent to shop owner ${phone}!`);
+        } else {
+          console.warn(`⚠️ [Meta Cloud API] Order alert to owner ${phone} returned:`, sendRes.error);
+        }
       } else {
         const jid = `${phone}@s.whatsapp.net`;
         await sock.sendMessage(jid, { text });
