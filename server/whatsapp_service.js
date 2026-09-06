@@ -534,7 +534,7 @@ export async function notifyOwnerNewOrder(order) {
     rawList.push(...settings.ownerNotificationPhones);
   }
   if (rawList.length === 0) {
-    rawList = ['923363925950', '923362438422'];
+    rawList = ['923362438422'];
   }
 
   // Filter out the Meta Cloud API sender number (923252747343) so sender does not send to itself
@@ -547,7 +547,7 @@ export async function notifyOwnerNewOrder(order) {
   }).filter(p => p && p !== senderNumber)));
 
   if (recipientPhones.length === 0) {
-    recipientPhones.push('923363925950');
+    recipientPhones.push('923362438422');
   }
 
   for (const phone of recipientPhones) {
