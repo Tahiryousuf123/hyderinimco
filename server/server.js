@@ -1009,10 +1009,8 @@ const server = http.createServer(async (req, res) => {
       );
 
       console.log(`[MongoDB Authoritative] Created order ${orderRef} (${orderId}) in MongoDB Atlas`);
-      // Instant real-time WhatsApp alert to shop owner
+      // Instant real-time WhatsApp alert to shop owner exclusively (0336-2438422)
       notifyOwnerNewOrder(newOrder).catch(err => console.error('Error notifying owner on WhatsApp:', err));
-      // Instant WhatsApp receipt slip to customer
-      sendCustomerOrderSlip(newOrder).catch(err => console.error('Error sending customer slip on WhatsApp:', err));
 
       return sendJson(res, 200, { success: true, message: 'Order placed successfully', order: savedOrder || newOrder });
     } catch (e) {

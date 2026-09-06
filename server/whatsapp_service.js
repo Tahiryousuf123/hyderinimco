@@ -537,14 +537,15 @@ export async function notifyOwnerNewOrder(order) {
     rawList = ['923362438422'];
   }
 
-  // Filter out the Meta Cloud API sender number (923252747343) so sender does not send to itself
-  const senderNumber = '923252747343';
+  // Strictly route ONLY to official shop owner (03362438422).
+  // Strictly exclude 03363925950 and the Meta sender number 03252747343
+  const excludedNumbers = new Set(['923252747343', '923363925950', '03363925950', '3363925950', '03252747343', '3252747343']);
   const recipientPhones = Array.from(new Set(rawList.map(p => {
     let clean = String(p).replace(/[^0-9]/g, '');
     if (clean.startsWith('03')) clean = '92' + clean.slice(1);
     else if (!clean.startsWith('92')) clean = '92' + clean;
     return clean;
-  }).filter(p => p && p !== senderNumber)));
+  }).filter(p => p && !excludedNumbers.has(p))));
 
   if (recipientPhones.length === 0) {
     recipientPhones.push('923362438422');
@@ -572,51 +573,11 @@ export async function notifyOwnerNewOrder(order) {
 
 /**
  * Sends official WhatsApp order receipt slip directly to customer's phone
+ * (Disabled by owner preference — order notifications are strictly routed to owner 03362438422)
  */
 export async function sendCustomerOrderSlip(order) {
-  const useCloudApi = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN.trim());
-  if (!useCloudApi && (!sock || connectionStatus !== 'connected')) return;
-  const rawPhone = order.customer?.phone;
-  if (!rawPhone) return;
-
-  let phone = String(rawPhone).replace(/[^0-9]/g, '');
-  if (phone.startsWith('03')) phone = '92' + phone.slice(1);
-  else if (!phone.startsWith('92')) phone = '92' + phone;
-
-  const itemsList = (order.items || [])
-    .map(it => `• *${it.quantity}x* ${it.name} (${it.packQuantity || ''}) — Rs. ${it.price * it.quantity}/-`)
-    .join('\n');
-
-  const customerSlip = `Assalam o Alaikum *${order.customer?.fullName || 'Mohtaram Grahak'}*! 👋🥟✨\n\n` +
-    `Aapka order kamiyabi se darj ho gaya hai! Ye rahi aapki official order receipt slip: 🧾\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📋 *Order Ref:* *${order.orderRef}*\n` +
-    `📅 *Date:* ${order.formattedDate || new Date().toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })}\n` +
-    `📍 *Delivery Area:* ${order.customer?.area || 'Karachi'}\n` +
-    `🏠 *Address:* ${order.customer?.address || 'N/A'}\n\n` +
-    `🛒 *Items Ordered:*\n${itemsList}\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `💵 *Subtotal:* Rs. ${order.subtotal}/-\n` +
-    `🛵 *Delivery Charges (Bykea):* Rs. ${order.deliveryFee}/-\n` +
-    `💰 *Grand Total:* *Rs. ${order.totalAmount}/-*\n` +
-    `💳 *Payment Method:* ${order.paymentMethod === 'cod' ? '💵 Cash on Delivery (COD)' : order.paymentMethod.toUpperCase()}\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `🛵 Humara rider jald hi aapke address par fresh chilled pack lekar rawana hoga.\n` +
-    `Kisi bhi sawal ya madad ke liye is WhatsApp par reply karein ya call karein: 0336-2438422\n\n` +
-    `JazakAllah Khair! 🙏\n*NEW HYDERI NIMCO & FROZEN* (Since 1970)`;
-
-  try {
-    if (useCloudApi) {
-      await sendTextMessage(phone, customerSlip);
-      console.log(`✅ [Meta Cloud API] Direct customer order slip sent to customer ${phone}!`);
-    } else {
-      const jid = `${phone}@s.whatsapp.net`;
-      await sock.sendMessage(jid, { text: customerSlip });
-      console.log(`✅ [WhatsApp Service] Direct customer order slip sent to customer ${phone}!`);
-    }
-  } catch (err) {
-    console.warn(`[WhatsApp Service] Could not send direct slip to customer ${phone}:`, err.message);
-  }
+  // Disabled by owner preference — order notifications are strictly routed only to owner 03362438422
+  return;
 }
 
 /**
