@@ -190,6 +190,66 @@ export async function sendTemplateMessage(to, templateName, languageCode = 'en_U
 }
 
 /**
+ * Displays an official native "typing..." indicator in customer's WhatsApp chat
+ * and marks the incoming customer message as read (blue double ticks).
+ * The indicator automatically stays active until the message is replied or up to 25 seconds.
+ *
+ * @param {string} messageId - Incoming WhatsApp message ID (wamid)
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+export async function sendTypingIndicator(messageId) {
+  if (!messageId) return { success: false, error: 'Missing messageId' };
+  const { token, phoneId, graphApiVersion } = getMetaConfig();
+  if (!token || !phoneId) return { success: false, error: 'Missing token or phoneId' };
+
+  const url = `https://graph.facebook.com/${graphApiVersion}/${phoneId}/messages`;
+  const payload = {
+    messaging_product: 'whatsapp',
+    status: 'read',
+    message_id: messageId,
+    typing_indicator: {
+      type: 'text'
+    }
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      // Fallback to simple mark as read if typing_indicator not enabled on api version
+      if (data.error?.code === 100) {
+        await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            status: 'read',
+            message_id: messageId
+          })
+        }).catch(() => {});
+      }
+      return { success: false, error: data.error?.message };
+    }
+
+    console.log(`💬 [Meta Cloud API] Typing indicator active for message ${messageId}`);
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Record incoming webhook event timestamp and increment counters
  */
 export function recordWebhookReceived(summary = {}) {

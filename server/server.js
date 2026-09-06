@@ -11,7 +11,7 @@ import { Setting } from './models/Setting.js';
 import { generateAIResponse, generateAIResponseAsync, calculateAreaDeliveryFee } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast, sendMetaWhatsAppMessage } from './whatsapp_service.js';
-import { sendTextMessage, recordWebhookReceived, getCloudApiStatus, getMetaConfig } from './services/whatsappCloudApi.js';
+import { sendTextMessage, sendTypingIndicator, recordWebhookReceived, getCloudApiStatus, getMetaConfig } from './services/whatsappCloudApi.js';
 
 // Top-Level Global Crash Prevention Listeners (Keeps Node.js running 24/7 in production)
 process.on('unhandledRejection', (reason) => {
@@ -1146,8 +1146,13 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        // Realistic natural delay (1.5s to 3.5s) to feel organic
-        const humanDelay = Math.min(3500, Math.max(1500, (messageText.length || 10) * 30));
+        // 1. Immediately trigger live native "typing..." indicator and mark as read
+        if (messageId) {
+          sendTypingIndicator(messageId).catch(() => {});
+        }
+
+        // Realistic natural delay (2.0s to 3.5s) while typing indicator is showing to feel organic
+        const humanDelay = Math.min(3500, Math.max(2000, (messageText.length || 10) * 35));
         await new Promise(r => setTimeout(r, humanDelay));
 
         // Call authoritative AI Engine (Gemini + MongoDB function calling + Customer Isolation)
