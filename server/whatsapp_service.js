@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { WASession } from './models/WASession.js';
 import { isDBConnected } from './db.js';
+import { sendTextMessage, sendTemplateMessage, getCloudApiStatus } from './services/whatsappCloudApi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -170,6 +171,13 @@ async function backupAuthToDB() {
 }
 
 export async function startWhatsAppService() {
+  // Baileys is deactivated by default for production number (+92 325 2747343)
+  // Official Meta WhatsApp Cloud API is the authoritative production transport.
+  if (process.env.ENABLE_BAILEYS !== 'true') {
+    console.log('ℹ️ [WhatsApp Service] Baileys socket disabled for production number (+92 325 2747343). Official Meta Cloud API is active.');
+    return;
+  }
+
   if (isStartingService) {
     console.log('⚠️ [WhatsApp Service] Service initialization already in progress. Bypassing duplicate call.');
     return;
@@ -396,10 +404,12 @@ function runAiFollowUpCheck() {
 }
 
 export function getWhatsAppStatus() {
+  const cloudStatus = getCloudApiStatus();
   return {
-    status: connectionStatus,
+    ...cloudStatus,
+    baileysStatus: connectionStatus,
     qr: latestQR,
-    phone: connectedPhone,
+    phone: connectedPhone || '+92 325 2747343',
     aiAutoReplyEnabled: isAiAutoReplyEnabled(),
     aiFollowUpEnabled: isAiFollowUpEnabled()
   };
@@ -427,12 +437,14 @@ export async function disconnectWhatsApp() {
 
 // WhatsApp Mass Broadcast / Deal Blast Engine
 export async function sendMassBroadcast(recipients, messageText, imageUrl = null) {
-  if (!sock || connectionStatus !== 'connected') {
-    return { success: false, error: 'WhatsApp Service is not connected. Please scan QR code first in WhatsApp tab.' };
-  }
-
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return { success: false, error: 'No customer phone numbers provided for broadcast.' };
+  }
+
+  const useCloudApi = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN.trim());
+
+  if (!useCloudApi && (!sock || connectionStatus !== 'connected')) {
+    return { success: false, error: 'WhatsApp Cloud API token is not configured and Baileys is not connected.' };
   }
 
   let sentCount = 0;
@@ -445,18 +457,22 @@ export async function sendMassBroadcast(recipients, messageText, imageUrl = null
       if (phone.startsWith('03')) phone = '92' + phone.slice(1);
       else if (!phone.startsWith('92')) phone = '92' + phone;
 
-      const jid = `${phone}@s.whatsapp.net`;
-      if (imageUrl) {
-        await sock.sendMessage(jid, {
-          image: { url: imageUrl },
-          caption: messageText
-        });
+      if (useCloudApi) {
+        await sendTextMessage(phone, messageText);
       } else {
-        await sock.sendMessage(jid, { text: messageText });
+        const jid = `${phone}@s.whatsapp.net`;
+        if (imageUrl) {
+          await sock.sendMessage(jid, {
+            image: { url: imageUrl },
+            caption: messageText
+          });
+        } else {
+          await sock.sendMessage(jid, { text: messageText });
+        }
       }
       sentCount++;
-      // Safe delay between messages to prevent spam flag
-      await new Promise(r => setTimeout(r, 1200));
+      // Safe delay between messages
+      await new Promise(r => setTimeout(r, 1000));
     } catch (err) {
       console.error(`Broadcast error for phone ${rawPhone}:`, err);
       failedCount++;
@@ -467,8 +483,9 @@ export async function sendMassBroadcast(recipients, messageText, imageUrl = null
 }
 
 export async function notifyOwnerNewOrder(order) {
-  if (!sock || connectionStatus !== 'connected') {
-    console.log('⚠️ WhatsApp service not connected, skipping direct socket dispatch to owner.');
+  const useCloudApi = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN.trim());
+  if (!useCloudApi && (!sock || connectionStatus !== 'connected')) {
+    console.log('ℹ️ [WhatsApp Service] Cloud API token not set and Baileys socket not connected; skipping owner alert.');
     return;
   }
 
@@ -512,9 +529,14 @@ export async function notifyOwnerNewOrder(order) {
 
   for (const phone of recipientPhones) {
     try {
-      const jid = `${phone}@s.whatsapp.net`;
-      await sock.sendMessage(jid, { text });
-      console.log(`✅ [WhatsApp Service] Direct order alert sent to shop owner ${phone}!`);
+      if (useCloudApi) {
+        await sendTextMessage(phone, text);
+        console.log(`✅ [Meta Cloud API] Direct order alert sent to shop owner ${phone}!`);
+      } else {
+        const jid = `${phone}@s.whatsapp.net`;
+        await sock.sendMessage(jid, { text });
+        console.log(`✅ [WhatsApp Service] Direct order alert sent to shop owner ${phone}!`);
+      }
     } catch (err) {
       console.error(`Failed to send order notification to ${phone}:`, err);
     }
@@ -525,7 +547,8 @@ export async function notifyOwnerNewOrder(order) {
  * Sends official WhatsApp order receipt slip directly to customer's phone
  */
 export async function sendCustomerOrderSlip(order) {
-  if (!sock || connectionStatus !== 'connected') return;
+  const useCloudApi = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN.trim());
+  if (!useCloudApi && (!sock || connectionStatus !== 'connected')) return;
   const rawPhone = order.customer?.phone;
   if (!rawPhone) return;
 
@@ -556,9 +579,14 @@ export async function sendCustomerOrderSlip(order) {
     `JazakAllah Khair! 🙏\n*NEW HYDERI NIMCO & FROZEN* (Since 1970)`;
 
   try {
-    const jid = `${phone}@s.whatsapp.net`;
-    await sock.sendMessage(jid, { text: customerSlip });
-    console.log(`✅ [WhatsApp Service] Direct customer order slip sent to customer ${phone}!`);
+    if (useCloudApi) {
+      await sendTextMessage(phone, customerSlip);
+      console.log(`✅ [Meta Cloud API] Direct customer order slip sent to customer ${phone}!`);
+    } else {
+      const jid = `${phone}@s.whatsapp.net`;
+      await sock.sendMessage(jid, { text: customerSlip });
+      console.log(`✅ [WhatsApp Service] Direct customer order slip sent to customer ${phone}!`);
+    }
   } catch (err) {
     console.warn(`[WhatsApp Service] Could not send direct slip to customer ${phone}:`, err.message);
   }
@@ -567,33 +595,8 @@ export async function sendCustomerOrderSlip(order) {
 /**
  * Send an outbound message via Meta WhatsApp Cloud API (Graph API)
  */
+export { sendTextMessage, sendTemplateMessage, getCloudApiStatus };
 export async function sendMetaWhatsAppMessage(to, text) {
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  if (!phoneId || !token) return null;
-
-  try {
-    let cleanTo = String(to).replace(/[^0-9]/g, '');
-    if (cleanTo.startsWith('03')) cleanTo = '92' + cleanTo.slice(1);
-
-    const res = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: cleanTo,
-        type: 'text',
-        text: { preview_url: false, body: text }
-      })
-    });
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error('[Meta Cloud API] Send error:', e.message);
-    return null;
-  }
+  return await sendTextMessage(to, text);
 }
+

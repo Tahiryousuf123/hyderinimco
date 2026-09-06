@@ -11,6 +11,7 @@ import { Setting } from './models/Setting.js';
 import { generateAIResponse, generateAIResponseAsync, calculateAreaDeliveryFee } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast, sendMetaWhatsAppMessage } from './whatsapp_service.js';
+import { sendTextMessage, recordWebhookReceived, getCloudApiStatus, getMetaConfig } from './services/whatsappCloudApi.js';
 
 // Top-Level Global Crash Prevention Listeners (Keeps Node.js running 24/7 in production)
 process.on('unhandledRejection', (reason) => {
@@ -20,6 +21,9 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   console.error('🛡️ [Global Process Safety] Uncaught Exception:', err?.message || err);
 });
+
+// In-memory deduplication set for Meta webhook events (FIFO, max 500)
+const processedWebhookMsgIds = new Set();
 
 // In-memory catalog cache accelerator (prevents hammering MongoDB on rapid client polling)
 let productCache = null;
@@ -1026,62 +1030,137 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true, ...aiResult });
   }
 
+  // 12.9. GET /api/whatsapp/health (Meta WhatsApp Cloud API Health Check)
+  if (pathname === '/api/whatsapp/health' && method === 'GET') {
+    const config = getMetaConfig();
+    return sendJson(res, 200, {
+      ok: true,
+      provider: 'meta-cloud-api',
+      webhook: true,
+      phoneNumberId: config.phoneId,
+      productionNumber: '+92 325 2747343',
+      hasToken: Boolean(config.token && config.token.length > 0),
+      database: isDBConnected() ? 'connected' : 'disconnected',
+      mongoConfigured: Boolean(process.env.MONGODB_URI)
+    });
+  }
+
   // 13. GET /api/whatsapp/webhook & /webhook (Meta WhatsApp Cloud API Webhook Verification)
   if ((pathname === '/api/whatsapp/webhook' || pathname === '/webhook') && method === 'GET') {
     const mode = parsedUrl.query['hub.mode'];
     const token = parsedUrl.query['hub.verify_token'];
     const challenge = parsedUrl.query['hub.challenge'];
-    const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN || 'hyderi_nimco_token_2026';
+    const { verifyToken } = getMetaConfig();
 
-    if (mode === 'subscribe' && (token === expectedToken || token === 'hyderi_nimco_token_2026' || token === 'hyderi_whatsapp_token_786' || token === '7860')) {
+    if (mode === 'subscribe' && token === verifyToken) {
       console.log('✅ [Meta WhatsApp Webhook] Verified successfully by Meta!');
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       return res.end(challenge || 'VERIFIED');
     } else {
-      console.warn('❌ [Meta WhatsApp Webhook] Verification failed! Token mismatch or invalid mode.');
+      console.warn(`❌ [Meta WhatsApp Webhook] Verification failed! Invalid verify token or mode="${mode}"`);
       res.writeHead(403, { 'Content-Type': 'text/plain' });
       return res.end('Forbidden');
     }
   }
 
-  // 14. POST /api/whatsapp/webhook & /webhook (Meta WhatsApp Cloud API / Twilio Incoming Messages)
+  // 14. POST /api/whatsapp/webhook & /webhook (Meta WhatsApp Cloud API Incoming Messages)
   if ((pathname === '/api/whatsapp/webhook' || pathname === '/webhook') && method === 'POST') {
     const body = await parseBody(req);
-    let from = '923362438422';
-    let messageText = '';
 
-    if (body.entry && body.entry[0]?.changes[0]?.value?.messages) {
-      const m = body.entry[0].changes[0].value.messages[0];
-      from = m.from;
-      messageText = m.text?.body || '';
+    // Meta Webhook payload inspection
+    const entry = body.entry?.[0];
+    const change = entry?.changes?.[0]?.value;
+
+    // Check if event is a status update (sent, delivered, read) rather than an incoming customer message
+    if (change?.statuses && change.statuses.length > 0) {
+      recordWebhookReceived({ type: 'status' });
+      return sendJson(res, 200, { status: 'EVENT_RECEIVED' });
+    }
+
+    // Extract message details from Meta Cloud API payload
+    let from = '';
+    let messageText = '';
+    let messageId = '';
+    let messageType = 'text';
+    let customerName = '';
+
+    if (change?.messages && change.messages.length > 0) {
+      const m = change.messages[0];
+      from = m.from || '';
+      messageId = m.id || '';
+      messageType = m.type || 'text';
+      customerName = change.contacts?.[0]?.profile?.name || '';
+
+      if (messageType === 'text') {
+        messageText = m.text?.body || '';
+      } else if (messageType === 'interactive') {
+        messageText = m.interactive?.button_reply?.title || m.interactive?.list_reply?.title || '';
+      } else if (messageType === 'button') {
+        messageText = m.button?.text || '';
+      } else {
+        // Media with caption
+        messageText = m.image?.caption || m.video?.caption || m.document?.caption || '';
+      }
     } else if (body.From && body.Body) {
       from = body.From;
       messageText = body.Body;
+      messageId = body.MessageSid || '';
     } else {
-      from = body.from || from;
+      from = body.from || '';
       messageText = body.message || body.text || '';
+      messageId = body.messageId || '';
     }
 
     // Acknowledge immediately to Meta to prevent timeout/retries
-    sendJson(res, 200, { success: true });
+    sendJson(res, 200, { status: 'EVENT_RECEIVED' });
+    recordWebhookReceived({ from, type: messageType });
 
-    // Asynchronous human-like processing with natural delay
+    if (!from) return;
+
+    // Idempotency: Dedup duplicate webhook events
+    if (messageId) {
+      if (processedWebhookMsgIds.has(messageId)) {
+        console.log(`⚡ [Meta Webhook] Duplicate message skipped: ${messageId}`);
+        return;
+      }
+      processedWebhookMsgIds.add(messageId);
+      if (processedWebhookMsgIds.size > 500) {
+        const oldest = processedWebhookMsgIds.values().next().value;
+        processedWebhookMsgIds.delete(oldest);
+      }
+    }
+
+    // Asynchronous AI Processing & Response Dispatch
     (async () => {
       try {
-        if (!messageText.trim()) return;
+        console.log(`📩 [Meta Webhook] Incoming message from ${from} (${customerName ? customerName + ', ' : ''}type: ${messageType}, id: ${messageId})`);
 
-        // Realistic human reading + typing delay (2.5s to 5.5s)
-        const humanDelay = Math.min(5500, Math.max(2500, (messageText.length || 10) * 35)) + Math.floor(Math.random() * 1000);
-        console.log(`⏳ [Meta WhatsApp] Simulating human delay for ${humanDelay}ms before replying to ${from}...`);
+        // If message is unsupported media without text (e.g. voice note, audio, sticker)
+        if (!messageText.trim()) {
+          const politeNotice = 
+            `Assalam o Alaikum! 👋🥟\n\n` +
+            `Shukriya rabta karne ka! Humari automated AI abhi sirf text messages samajh sakti hai.\n\n` +
+            `Baraye meherbani apna sawal ya order likh kar bhein, ya hamare store par call karein: 0336-2438422\n\n` +
+            `Hyderi Nimco & Frozen (North Nazimabad, Karachi)`;
+          await sendTextMessage(from, politeNotice);
+          return;
+        }
+
+        // Realistic natural delay (1.5s to 3.5s) to feel organic
+        const humanDelay = Math.min(3500, Math.max(1500, (messageText.length || 10) * 30));
         await new Promise(r => setTimeout(r, humanDelay));
 
-        const autoReply = await handleWhatsAppIncoming(from, messageText);
-        if (autoReply?.message && process.env.WHATSAPP_ACCESS_TOKEN) {
-          await sendMetaWhatsAppMessage(from, autoReply.message);
-          console.log(`🤖 [Meta WhatsApp] Dispatched Cloud API reply to ${from}`);
+        // Call authoritative AI Engine (Gemini + MongoDB function calling + Customer Isolation)
+        const autoReply = await handleWhatsAppIncoming(from, messageText, messageId);
+
+        if (autoReply?.message) {
+          const sendResult = await sendTextMessage(from, autoReply.message);
+          if (sendResult.success) {
+            console.log(`🤖 [Meta WhatsApp] Dispatched AI reply to ${from}`);
+          }
         }
       } catch (err) {
-        console.error('[Meta WhatsApp Webhook Async Error]:', err);
+        console.error('[Meta WhatsApp Webhook Async Error]:', err.message || err);
       }
     })();
     return;
@@ -1288,6 +1367,18 @@ const server = http.createServer(async (req, res) => {
   // Fallback 404
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not Found');
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.warn(`\n⚠️ [Port Conflict] Port ${PORT} is already in use by an active process.`);
+    console.warn(`ℹ️ If an instance of Hyderi backend is already running, no duplicate server is required.`);
+    console.warn(`   Check health: http://127.0.0.1:${PORT}/api/whatsapp/health\n`);
+    process.exit(0);
+  } else {
+    console.error('Server error:', err);
+    process.exit(1);
+  }
 });
 
 server.listen(PORT, () => {

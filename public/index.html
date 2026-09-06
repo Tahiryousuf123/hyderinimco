@@ -4883,157 +4883,130 @@
                           </form>
                         </div>
 
-                        {/* WhatsApp Device Pairing QR Code & Live Status */}
+                        {/* Official Meta WhatsApp Cloud API Control & Live Status */}
                         <div className="bg-white rounded-3xl border border-goldBrand-400/40 p-5 space-y-4 text-xs flex flex-col justify-between">
                           <div>
                             <div className="flex items-center justify-between border-b pb-3">
                               <h4 className="font-black text-sm text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
-                                <span>📲</span>
-                                <span>WhatsApp Phone Pairing (Real-Time Multi-Device)</span>
+                                <span>🌐</span>
+                                <span>Official Meta WhatsApp Cloud API (Production)</span>
                               </h4>
                               <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
-                                waStatus.status === 'connected'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-goldBrand-100 text-goldBrand-900'
+                                waStatus.hasToken || waStatus.isConfigured
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-amber-100 text-amber-900 border border-amber-300'
                               }`}>
-                                {waStatus.status === 'connected' ? '🟢 LIVE CONNECTED' : 'AWAITING SCAN'}
+                                {waStatus.hasToken || waStatus.isConfigured ? '🟢 CLOUD API READY' : '🟡 TOKEN PENDING IN .ENV'}
                               </span>
                             </div>
 
                             <p className="text-gray-500 text-[11px] mt-2 leading-relaxed">
-                              Shop ke mobile number (<b className="text-gray-900">{settings.phone1 || '0325-2747343'}</b>) se WhatsApp open karein aur camera se scan karein. AI auto-responder foran activate ho jayega.
+                              Authoritative production number: <b className="text-gray-900 font-mono">+92 325 2747343</b>. Powered by official Meta Graph API v20.0 with automated Gemini AI customer agent.
                             </p>
                           </div>
 
-                          {/* Dynamic State Rendering */}
-                          {waStatus.status === 'connected' ? (
-                            <div className="bg-gradient-to-br from-emerald-900 via-emeraldBrand-950 to-emerald-900 text-white p-5 rounded-2xl border-2 border-emerald-400 flex flex-col items-center text-center space-y-3 shadow-lg">
-                              <div className="w-12 h-12 rounded-full bg-emerald-500/30 text-emerald-300 flex items-center justify-center text-2xl animate-pulse">
-                                🤖
+                          {/* Cloud API Metrics & Details Box */}
+                          <div className="bg-gradient-to-br from-emerald-900 via-emeraldBrand-950 to-emerald-900 text-white p-5 rounded-2xl border-2 border-emerald-400 flex flex-col space-y-3 shadow-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-500/30 text-emerald-300 flex items-center justify-center text-lg">
+                                  ⚡
+                                </div>
+                                <div>
+                                  <h5 className="font-black text-xs text-goldBrand-300">Meta Cloud API Production Node</h5>
+                                  <p className="text-[10px] text-emerald-200">Phone ID: <b className="font-mono text-white">{waStatus.phoneNumberId || '1337779412741642'}</b></p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-black/40 font-mono text-goldBrand-300 border border-goldBrand-500/30">
+                                {waStatus.graphApiVersion || 'v20.0'}
+                              </span>
+                            </div>
+
+                            {/* Status Attributes */}
+                            <div className="grid grid-cols-2 gap-2 text-[10px] bg-black/30 p-2.5 rounded-xl border border-white/10">
+                              <div>
+                                <span className="text-gray-400 block">Access Token:</span>
+                                <span className="font-bold text-white">
+                                  {waStatus.hasToken ? '✅ Configured in .env' : '⚠️ Pending in .env'}
+                                </span>
                               </div>
                               <div>
-                                <h4 className="font-black text-sm sm:text-base text-goldBrand-300">WhatsApp AI Connected & Active!</h4>
-                                <p className="text-xs text-emerald-100 mt-1">
-                                  Linked Number: <b className="font-mono text-white text-sm">+{waStatus.phone}</b>
+                                <span className="text-gray-400 block">Verify Token:</span>
+                                <span className="font-bold text-emerald-300 font-mono">Hyderi...Secure</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-400 block">Last Webhook:</span>
+                                <span className="font-medium text-gray-200">
+                                  {waStatus.lastWebhookReceived ? new Date(waStatus.lastWebhookReceived).toLocaleTimeString() : 'Awaiting traffic'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-400 block">Last Sent Reply:</span>
+                                <span className="font-medium text-gray-200">
+                                  {waStatus.lastMessageSent ? new Date(waStatus.lastMessageSent).toLocaleTimeString() : 'Awaiting traffic'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* AI Agent ON/OFF Toggle */}
+                            <div className="w-full bg-black/40 p-3 rounded-xl border border-goldBrand-400/30 flex items-center justify-between gap-3">
+                              <div className="text-left">
+                                <p className="text-xs font-black text-white flex items-center gap-1.5">
+                                  <span>🤖 AI Auto-Reply:</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                    waStatus.aiAutoReplyEnabled !== false ? 'bg-emerald-400 text-emerald-950' : 'bg-amber-400 text-amber-950'
+                                  }`}>
+                                    {waStatus.aiAutoReplyEnabled !== false ? '🟢 ACTIVE' : '⏸️ PAUSED'}
+                                  </span>
                                 </p>
-                                <p className="text-[10px] text-gray-300 mt-1">
-                                  Customer jab bhi is number par WhatsApp karega, Hyderi AI jawab dega.
+                                <p className="text-[10px] text-gray-300 mt-0.5">
+                                  {waStatus.aiAutoReplyEnabled !== false 
+                                    ? 'AI Gemini engine answers incoming customer messages 24/7.' 
+                                    : 'AI auto-responder is paused. Messages can be handled manually.'}
                                 </p>
                               </div>
-
-                              {/* AI Agent ON/OFF Toggle (Without Unlinking) */}
-                              <div className="w-full bg-black/40 p-3 rounded-xl border border-goldBrand-400/30 flex items-center justify-between gap-3">
-                                <div className="text-left">
-                                  <p className="text-xs font-black text-white flex items-center gap-1.5">
-                                    <span>🤖 AI Auto-Reply Status:</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                                      waStatus.aiAutoReplyEnabled !== false ? 'bg-emerald-400 text-emerald-950' : 'bg-amber-400 text-amber-950'
-                                    }`}>
-                                      {waStatus.aiAutoReplyEnabled !== false ? '🟢 ON (Active)' : '⏸️ OFF (Paused)'}
-                                    </span>
-                                  </p>
-                                  <p className="text-[10px] text-gray-300 mt-0.5">
-                                    {waStatus.aiAutoReplyEnabled !== false 
-                                      ? 'AI har customer ke sawal ka auto-jawab de raha hai.' 
-                                      : 'AI paused hai. Phone link rahega lekin bot message nahi bhejega.'}
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={handleToggleAiAutoReply}
-                                  disabled={waTogglingAi}
-                                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 shrink-0 ${
-                                    waStatus.aiAutoReplyEnabled !== false
-                                      ? 'bg-amber-500 hover:bg-amber-600 text-black border border-amber-300'
-                                      : 'bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-300'
-                                  }`}
-                                >
-                                  {waTogglingAi 
-                                    ? 'Updating...' 
-                                    : (waStatus.aiAutoReplyEnabled !== false ? '⏸️ Turn AI OFF' : '▶️ Turn AI ON')}
-                                </button>
-                              </div>
-
                               <button
                                 type="button"
-                                onClick={handleWaDisconnect}
-                                disabled={waDisconnecting}
-                                className="mt-1 px-4 py-2 bg-red-800/80 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all border border-red-500/40 active:scale-95"
+                                onClick={handleToggleAiAutoReply}
+                                disabled={waTogglingAi}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 shrink-0 ${
+                                  waStatus.aiAutoReplyEnabled !== false
+                                    ? 'bg-amber-500 hover:bg-amber-600 text-black border border-amber-300'
+                                    : 'bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-300'
+                                }`}
                               >
-                                {waDisconnecting ? 'Unlinking...' : 'Disconnect / Unlink Device'}
+                                {waTogglingAi 
+                                  ? '...' 
+                                  : (waStatus.aiAutoReplyEnabled !== false ? '⏸️ Pause AI' : '▶️ Resume AI')}
                               </button>
                             </div>
-                          ) : waStatus.qr ? (
-                            <div className="bg-emeraldBrand-950 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-4 border border-goldBrand-500/40 shadow-inner">
-                              <div className="p-2 bg-white rounded-xl shadow-md shrink-0 flex items-center justify-center">
-                                <img
-                                  src={waStatus.qr}
-                                  alt="Live WhatsApp Pairing QR Code"
-                                  className="w-40 h-40 object-contain rounded-lg"
-                                />
-                              </div>
 
-                              <div className="space-y-2 text-[11px] min-w-0">
-                                <div className="flex items-center gap-1.5 text-xs text-goldBrand-300 font-bold">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-                                  <span>Official WhatsApp QR Code</span>
-                                </div>
-                                <ol className="list-decimal list-inside space-y-1.5 text-emeraldBrand-100 font-medium">
-                                  <li>Shop phone me <b>WhatsApp</b> kholein</li>
-                                  <li><b>⋮ Menu</b> ya <b>Settings</b> ➔ <b>Linked Devices</b> dabayein</li>
-                                  <li><b>Link a Device</b> daba kar ye QR Code scan karein!</li>
-                                </ol>
-                                <div className="pt-1 text-[10px] text-emerald-400 font-bold">
-                                  ✓ Multi-Device Handshake auto-negotiating
-                                </div>
-                              </div>
+                            <div className="flex items-center justify-between pt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  fetch(getApiBase() + '/api/whatsapp/status')
+                                    .then(res => res.json())
+                                    .then(data => { if (data.success) setWaStatus(data); })
+                                    .catch(() => {});
+                                }}
+                                className="px-3 py-1.5 bg-goldBrand-500 text-emeraldBrand-950 hover:bg-goldBrand-400 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 shadow-md"
+                              >
+                                🔄 Refresh Status
+                              </button>
+                              <span className="text-[10px] text-emerald-300">✓ Meta Cloud Protocol</span>
                             </div>
-                          ) : (
-                            <div className="bg-emeraldBrand-950 text-white p-6 rounded-2xl border border-goldBrand-500/40 flex flex-col items-center justify-center text-center space-y-3">
-                              <div className="w-10 h-10 rounded-full bg-goldBrand-500/20 text-goldBrand-300 flex items-center justify-center text-xl animate-pulse">
-                                📲
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-xs text-goldBrand-300">WhatsApp Multi-Device QR Pairing</h4>
-                                <p className="text-[11px] text-gray-300 mt-1">
-                                  Server connecting... Click "Refresh Live QR Code" below to fetch live pairing QR code.
-                                </p>
-                              </div>
-
-                              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    fetch(getApiBase() + '/api/whatsapp/status')
-                                      .then(res => res.json())
-                                      .then(data => { if (data.success) setWaStatus(data); })
-                                      .catch(() => {});
-                                  }}
-                                  className="px-3.5 py-2 bg-goldBrand-500 text-emeraldBrand-950 hover:bg-goldBrand-400 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 shadow-md"
-                                >
-                                  🔄 Refresh Live QR Code
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={handleWaDisconnect}
-                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 shadow-md"
-                                >
-                                  ⚡ Force Re-Generate QR
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          </div>
 
                           {/* Meta Cloud Webhook Details */}
-                          <div className="border-t pt-3 space-y-2">
-                            <div className="flex justify-between items-center text-[10px] text-gray-500">
-                              <span>Meta Cloud API Webhook:</span>
-                              <span className="font-mono font-bold text-gray-800">/api/whatsapp/webhook</span>
+                          <div className="border-t pt-3 space-y-1.5 text-[10px] text-gray-600">
+                            <div className="flex justify-between items-center">
+                              <span>Meta Webhook Callback URL:</span>
+                              <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">/api/whatsapp/webhook</span>
                             </div>
-                            <div className="flex justify-between items-center text-[10px] text-gray-500">
-                              <span>Verify Token:</span>
-                              <span className="font-mono font-bold text-emerald-700">hyderi_whatsapp_token_786</span>
+                            <div className="flex justify-between items-center">
+                              <span>Meta Verify Token:</span>
+                              <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">HyderiWhatsApp2026Secure</span>
                             </div>
                           </div>
                         </div>

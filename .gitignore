@@ -1,6 +1,9 @@
 node_modules/
 dist/
 .env
+.env.*
+.env.local
+!.env.example
 .DS_Store
 Thumbs.db
 server/auth_baileys/
