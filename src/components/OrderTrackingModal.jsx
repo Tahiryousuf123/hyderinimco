@@ -108,10 +108,10 @@ export default function OrderTrackingModal({ isOpen, onClose }) {
   const currentStep = searchedOrder ? getStatusStep(searchedOrder.status) : 1;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="relative bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-t sm:border border-gray-200 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 overflow-hidden">
+      <div className="relative bg-white rounded-t-[2.5rem] sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-t sm:border border-gray-200 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 max-h-[85vh] sm:max-h-[90vh] flex flex-col">
         {/* Mobile Drag Indicator */}
-        <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+        <div className="w-14 h-1.5 bg-gray-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
         
         {/* Header */}
         <div className="p-5 border-b border-gray-100 bg-amber-50/70 flex items-center justify-between">

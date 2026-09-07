@@ -3752,10 +3752,10 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const isCancellable = orderStatus === 'pending_verification' || orderStatus === 'payment_verified';
 
       return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-t-2 sm:border-2 border-goldBrand-400 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 overflow-hidden">
+          <div className="bg-white rounded-t-[2.5rem] sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-t-2 sm:border-2 border-goldBrand-400 animate-in slide-in-from-bottom duration-300 max-h-[85vh] sm:max-h-[90vh] flex flex-col">
             {/* Mobile Drag Indicator */}
-            <div className="w-12 h-1 bg-goldBrand-400/40 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+            <div className="w-14 h-1.5 bg-goldBrand-400/40 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
             {/* Header */}
             <div className={\`p-6 text-center border-b border-goldBrand-400 text-white \${isCancelled ? 'bg-gradient-to-br from-red-800 to-rose-950' : 'bg-emeraldBrand-950'}\`}>
               <div className={\`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl font-bold shadow-lg \${isCancelled ? 'bg-red-200 text-red-900' : 'bg-goldBrand-500 text-emeraldBrand-950'}\`}>
@@ -4000,10 +4000,10 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const isCancellable = order?.status === 'pending_verification' || order?.status === 'payment_verified';
 
       return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border-t-2 sm:border-2 border-goldBrand-400 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 overflow-hidden">
+          <div className="bg-white rounded-t-[2.5rem] sm:rounded-3xl max-w-lg w-full shadow-2xl border-t-2 sm:border-2 border-goldBrand-400 animate-in slide-in-from-bottom duration-300 max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
             {/* Mobile Drag Indicator */}
-            <div className="w-12 h-1 bg-goldBrand-400/40 rounded-full mx-auto mb-1 sm:hidden shrink-0" />
+            <div className="w-14 h-1.5 bg-goldBrand-400/40 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="font-extrabold text-base text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
                 <span>🛵</span> {isUrdu ? 'اپنا آرڈر ٹریک کریں' : 'Track Your Order'}
