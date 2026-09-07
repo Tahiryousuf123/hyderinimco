@@ -369,13 +369,13 @@ export default function OrderSuccessModal({ order, isOpen, onClose, settings, on
             </a>
           )}
 
-          <div className="flex gap-2">
+          <div className={`grid ${!isCancelled && isCancellable && !showCancelPrompt ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-xs`}>
             <button
               onClick={handlePrint}
-              className="flex-1 py-2.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              className="py-2.5 px-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-xl font-bold flex items-center justify-center gap-1 transition-colors truncate"
             >
-              <Printer className="w-4 h-4 text-gray-500" />
-              <span>Print Slip</span>
+              <Printer className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+              <span className="truncate">Print Slip</span>
             </button>
 
             {/* Cancel Order Button */}
@@ -383,18 +383,18 @@ export default function OrderSuccessModal({ order, isOpen, onClose, settings, on
               <button
                 type="button"
                 onClick={() => setShowCancelPrompt(true)}
-                className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                className="py-2.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl font-bold flex items-center justify-center gap-1 transition-colors truncate"
               >
-                <XCircle className="w-4 h-4 text-rose-600" />
-                <span>Cancel Order</span>
+                <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span className="truncate">Cancel Order</span>
               </button>
             )}
 
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 bg-red-800 hover:bg-red-900 text-white rounded-xl font-bold text-xs transition-colors text-center"
+              className="py-2.5 px-2 bg-red-800 hover:bg-red-900 text-white rounded-xl font-bold transition-colors text-center truncate"
             >
-              {isCancelled ? 'Close' : 'Done / Continue'}
+              <span className="truncate">{isCancelled ? 'Close' : 'Close'}</span>
             </button>
           </div>
         </div>

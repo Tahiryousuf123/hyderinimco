@@ -1560,6 +1560,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const [isChatOpen, setIsChatOpen] = useState(false);
       const [isBrochureModalOpen, setIsBrochureModalOpen] = useState(false);
       const [showMoreDealsModal, setShowMoreDealsModal] = useState(false);
+      const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
       useEffect(() => {
         try { localStorage.setItem('hyderi_cart', JSON.stringify(cart)); } catch (e) {}
@@ -2764,45 +2765,78 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             />
           )}
 
-          {/* Active Order Persistent Screen Banner */}
-          {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
-            <div style={{ bottom: '68px' }} className="fixed bottom-[68px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 border-2 border-goldBrand-400 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
-                <div className="truncate text-xs">
-                  <span className="font-extrabold text-goldBrand-300 block">{isUrdu ? 'آپ کا فعال آرڈر:' : 'Active Order:'} {activeOrder.orderRef}</span>
-                  <span className="text-[11px] text-slate-300 capitalize">
-                    {activeOrder.status === 'out_for_delivery'
-                      ? (isUrdu ? '🛵 رائیڈر روانہ ہو چکا ہے' : '🛵 Out for Delivery with Rider')
-                      : ((activeOrder.status ? activeOrder.status.replace(/_/g, ' ') : 'Pending') + ' • Rs. ' + activeOrder.totalAmount + '/-')
-                    }
-                  </span>
+          {/* Active Order Persistent Screen Banner (Hidden when any modal is open) */}
+          {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && !completedOrder && !isTrackingOpen && !isCheckoutOpen && !isCartOpen && !isChatOpen && !isBrochureModalOpen && !isBannerDismissed && (
+            <div
+              style={{ bottom: '70px' }}
+              className="fixed bottom-[70px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-[410px] z-30 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 border-2 border-goldBrand-400/90 shadow-emeraldBrand-950/50 animate-in slide-in-from-bottom-5"
+            >
+              {/* Top Row: Indicator + Order Ref + Total Amount + Dismiss Button */}
+              <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
+                  <span className="text-[11px] text-slate-400 font-semibold shrink-0">{isUrdu ? 'آرڈر:' : 'Active:'}</span>
+                  <span className="font-mono font-black text-xs text-goldBrand-300 tracking-wider truncate">{activeOrder.orderRef}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono font-black text-xs text-emerald-400">Rs. {activeOrder.totalAmount}/-</span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsBannerDismissed(true); }}
+                    className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-white rounded-full hover:bg-slate-800 text-xs transition-colors"
+                    title={isUrdu ? 'چھپائیں' : 'Dismiss banner'}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {(activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
+
+              {/* Bottom Row: Status Badge & Thumb-Friendly Action Buttons */}
+              <div className="flex items-center justify-between gap-2 pt-2">
+                <div className="text-[11px] text-slate-300 font-medium truncate min-w-0">
+                  {activeOrder.status === 'out_for_delivery' ? (
+                    <span className="text-amber-300 font-bold flex items-center gap-1">
+                      <span>🛵</span>
+                      <span className="truncate">{isUrdu ? 'رائیڈر کے پاس ہے' : 'Out for Delivery'}</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-300 flex items-center gap-1.5 capitalize truncate">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                      <span className="truncate">{activeOrder.status ? activeOrder.status.replace(/_/g, ' ') : 'Pending Verification'}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {(activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
+                    <button
+                      type="button"
+                      onClick={() => setCompletedOrder(activeOrder)}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center gap-1"
+                    >
+                      <span>❌</span>
+                      <span>{isUrdu ? 'کینسل' : 'Cancel'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setCompletedOrder(activeOrder)}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center gap-1"
+                    >
+                      <span>📄</span>
+                      <span>{isUrdu ? 'رسید' : 'Slip'}</span>
+                    </button>
+                  )}
+
                   <button
-                    onClick={() => setCompletedOrder(activeOrder)}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
+                    type="button"
+                    onClick={() => setIsTrackingOpen(true)}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-goldBrand-200 border border-slate-600 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
                   >
-                    <span>❌</span>
-                    <span>{isUrdu ? 'کینسل / رسید' : 'Cancel / Slip'}</span>
+                    <span>🛵</span>
+                    <span>{isUrdu ? 'ٹریک' : 'Track'}</span>
                   </button>
-                ) : (
-                  <button
-                    onClick={() => setCompletedOrder(activeOrder)}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
-                  >
-                    <span>📄</span>
-                    <span>{isUrdu ? 'رسید دیکھیں' : 'View Slip'}</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsTrackingOpen(true)}
-                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-goldBrand-200 border border-slate-600 rounded-lg text-xs font-semibold transition-colors"
-                >
-                  {isUrdu ? 'ٹریک' : 'Track'}
-                </button>
+                </div>
               </div>
             </div>
           )}
@@ -3917,21 +3951,31 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                 </a>
               )}
 
-              <div className="flex gap-2">
-                <button onClick={() => window.print()} className="flex-1 py-2 bg-white border border-gray-300 rounded-xl font-bold text-gray-700">
-                  🖨️ {isUrdu ? 'رسید پرنٹ کریں' : 'Print Invoice'}
+              <div className={(!isCancelled && isCancellable && !showCancelPrompt ? "grid grid-cols-3" : "grid grid-cols-2") + " gap-2 text-xs"}>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="py-2.5 px-2 bg-white hover:bg-gray-100 border border-gray-300 rounded-xl font-bold text-gray-700 flex items-center justify-center gap-1 transition-colors truncate"
+                >
+                  <span>🖨️</span>
+                  <span className="truncate">{isUrdu ? 'پرنٹ' : 'Print'}</span>
                 </button>
                 {!isCancelled && isCancellable && !showCancelPrompt && (
                   <button
                     type="button"
                     onClick={() => setShowCancelPrompt(true)}
-                    className="flex-1 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 rounded-xl font-bold text-xs transition-colors"
+                    className="py-2.5 px-2 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 rounded-xl font-bold transition-colors flex items-center justify-center gap-1 truncate"
                   >
-                    ❌ {isUrdu ? 'آرڈر کینسل کریں' : 'Cancel Order'}
+                    <span>❌</span>
+                    <span className="truncate">{isUrdu ? 'کینسل' : 'Cancel'}</span>
                   </button>
                 )}
-                <button onClick={onClose} className="flex-1 py-2 bg-emeraldBrand-900 text-goldBrand-200 rounded-xl font-bold">
-                  {isUrdu ? 'بند کریں' : 'Close'}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="py-2.5 px-2 bg-emeraldBrand-900 hover:bg-emeraldBrand-950 text-goldBrand-200 rounded-xl font-bold text-center transition-colors truncate"
+                >
+                  <span className="truncate">{isUrdu ? 'بند کریں' : 'Close'}</span>
                 </button>
               </div>
             </div>
@@ -4018,14 +4062,22 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           <div className="bg-white rounded-t-[2.5rem] sm:rounded-3xl max-w-lg w-full shadow-2xl border-t-2 sm:border-2 border-goldBrand-400 animate-in slide-in-from-bottom duration-300 max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
             {/* Mobile Drag Indicator */}
             <div className="w-14 h-1.5 bg-goldBrand-400/40 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-extrabold text-base text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
-                <span>🛵</span> {isUrdu ? 'اپنا آرڈر ٹریک کریں' : 'Track Your Order'}
-              </h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-700 font-bold">✕</button>
-            </div>
+            
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="flex justify-between items-center border-b pb-3">
+                <h3 className="font-extrabold text-base text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
+                  <span>🛵</span> {isUrdu ? 'اپنا آرڈر ٹریک کریں' : 'Track Your Order'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 font-bold text-sm transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
 
-            <form onSubmit={handleSearch} className="flex gap-2">
+              <form onSubmit={handleSearch} className="flex gap-2">
               <input
                 type="text"
                 value={ref}
@@ -4113,6 +4165,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                 )}
               </div>
             )}
+            </div>
           </div>
         </div>
       );

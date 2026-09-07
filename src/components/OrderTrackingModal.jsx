@@ -133,7 +133,7 @@ export default function OrderTrackingModal({ isOpen, onClose }) {
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-5">
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[75vh]">
           {/* Search Bar */}
           <form onSubmit={handleTrack} className="flex gap-2">
             <input
