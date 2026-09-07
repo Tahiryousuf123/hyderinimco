@@ -1887,14 +1887,14 @@
                     <span>{isUrdu ? 'بروشر مینو کارڈ' : 'Menu Card'}</span>
                   </button>
 
-                  {/* Order Tracking & Cancel Button */}
+                  {/* Order Tracking Button (Icon Only - Clean & Professional) */}
                   <button
                     onClick={() => setIsTrackingOpen(true)}
-                    className="inline-flex items-center gap-1.5 bg-emeraldBrand-950/80 hover:bg-emeraldBrand-950 text-goldBrand-200 border border-goldBrand-400/50 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:border-goldBrand-300"
-                    title={isUrdu ? 'آرڈر ٹریک یا کینسل کریں' : 'Track or Cancel Order'}
+                    className="inline-flex items-center justify-center bg-emeraldBrand-950/80 hover:bg-emeraldBrand-950 text-goldBrand-300 border border-goldBrand-500/30 w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-base transition-all shadow-sm hover:border-goldBrand-400 hover:scale-105 active:scale-95"
+                    title={isUrdu ? 'آرڈر ٹریک کریں' : 'Track Order'}
+                    aria-label="Track Order"
                   >
                     <span>🛵</span>
-                    <span className="text-[11px] sm:text-xs">{isUrdu ? 'ٹریک / کینسل' : 'Track / Cancel Order'}</span>
                   </button>
 
                   {/* Shopping Bag Button */}
@@ -3747,8 +3747,10 @@
       const isCancellable = orderStatus === 'pending_verification' || orderStatus === 'payment_verified';
 
       return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-2 border-goldBrand-400 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-t-2 sm:border-2 border-goldBrand-400 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 max-h-[92vh] flex flex-col">
+            {/* Mobile Drag Indicator */}
+            <div className="w-12 h-1 bg-goldBrand-400/40 rounded-full mx-auto my-2 sm:hidden shrink-0" />
             {/* Header */}
             <div className={`p-6 text-center border-b border-goldBrand-400 text-white ${isCancelled ? 'bg-gradient-to-br from-red-800 to-rose-950' : 'bg-emeraldBrand-950'}`}>
               <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl font-bold shadow-lg ${isCancelled ? 'bg-red-200 text-red-900' : 'bg-goldBrand-500 text-emeraldBrand-950'}`}>
@@ -3993,8 +3995,10 @@
       const isCancellable = order?.status === 'pending_verification' || order?.status === 'payment_verified';
 
       return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border-2 border-goldBrand-400 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border-t-2 sm:border-2 border-goldBrand-400 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+            {/* Mobile Drag Indicator */}
+            <div className="w-12 h-1 bg-goldBrand-400/40 rounded-full mx-auto mb-1 sm:hidden shrink-0" />
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="font-extrabold text-base text-emeraldBrand-950 flex items-center gap-2 font-serifBrand">
                 <span>🛵</span> {isUrdu ? 'اپنا آرڈر ٹریک کریں' : 'Track Your Order'}

@@ -138,8 +138,10 @@ export default function OrderSuccessModal({ order, isOpen, onClose, settings, on
   const isCancellable = orderStatus === 'pending_verification' || orderStatus === 'payment_verified';
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-200 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="relative bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-t sm:border border-gray-200 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+        {/* Mobile Drag Indicator */}
+        <div className="w-12 h-1 bg-gray-300/80 rounded-full mx-auto my-2 sm:hidden shrink-0" />
         
         {/* Header - Changes color if cancelled */}
         <div className={`p-6 text-center relative text-white ${
