@@ -1544,6 +1544,12 @@
       const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
       const [selectedProduct, setSelectedProduct] = useState(null);
       const [completedOrder, setCompletedOrder] = useState(null);
+      const [activeOrder, setActiveOrder] = useState(() => {
+        try {
+          const s = localStorage.getItem('hyderi_active_order');
+          return s ? JSON.parse(s) : null;
+        } catch(e) { return null; }
+      });
       const [isTrackingOpen, setIsTrackingOpen] = useState(false);
       const [isAdminOpen, setIsAdminOpen] = useState(false);
       const [isChatOpen, setIsChatOpen] = useState(false);
@@ -1863,13 +1869,14 @@
                     <span>{isUrdu ? 'بروشر مینو کارڈ' : 'Menu Card'}</span>
                   </button>
 
-                  {/* Order Tracking Button */}
+                  {/* Order Tracking & Cancel Button */}
                   <button
                     onClick={() => setIsTrackingOpen(true)}
-                    className="inline-flex items-center gap-1.5 bg-emeraldBrand-950/80 hover:bg-emeraldBrand-950 text-emeraldBrand-100 border border-goldBrand-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                    className="inline-flex items-center gap-1.5 bg-emeraldBrand-950/80 hover:bg-emeraldBrand-950 text-goldBrand-200 border border-goldBrand-400/50 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:border-goldBrand-300"
+                    title={isUrdu ? 'آرڈر ٹریک یا کینسل کریں' : 'Track or Cancel Order'}
                   >
                     <span>🛵</span>
-                    <span className="hidden sm:inline">{isUrdu ? 'آرڈر ٹریک کریں' : 'Track Order'}</span>
+                    <span className="text-[11px] sm:text-xs">{isUrdu ? 'ٹریک / کینسل' : 'Track / Cancel Order'}</span>
                   </button>
 
                   {/* Shopping Bag Button */}
@@ -2531,10 +2538,10 @@
 
             <button
               onClick={() => setIsTrackingOpen(true)}
-              className="flex flex-col items-center gap-0.5 text-emeraldBrand-100 hover:text-white"
+              className="flex flex-col items-center gap-0.5 text-goldBrand-300 hover:text-white"
             >
               <span className="text-base">🛵</span>
-              <span className="text-[9px] font-bold">{isUrdu ? 'ٹریک' : 'Track'}</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'ٹریک/کینسل' : 'Track/Cancel'}</span>
             </button>
 
             <button
@@ -2693,6 +2700,8 @@
               settings={settings}
               onOrderComplete={(order) => {
                 setCompletedOrder(order);
+                setActiveOrder(order);
+                try { localStorage.setItem('hyderi_active_order', JSON.stringify(order)); } catch(e) {}
                 setCart([]);
                 setIsCheckoutOpen(false);
                 if (window.confetti) {
@@ -2709,6 +2718,11 @@
               isUrdu={isUrdu}
               onClose={() => setCompletedOrder(null)}
               settings={settings}
+              onCancelOrder={(updated) => {
+                setCompletedOrder(updated);
+                setActiveOrder(updated);
+                try { localStorage.setItem('hyderi_active_order', JSON.stringify(updated)); } catch(e) {}
+              }}
             />
           )}
 
@@ -2719,6 +2733,34 @@
               isUrdu={isUrdu}
               onClose={() => setIsTrackingOpen(false)}
             />
+          )}
+
+          {/* Active Order Persistent Screen Banner */}
+          {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
+            <div className="fixed bottom-18 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-40 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3.5 border-2 border-goldBrand-400 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <div className="truncate text-xs">
+                  <span className="font-extrabold text-goldBrand-300 block">{isUrdu ? 'آپ کا فعال آرڈر:' : 'Active Order:'} {activeOrder.orderRef}</span>
+                  <span className="text-[11px] text-slate-300 capitalize">{activeOrder.status ? activeOrder.status.replace(/_/g, ' ') : 'Pending'} • Rs. {activeOrder.totalAmount}/-</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => setCompletedOrder(activeOrder)}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
+                >
+                  <span>❌</span>
+                  <span>{isUrdu ? 'کینسل / رسید' : 'Cancel / Slip'}</span>
+                </button>
+                <button
+                  onClick={() => setIsTrackingOpen(true)}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-goldBrand-200 border border-slate-600 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  {isUrdu ? 'ٹریک' : 'Track'}
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Floating AI Chat Assistant Button (Desktop Only, since Mobile has it in bottom nav) */}
@@ -3598,8 +3640,16 @@
     }
 
     // Order Success Modal
-    function OrderSuccessModal({ order, isUrdu, onClose, settings }) {
+    // Order Success Modal with Instant Customer Cancellation
+    function OrderSuccessModal({ order, isUrdu, onClose, settings, onCancelOrder }) {
       const [copied, setCopied] = useState(false);
+      const [orderStatus, setOrderStatus] = useState(order?.status || 'pending_verification');
+      const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+      const [cancelReason, setCancelReason] = useState('Ghalat item select ho gaya (Ordered wrong item)');
+      const [customReason, setCustomReason] = useState('');
+      const [cancelLoading, setCancelLoading] = useState(false);
+      const [cancelError, setCancelError] = useState('');
+      const [cancelSuccessMsg, setCancelSuccessMsg] = useState('');
 
       const copyRef = () => {
         navigator.clipboard.writeText(order.orderRef);
@@ -3607,8 +3657,42 @@
         setTimeout(() => setCopied(false), 2000);
       };
 
+      const handleCancelOrder = async () => {
+        setCancelLoading(true);
+        setCancelError('');
+        const finalReason = cancelReason.includes('Other') && customReason.trim() ? customReason.trim() : cancelReason;
+        try {
+          const res = await fetch(getApiBase() + '/api/orders/' + encodeURIComponent(order.orderRef) + '/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: finalReason })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            setOrderStatus('cancelled');
+            setCancelSuccessMsg(isUrdu ? 'آپ کا آرڈر منسوخ کر دیا گیا ہے۔ کنفرمیشن واٹس ایپ پر بھیج دی گئی ہے۔' : 'Your order has been cancelled successfully. Confirmation sent via WhatsApp.');
+            setShowCancelPrompt(false);
+            try {
+              const saved = localStorage.getItem('hyderi_active_order');
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                parsed.status = 'cancelled';
+                localStorage.setItem('hyderi_active_order', JSON.stringify(parsed));
+              }
+            } catch (e) {}
+            if (onCancelOrder) onCancelOrder(data.order || { ...order, status: 'cancelled' });
+          } else {
+            throw new Error(data.message || 'Order cancel nahi ho saka.');
+          }
+        } catch (err) {
+          setCancelError(err.message || 'Error cancelling order');
+        } finally {
+          setCancelLoading(false);
+        }
+      };
+
       const generateWhatsAppLink = () => {
-        const items = order.items.map(i => `• ${i.nameUrdu || i.name} (${i.packQuantityUrdu || i.packQuantity}) x ${i.quantity} = Rs. ${i.price * i.quantity}`).join('%0A');
+        const items = (order.items || []).map(i => `• ${i.nameUrdu || i.name} (${i.packQuantityUrdu || i.packQuantity}) x ${i.quantity} = Rs. ${i.price * i.quantity}`).join('%0A');
         const text = `*HYDERI NIMCO & FROZEN - ONLINE ORDER*%0A%0A` +
           `*Order Ref:* ${order.orderRef}%0A` +
           `*Customer:* ${order.customer?.fullName}%0A` +
@@ -3620,41 +3704,59 @@
           `*Delivery Fee:* Rs. ${order.deliveryFee}/-%0A` +
           `*Total Paid:* Rs. ${order.totalAmount}/-%0A%0A` +
           `*Payment Channel:* ${order.paymentMethod?.toUpperCase()}%0A` +
-          `*Sender Name:* ${order.paymentDetails?.senderAccountName}%0A` +
-          `*TID:* ${order.paymentDetails?.transactionId}%0A%0A` +
+          `*Sender Name:* ${order.paymentDetails?.senderAccountName || 'N/A'}%0A` +
+          `*TID:* ${order.paymentDetails?.transactionId || 'N/A'}%0A%0A` +
           `_Please dispatch my fresh order!_`;
-        return `https://wa.me/${settings.whatsapp}?text=${text}`;
+        return `https://wa.me/${settings.whatsapp || '923362438422'}?text=${text}`;
       };
+
+      const isCancelled = orderStatus === 'cancelled';
+      const isCancellable = orderStatus === 'pending_verification' || orderStatus === 'payment_verified';
 
       return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-2 border-goldBrand-400 animate-in zoom-in-95">
-            <div className="bg-emeraldBrand-950 text-white p-6 text-center border-b border-goldBrand-400">
-              <div className="w-14 h-14 rounded-full bg-goldBrand-500 text-emeraldBrand-950 flex items-center justify-center mx-auto mb-2 text-2xl font-bold shadow-lg">
-                ✓
+            {/* Header */}
+            <div className={`p-6 text-center border-b border-goldBrand-400 text-white ${isCancelled ? 'bg-gradient-to-br from-red-800 to-rose-950' : 'bg-emeraldBrand-950'}`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl font-bold shadow-lg ${isCancelled ? 'bg-red-200 text-red-900' : 'bg-goldBrand-500 text-emeraldBrand-950'}`}>
+                {isCancelled ? '✕' : '✓'}
               </div>
-              <span className="bg-emerald-500/30 text-goldBrand-300 text-xs font-black uppercase px-3 py-1 rounded-full border border-goldBrand-400/40">
-                {isUrdu ? (order.paymentMethod === 'cod' ? 'کیش آن ڈیلیوری آرڈر موصول' : 'آرڈر موصول اور تصدیق') : (order.paymentMethod === 'cod' ? 'Cash on Delivery Confirmed' : 'Order Submitted')}
+              <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${isCancelled ? 'bg-red-500/30 text-red-200 border-red-400/40' : 'bg-emerald-500/30 text-goldBrand-300 border-goldBrand-400/40'}`}>
+                {isCancelled ? (isUrdu ? 'آرڈر منسوخ (Cancelled)' : 'Order Cancelled') : (isUrdu ? (order.paymentMethod === 'cod' ? 'کیش آن ڈیلیوری آرڈر موصول' : 'آرڈر موصول اور تصدیق') : (order.paymentMethod === 'cod' ? 'Cash on Delivery Confirmed' : 'Order Submitted'))}
               </span>
-              <h2 className="text-2xl font-black text-goldBrand-300 mt-2 font-serifBrand">{isUrdu ? 'آپ کے آرڈر کا بہت شکریہ!' : 'Thank You for Your Order!'}</h2>
-              <p className="text-xs text-emeraldBrand-100 mt-1">{isUrdu ? 'آپ کا آرڈر نارتھ ناظم آباد برانچ میں پیک کیا جا رہا ہے۔' : 'Your order is queued in our North Nazimabad kitchen.'}</p>
+              <h2 className="text-2xl font-black text-goldBrand-300 mt-2 font-serifBrand">
+                {isCancelled ? (isUrdu ? 'آرڈر منسوخ کر دیا گیا ہے' : 'Order Has Been Cancelled') : (isUrdu ? 'آپ کے آرڈر کا بہت شکریہ!' : 'Thank You for Your Order!')}
+              </h2>
+              <p className="text-xs text-emeraldBrand-100 mt-1">
+                {isCancelled ? (isUrdu ? 'آپ کا آرڈر کینسل ہو چکا ہے۔ ریفنڈ کے لیے ہیلپ لائن 0336-2438422 فعال ہے۔' : 'Your order has been cancelled. For refunds or questions, call 0336-2438422.') : (isUrdu ? 'آپ کا آرڈر نارتھ ناظم آباد برانچ میں پیک کیا جا رہا ہے۔' : 'Your order is queued in our North Nazimabad kitchen.')}
+              </p>
             </div>
 
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto text-xs">
-              {/* Automatic Shop Alert + Customer Slip Badge */}
-              <div className="bg-emerald-50 border-2 border-emerald-400/60 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-emerald-950 shadow-sm">
-                <span className="text-2xl">🔔</span>
-                <div>
-                  <p className="font-black text-emerald-950">
-                    {isUrdu ? 'دکان والے کو فوری واٹس ایپ الرٹ پہنچ گیا!' : 'Shop Owner Alerted via WhatsApp!'}
-                  </p>
-                  <p className="text-[11px] text-emerald-800 mt-0.5">
-                    {isUrdu
-                      ? 'آپ کو بھی آپ کے نمبر پر آرڈر رسید واٹس ایپ پر بھیجی جا رہی ہے۔'
-                      : 'An official order receipt slip is being sent to your WhatsApp number.'}
-                  </p>
+              {/* Cancellation Success Message */}
+              {cancelSuccessMsg && (
+                <div className="p-3 bg-red-50 border-2 border-red-300 rounded-xl text-red-900 font-bold text-xs flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{cancelSuccessMsg}</span>
                 </div>
-              </div>
+              )}
+
+              {/* Automatic Shop Alert + Customer Slip Badge */}
+              {!isCancelled && (
+                <div className="bg-emerald-50 border-2 border-emerald-400/60 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-emerald-950 shadow-sm">
+                  <span className="text-2xl">🔔</span>
+                  <div>
+                    <p className="font-black text-emerald-950">
+                      {isUrdu ? 'دکان والے کو فوری واٹس ایپ الرٹ پہنچ گیا!' : 'Shop Owner Alerted via WhatsApp!'}
+                    </p>
+                    <p className="text-[11px] text-emerald-800 mt-0.5">
+                      {isUrdu
+                        ? 'آپ کو بھی آپ کے نمبر پر آرڈر رسید واٹس ایپ پر بھیجی جا رہی ہے۔'
+                        : 'An official order receipt slip is being sent to your WhatsApp number.'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-between bg-parchment-100 p-3.5 rounded-2xl border border-goldBrand-400">
                 <div>
@@ -3666,9 +3768,59 @@
                 </button>
               </div>
 
+              {/* Cancel Order Inline Dialog */}
+              {showCancelPrompt && isCancellable && (
+                <div className="p-4 bg-red-50/90 border-2 border-red-300 rounded-2xl space-y-3 animate-in fade-in zoom-in-95">
+                  <div className="flex items-center gap-2 text-red-950 font-black text-xs">
+                    <span>⚠️</span>
+                    <span>{isUrdu ? 'کیا آپ واقعی یہ آرڈر کینسل کرنا چاہتے ہیں؟' : 'Are you sure you want to cancel this order?'}</span>
+                  </div>
+                  <p className="text-[11px] text-red-700">
+                    {isUrdu ? 'کینسل کرنے کی وجہ منتخب کریں:' : 'Select cancellation reason:'}
+                  </p>
+                  <select
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className="w-full text-xs p-2 bg-white border border-red-200 rounded-lg outline-none font-medium"
+                  >
+                    <option value="Ghalat item select ho gaya (Ordered wrong item)">{isUrdu ? 'غلط آئٹم سلیکٹ ہو گیا (Ordered wrong item)' : 'Ordered wrong item'}</option>
+                    <option value="Pate / Address mein tabdeeli karni hai (Change address)">{isUrdu ? 'پتے میں تبدیلی کرنی ہے (Change address)' : 'Change address'}</option>
+                    <option value="Delivery timing ka masla hai (Timing issue)">{isUrdu ? 'ڈیلیوری ٹائمنگ کا مسئلہ ہے (Timing issue)' : 'Delivery timing issue'}</option>
+                    <option value="Raqam / Payment problem">{isUrdu ? 'پیمنٹ کا مسئلہ ہے (Payment problem)' : 'Payment issue'}</option>
+                    <option value="Other reason (Koi doosri wajah)">{isUrdu ? 'کوئی دوسری وجہ (Other reason)' : 'Other reason'}</option>
+                  </select>
+                  {cancelReason.includes('Other') && (
+                    <input
+                      type="text"
+                      value={customReason}
+                      onChange={(e) => setCustomReason(e.target.value)}
+                      placeholder={isUrdu ? 'وجہ درج کریں...' : 'Enter reason...'}
+                      className="w-full text-xs p-2 bg-white border border-red-200 rounded-lg outline-none"
+                    />
+                  )}
+                  {cancelError && <p className="text-[11px] text-red-600 font-bold">{cancelError}</p>}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleCancelOrder}
+                      disabled={cancelLoading}
+                      className="flex-1 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg font-bold text-xs shadow transition-all"
+                    >
+                      {cancelLoading ? (isUrdu ? 'کینسل ہو رہا ہے...' : 'Cancelling...') : (isUrdu ? 'ہاں، کینسل کریں' : 'Yes, Cancel Order')}
+                    </button>
+                    <button
+                      onClick={() => setShowCancelPrompt(false)}
+                      className="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs"
+                    >
+                      {isUrdu ? 'واپس' : 'Back'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Itemized list */}
               <div className="border border-goldBrand-400/40 rounded-2xl p-4 bg-parchment-50 space-y-2">
                 <h4 className="font-bold text-emeraldBrand-950 border-b pb-1">{isUrdu ? 'رسید کی تفصیل' : 'Itemized Receipt'}</h4>
-                {order.items.map((it, idx) => (
+                {(order.items || []).map((it, idx) => (
                   <div key={idx} className="flex justify-between text-gray-700">
                     <span><b>{it.quantity}x</b> {isUrdu ? (it.nameUrdu || it.name) : it.name} ({it.packQuantity})</span>
                     <span className="font-bold font-mono">Rs. {it.price * it.quantity}/-</span>
@@ -3683,21 +3835,32 @@
             </div>
 
             <div className="p-4 sm:p-5 border-t border-goldBrand-400/40 bg-parchment-50 space-y-2">
-              <a
-                href={generateWhatsAppLink()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-2"
-              >
-                <span>💬 {isUrdu ? 'دکان کے واٹس ایپ پر آرڈر بھیجیں (0336-2438422)' : 'Send Order to Shop WhatsApp (0336-2438422)'}</span>
-              </a>
+              {!isCancelled && (
+                <a
+                  href={generateWhatsAppLink()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>💬 {isUrdu ? 'دکان کے واٹس ایپ پر آرڈر بھیجیں (0336-2438422)' : 'Send Order to Shop WhatsApp (0336-2438422)'}</span>
+                </a>
+              )}
 
               <div className="flex gap-2">
                 <button onClick={() => window.print()} className="flex-1 py-2 bg-white border border-gray-300 rounded-xl font-bold text-gray-700">
                   🖨️ {isUrdu ? 'رسید پرنٹ کریں' : 'Print Invoice'}
                 </button>
+                {!isCancelled && isCancellable && !showCancelPrompt && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelPrompt(true)}
+                    className="flex-1 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 rounded-xl font-bold text-xs transition-colors"
+                  >
+                    ❌ {isUrdu ? 'آرڈر کینسل کریں' : 'Cancel Order'}
+                  </button>
+                )}
                 <button onClick={onClose} className="flex-1 py-2 bg-emeraldBrand-900 text-goldBrand-200 rounded-xl font-bold">
-                  {isUrdu ? 'مکمل' : 'Done'}
+                  {isUrdu ? 'بند کریں' : 'Close'}
                 </button>
               </div>
             </div>
@@ -3706,21 +3869,27 @@
       );
     }
 
-    // Order Tracking Modal
+    // Order Tracking Modal with Instant Cancellation
     function OrderTrackingModal({ isOpen, isUrdu, onClose }) {
       const [ref, setRef] = useState('');
       const [order, setOrder] = useState(null);
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState('');
+      const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+      const [cancelReason, setCancelReason] = useState('Ghalat item select ho gaya');
+      const [cancelLoading, setCancelLoading] = useState(false);
+      const [cancelSuccessMsg, setCancelSuccessMsg] = useState('');
 
       const handleSearch = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!ref.trim()) return;
         setLoading(true);
         setError('');
         setOrder(null);
+        setShowCancelPrompt(false);
+        setCancelSuccessMsg('');
         try {
-          const res = await fetch(`/api/orders/${encodeURIComponent(ref.trim())}`);
+          const res = await fetch(getApiBase() + '/api/orders/' + encodeURIComponent(ref.trim()));
           const data = await res.json();
           if (data.success && data.order) {
             setOrder(data.order);
@@ -3734,7 +3903,44 @@
         }
       };
 
+      const handleCancelInTracking = async () => {
+        if (!order) return;
+        setCancelLoading(true);
+        try {
+          const res = await fetch(getApiBase() + '/api/orders/' + encodeURIComponent(order.orderRef) + '/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: cancelReason })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            setOrder(prev => ({ ...prev, status: 'cancelled' }));
+            setCancelSuccessMsg(isUrdu ? 'آرڈر منسوخ کر دیا گیا ہے۔' : 'Order has been cancelled.');
+            setShowCancelPrompt(false);
+            try {
+              const saved = localStorage.getItem('hyderi_active_order');
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.orderRef === order.orderRef) {
+                  parsed.status = 'cancelled';
+                  localStorage.setItem('hyderi_active_order', JSON.stringify(parsed));
+                }
+              }
+            } catch(e) {}
+          } else {
+            setError(data.message || 'Cancellation failed');
+          }
+        } catch (e) {
+          setError('Error cancelling order');
+        } finally {
+          setCancelLoading(false);
+        }
+      };
+
       if (!isOpen) return null;
+
+      const isCancelled = order?.status === 'cancelled';
+      const isCancellable = order?.status === 'pending_verification' || order?.status === 'payment_verified';
 
       return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
@@ -3760,6 +3966,7 @@
             </form>
 
             {error && <p className="text-xs text-red-600 font-bold bg-red-50 p-2 rounded-lg">{error}</p>}
+            {cancelSuccessMsg && <p className="text-xs text-emerald-800 font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-300">✓ {cancelSuccessMsg}</p>}
 
             {order && (
               <div className="space-y-3 pt-2 text-xs">
@@ -3768,8 +3975,53 @@
                     <span>{isUrdu ? 'آرڈر:' : 'Order:'} {order.orderRef}</span>
                     <span className="text-emeraldBrand-900 font-mono">Rs. {order.totalAmount}/-</span>
                   </div>
-                  <p className="text-gray-600 mt-1">{isUrdu ? 'اسٹیٹس:' : 'Status:'} <b className="text-emeraldBrand-800 uppercase">{order.status.replace('_', ' ')}</b></p>
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="text-gray-600">{isUrdu ? 'اسٹیٹس:' : 'Status:'} <b className={`uppercase ${isCancelled ? 'text-red-700 font-black' : 'text-emeraldBrand-800'}`}>{order.status ? order.status.replace(/_/g, ' ') : 'Pending'}</b></p>
+                    {isCancellable && !showCancelPrompt && (
+                      <button
+                        onClick={() => setShowCancelPrompt(true)}
+                        className="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        {isUrdu ? 'آرڈر کینسل کریں' : 'Cancel This Order'}
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Tracking Cancel Dialog */}
+                {showCancelPrompt && isCancellable && (
+                  <div className="p-3.5 bg-red-50 border-2 border-red-300 rounded-2xl space-y-2">
+                    <p className="font-extrabold text-red-950 text-xs">
+                      {isUrdu ? 'کیا آپ واقعی یہ آرڈر منسوخ کرنا چاہتے ہیں؟' : 'Confirm Order Cancellation?'}
+                    </p>
+                    <select
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-full text-xs p-2 bg-white border border-red-200 rounded-lg outline-none font-medium"
+                    >
+                      <option value="Ghalat item select ho gaya">{isUrdu ? 'غلط آئٹم سلیکٹ ہو گیا' : 'Ordered wrong item'}</option>
+                      <option value="Address change karna hai">{isUrdu ? 'پتے میں تبدیلی کرنی ہے' : 'Change address'}</option>
+                      <option value="Delivery timing issue">{isUrdu ? 'ڈیلیوری ٹائمنگ کا مسئلہ ہے' : 'Delivery timing issue'}</option>
+                      <option value="Payment problem">{isUrdu ? 'پیمنٹ کا مسئلہ ہے' : 'Payment issue'}</option>
+                      <option value="Other reason">{isUrdu ? 'کوئی دوسری وجہ' : 'Other reason'}</option>
+                    </select>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={handleCancelInTracking}
+                        disabled={cancelLoading}
+                        className="flex-1 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded-lg font-bold text-xs"
+                      >
+                        {cancelLoading ? (isUrdu ? 'منسوخ ہو رہا ہے...' : 'Cancelling...') : (isUrdu ? 'ہاں، منسوخ کریں' : 'Yes, Cancel')}
+                      </button>
+                      <button
+                        onClick={() => setShowCancelPrompt(false)}
+                        className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs"
+                      >
+                        {isUrdu ? 'واپس' : 'Back'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -3777,7 +4029,6 @@
       );
     }
 
-    // Professional AI Customer Assistant Chatbot (Hyderi AI)
     function HyderiAIChatbot({ isOpen, isUrdu, onClose, settings, onSelectCategory, onOpenTracking, onOpenCheckout }) {
       const [messages, setMessages] = useState([
         {

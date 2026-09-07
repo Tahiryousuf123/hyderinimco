@@ -103,13 +103,15 @@ export default function Navbar({
               <Search className="w-5 h-5 text-gray-700" />
             </button>
 
-            {/* Track Order Button */}
+            {/* Track / Cancel Order Button */}
             <button
               onClick={onOpenTracking}
-              className="hidden lg:flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:text-red-700 bg-gray-50 hover:bg-amber-50 border border-gray-200 rounded-xl transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-red-900 hover:text-red-700 bg-amber-50/90 hover:bg-amber-100 border border-amber-300/80 rounded-xl transition-all shadow-xs"
+              title="Track or Cancel Order"
             >
-              <Truck className="w-4 h-4 text-amber-600" />
-              <span>Track Order</span>
+              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700" />
+              <span className="hidden sm:inline">Track / Cancel Order</span>
+              <span className="sm:hidden text-[11px]">Track / Cancel</span>
             </button>
 
             {/* Direct WhatsApp Callout */}
