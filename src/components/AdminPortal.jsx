@@ -5,6 +5,7 @@ import {
   AlertCircle, CheckCircle2, Phone, MapPin, Search
 } from 'lucide-react';
 import { CATEGORIES } from './CategoryFilter';
+import WhatsAppLiveInbox from './WhatsAppLiveInbox';
 
 export default function AdminPortal({
   isOpen,
@@ -325,6 +326,18 @@ export default function AdminPortal({
                 >
                   <Settings className="w-4 h-4" />
                   <span>Bank & Store Settings</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('inbox')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    activeTab === 'inbox'
+                      ? 'bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-400'
+                      : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-300'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  <span>💬 WhatsApp Live Inbox</span>
                 </button>
               </div>
 
@@ -647,6 +660,13 @@ export default function AdminPortal({
                       Save Store Configurations
                     </button>
                   </form>
+                </div>
+              )}
+
+              {/* TAB 4: WHATSAPP LIVE INBOX CRM */}
+              {activeTab === 'inbox' && (
+                <div className="flex-1 h-[78vh] -m-4 sm:-m-6 overflow-hidden">
+                  <WhatsAppLiveInbox pin={pin || '7860'} authRole={pin === '7860' ? 'superadmin' : 'manager'} />
                 </div>
               )}
 

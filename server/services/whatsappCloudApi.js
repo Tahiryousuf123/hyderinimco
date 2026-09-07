@@ -7,6 +7,9 @@
  * - Sanitizes all error responses before returning or logging.
  */
 
+import fs from 'fs';
+import path from 'path';
+
 // In-memory runtime metrics for admin status reporting
 let lastWebhookReceived = null;
 let lastMessageSent = null;
@@ -281,3 +284,140 @@ export function getCloudApiStatus() {
     graphApiVersion: config.graphApiVersion
   };
 }
+
+/**
+ * Checks if the 24-hour Meta Customer Service Window is currently open.
+ * Within 24 hours of customer's last inbound message, free-form text and media messages can be sent.
+ *
+ * @param {Date|string|number} lastCustomerMessageAt
+ * @returns {boolean}
+ */
+export function isCustomerServiceWindowOpen(lastCustomerMessageAt) {
+  if (!lastCustomerMessageAt) return false;
+  const msgTime = new Date(lastCustomerMessageAt).getTime();
+  if (isNaN(msgTime) || msgTime <= 0) return false;
+  const now = Date.now();
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  return (now - msgTime) <= TWENTY_FOUR_HOURS;
+}
+
+/**
+ * Securely downloads incoming media from Meta Graph API using the server-side access token,
+ * saving it to disk so the access token is never exposed to the frontend browser.
+ *
+ * @param {string} mediaId - Meta media ID
+ * @param {string} targetDir - Local directory where file should be saved
+ * @returns {Promise<{ filename: string, mimeType: string, fileSize: number, publicUrl: string } | null>}
+ */
+export async function downloadMetaMedia(mediaId, targetDir) {
+  const { token, graphApiVersion } = getMetaConfig();
+  if (!token || !mediaId) return null;
+
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/${graphApiVersion}/${mediaId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!metaRes.ok) return null;
+
+    const metaData = await metaRes.json();
+    const downloadUrl = metaData.url;
+    const mimeType = metaData.mime_type || 'application/octet-stream';
+    if (!downloadUrl) return null;
+
+    let ext = '.bin';
+    if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = '.jpg';
+    else if (mimeType.includes('png')) ext = '.png';
+    else if (mimeType.includes('webp')) ext = '.webp';
+    else if (mimeType.includes('pdf')) ext = '.pdf';
+    else if (mimeType.includes('ogg') || mimeType.includes('opus')) ext = '.ogg';
+    else if (mimeType.includes('mp4')) ext = '.mp4';
+    else if (mimeType.includes('mp3') || mimeType.includes('mpeg')) ext = '.mp3';
+
+    const filename = `media_${mediaId}_${Date.now()}${ext}`;
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    const localFilePath = path.join(targetDir, filename);
+
+    const binaryRes = await fetch(downloadUrl, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!binaryRes.ok) return null;
+
+    const arrayBuffer = await binaryRes.arrayBuffer();
+    fs.writeFileSync(localFilePath, Buffer.from(arrayBuffer));
+
+    return {
+      filename,
+      mimeType,
+      fileSize: arrayBuffer.byteLength,
+      publicUrl: `/uploads/whatsapp/${filename}`
+    };
+  } catch (err) {
+    console.error('[Meta Cloud API] Error downloading media:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Sends outbound media (image, document, audio, video) via Meta WhatsApp Cloud API.
+ *
+ * @param {string} to - Recipient phone number
+ * @param {'image'|'document'|'audio'|'video'} mediaType - Type of media
+ * @param {string} mediaUrl - Public HTTP(S) URL of media
+ * @param {string} [caption] - Optional text caption
+ * @param {string} [filename] - Optional filename for documents
+ * @returns {Promise<{ success: boolean, messageId?: string, error?: string }>}
+ */
+export async function sendMediaMessage(to, mediaType, mediaUrl, caption = '', filename = '') {
+  const { token, phoneId, graphApiVersion } = getMetaConfig();
+  if (!token || !phoneId) return { success: false, error: 'Missing token or phoneId' };
+
+  const cleanTo = normalizePhoneNumber(to);
+  if (!cleanTo) return { success: false, error: 'Invalid recipient phone number' };
+
+  const validTypes = ['image', 'document', 'audio', 'video'];
+  const type = validTypes.includes(mediaType) ? mediaType : 'image';
+
+  const mediaObj = { link: mediaUrl };
+  if (caption && (type === 'image' || type === 'document' || type === 'video')) {
+    mediaObj.caption = String(caption);
+  }
+  if (filename && type === 'document') {
+    mediaObj.filename = String(filename);
+  }
+
+  const url = `https://graph.facebook.com/${graphApiVersion}/${phoneId}/messages`;
+  const payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanTo,
+    type: type,
+    [type]: mediaObj
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      const errMsg = data.error?.message || `HTTP ${res.status}`;
+      return { success: false, error: errMsg, code: data.error?.code };
+    }
+
+    const messageId = data.messages?.[0]?.id || '';
+    lastMessageSent = new Date().toISOString();
+    totalMessagesSent++;
+    return { success: true, messageId, data };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+

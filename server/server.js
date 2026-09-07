@@ -12,6 +12,17 @@ import { generateAIResponse, generateAIResponseAsync, calculateAreaDeliveryFee }
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
 import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast, sendMetaWhatsAppMessage } from './whatsapp_service.js';
 import { sendTextMessage, sendTypingIndicator, recordWebhookReceived, getCloudApiStatus, getMetaConfig } from './services/whatsappCloudApi.js';
+import {
+  processIncomingWebhook,
+  registerSSEClient,
+  getInboxStats,
+  listConversations,
+  getConversationDetails,
+  sendManualAgentMessage,
+  markConversationAsRead,
+  updateConversationMetadata,
+  addConversationInternalNote
+} from './services/inboxService.js';
 
 // Top-Level Global Crash Prevention Listeners (Keeps Node.js running 24/7 in production)
 process.on('unhandledRejection', (reason) => {
@@ -254,9 +265,56 @@ function sendJson(res, statusCode, data) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-PIN'
   });
   res.end(JSON.stringify(data));
+}
+
+/**
+ * Verifies admin authentication using existing Admin Portal PINs (7860: superadmin, 1970: manager)
+ * Supports X-Admin-PIN header, Authorization Bearer token, or query parameter (for SSE EventSource)
+ */
+function verifyAdminAuth(req, parsedUrl) {
+  const settings = readData('settings.json', {});
+  const superAdmin = settings.superAdmin || { pin: '7860', password: 'superadmin7860', username: 'developer' };
+  const manager = settings.manager || { pin: '1970', password: 'hyderi1970', username: 'owner' };
+
+  // 1. Check custom X-Admin-PIN header
+  const pinHeader = req.headers['x-admin-pin'];
+  if (pinHeader) {
+    const cleanPin = String(pinHeader).trim();
+    if (cleanPin === superAdmin.pin || cleanPin === settings.adminPin || cleanPin === '7860') {
+      return { authenticated: true, role: 'superadmin', user: 'developer' };
+    }
+    if (cleanPin === manager.pin || cleanPin === '1970') {
+      return { authenticated: true, role: 'manager', user: 'owner' };
+    }
+  }
+
+  // 2. Check Authorization Bearer
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    const val = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (val.startsWith('superadmin-token-') || val === superAdmin.pin || val === superAdmin.password || val === '7860') {
+      return { authenticated: true, role: 'superadmin', user: 'developer' };
+    }
+    if (val.startsWith('manager-token-') || val === manager.pin || val === manager.password || val === '1970') {
+      return { authenticated: true, role: 'manager', user: 'owner' };
+    }
+  }
+
+  // 3. Check query param for SSE / EventSource support (?pin=... or ?token=...)
+  const queryPin = (parsedUrl?.query?.pin || parsedUrl?.query?.token || '').toString().trim();
+  if (queryPin) {
+    if (queryPin === superAdmin.pin || queryPin.startsWith('superadmin-token-') || queryPin === '7860') {
+      return { authenticated: true, role: 'superadmin', user: 'developer' };
+    }
+    if (queryPin === manager.pin || queryPin.startsWith('manager-token-') || queryPin === '1970') {
+      return { authenticated: true, role: 'manager', user: 'owner' };
+    }
+  }
+
+  return { authenticated: false };
 }
 
 /**
@@ -351,7 +409,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-PIN'
     });
     return res.end();
   }
@@ -1064,109 +1122,194 @@ const server = http.createServer(async (req, res) => {
   // 14. POST /api/whatsapp/webhook & /webhook (Meta WhatsApp Cloud API Incoming Messages)
   if ((pathname === '/api/whatsapp/webhook' || pathname === '/webhook') && method === 'POST') {
     const body = await parseBody(req);
-
-    // Meta Webhook payload inspection
-    const entry = body.entry?.[0];
-    const change = entry?.changes?.[0]?.value;
-
-    // Check if event is a status update (sent, delivered, read) rather than an incoming customer message
-    if (change?.statuses && change.statuses.length > 0) {
-      recordWebhookReceived({ type: 'status' });
-      return sendJson(res, 200, { status: 'EVENT_RECEIVED' });
-    }
-
-    // Extract message details from Meta Cloud API payload
-    let from = '';
-    let messageText = '';
-    let messageId = '';
-    let messageType = 'text';
-    let customerName = '';
-
-    if (change?.messages && change.messages.length > 0) {
-      const m = change.messages[0];
-      from = m.from || '';
-      messageId = m.id || '';
-      messageType = m.type || 'text';
-      customerName = change.contacts?.[0]?.profile?.name || '';
-
-      if (messageType === 'text') {
-        messageText = m.text?.body || '';
-      } else if (messageType === 'interactive') {
-        messageText = m.interactive?.button_reply?.title || m.interactive?.list_reply?.title || '';
-      } else if (messageType === 'button') {
-        messageText = m.button?.text || '';
-      } else {
-        // Media with caption
-        messageText = m.image?.caption || m.video?.caption || m.document?.caption || '';
-      }
-    } else if (body.From && body.Body) {
-      from = body.From;
-      messageText = body.Body;
-      messageId = body.MessageSid || '';
-    } else {
-      from = body.from || '';
-      messageText = body.message || body.text || '';
-      messageId = body.messageId || '';
-    }
-
-    // Acknowledge immediately to Meta to prevent timeout/retries
+    // 1. Immediately acknowledge HTTP 200 to Meta to prevent retry loops
     sendJson(res, 200, { status: 'EVENT_RECEIVED' });
-    recordWebhookReceived({ from, type: messageType });
+    recordWebhookReceived({ type: 'webhook_received' });
 
-    if (!from) return;
+    // 2. Strict pipeline execution: validate -> idempotency -> persist customer -> persist conversation -> persist message -> update unread -> broadcast SSE -> automation decision -> AI reply
+    processIncomingWebhook(body).catch((err) => {
+      console.error('[Meta WhatsApp Webhook Pipeline Error]:', err.message || err);
+    });
+    return;
+  }
 
-    // Idempotency: Dedup duplicate webhook events
-    if (messageId) {
-      if (processedWebhookMsgIds.has(messageId)) {
-        console.log(`⚡ [Meta Webhook] Duplicate message skipped: ${messageId}`);
-        return;
-      }
-      processedWebhookMsgIds.add(messageId);
-      if (processedWebhookMsgIds.size > 500) {
-        const oldest = processedWebhookMsgIds.values().next().value;
-        processedWebhookMsgIds.delete(oldest);
-      }
+  // ---------------------------------------------------------------------------
+  // 💬 WHATSAPP LIVE INBOX CRM API ENDPOINTS (Protected by Admin PIN Auth)
+  // ---------------------------------------------------------------------------
+
+  // 14.1. GET /api/inbox/events (Real-Time SSE Stream for Open Dashboards)
+  if (pathname === '/api/inbox/events' && method === 'GET') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
     }
 
-    // Asynchronous AI Processing & Response Dispatch
-    (async () => {
-      try {
-        console.log(`📩 [Meta Webhook] Incoming message from ${from} (${customerName ? customerName + ', ' : ''}type: ${messageType}, id: ${messageId})`);
-
-        // If message is unsupported media without text (e.g. voice note, audio, sticker)
-        if (!messageText.trim()) {
-          const politeNotice = 
-            `Assalam o Alaikum! 👋🥟\n\n` +
-            `Shukriya rabta karne ka! Humari automated AI abhi sirf text messages samajh sakti hai.\n\n` +
-            `Baraye meherbani apna sawal ya order likh kar bhein, ya hamare store par call karein: 0336-2438422\n\n` +
-            `Hyderi Nimco & Frozen (North Nazimabad, Karachi)`;
-          await sendTextMessage(from, politeNotice);
-          return;
-        }
-
-        // 1. Immediately trigger live native "typing..." indicator and mark as read
-        if (messageId) {
-          sendTypingIndicator(messageId).catch(() => {});
-        }
-
-        // Realistic natural delay (2.0s to 3.5s) while typing indicator is showing to feel organic
-        const humanDelay = Math.min(3500, Math.max(2000, (messageText.length || 10) * 35));
-        await new Promise(r => setTimeout(r, humanDelay));
-
-        // Call authoritative AI Engine (Gemini + MongoDB function calling + Customer Isolation)
-        const autoReply = await handleWhatsAppIncoming(from, messageText, messageId);
-
-        if (autoReply?.message) {
-          const sendResult = await sendTextMessage(from, autoReply.message);
-          if (sendResult.success) {
-            console.log(`🤖 [Meta WhatsApp] Dispatched AI reply to ${from}`);
-          }
-        }
-      } catch (err) {
-        console.error('[Meta WhatsApp Webhook Async Error]:', err.message || err);
-      }
-    })();
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'X-Accel-Buffering': 'no'
+    });
+    res.write(`event: connected\ndata: ${JSON.stringify({ status: 'live', role: auth.role })}\n\n`);
+    registerSSEClient(res);
     return;
+  }
+
+  // 14.2. GET /api/inbox/stats (Dashboard Analytics & Unread Counters)
+  if (pathname === '/api/inbox/stats' && method === 'GET') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    try {
+      const stats = await getInboxStats();
+      return sendJson(res, 200, { success: true, stats });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // 14.3. GET /api/inbox/conversations (List Conversations with Filter, Search & Pagination)
+  if (pathname === '/api/inbox/conversations' && method === 'GET') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    try {
+      const status = parsedUrl.query.status || 'all';
+      const search = parsedUrl.query.search || '';
+      const page = parseInt(parsedUrl.query.page, 10) || 1;
+      const limit = parseInt(parsedUrl.query.limit, 10) || 50;
+
+      const data = await listConversations({ status, search, page, limit });
+      return sendJson(res, 200, { success: true, ...data });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // 14.4. GET /api/inbox/conversations/:id (Conversation Thread, Customer Details & Linked Orders)
+  if (pathname.startsWith('/api/inbox/conversations/') && !pathname.endsWith('/messages') && !pathname.endsWith('/read') && !pathname.endsWith('/notes') && method === 'GET') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    try {
+      const conversationId = pathname.replace('/api/inbox/conversations/', '');
+      const details = await getConversationDetails(conversationId);
+      if (!details) {
+        return sendJson(res, 404, { success: false, message: 'Conversation not found.' });
+      }
+      return sendJson(res, 200, { success: true, ...details });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // 14.5. POST /api/inbox/conversations/:id/messages (Manual Agent Outbound Message)
+  if (pathname.startsWith('/api/inbox/conversations/') && pathname.endsWith('/messages') && method === 'POST') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    try {
+      const conversationId = pathname.replace('/api/inbox/conversations/', '').replace('/messages', '');
+      const body = await parseBody(req);
+      const agentRoleLabel = auth.role === 'superadmin' ? 'Store Admin' : 'Store Manager';
+
+      const result = await sendManualAgentMessage({
+        conversationId,
+        customerPhone: body.customerPhone,
+        text: body.text,
+        mediaType: body.mediaType || null,
+        mediaUrl: body.mediaUrl || null,
+        agentName: body.agentName || agentRoleLabel
+      });
+
+      if (!result.success) {
+        return sendJson(res, result.windowExpired ? 403 : 400, result);
+      }
+      return sendJson(res, 200, result);
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // 14.6. POST /api/inbox/conversations/:id/read (Mark Conversation as Read)
+  if (pathname.startsWith('/api/inbox/conversations/') && pathname.endsWith('/read') && method === 'POST') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    try {
+      const conversationId = pathname.replace('/api/inbox/conversations/', '').replace('/read', '');
+      const result = await markConversationAsRead(conversationId);
+      return sendJson(res, 200, result);
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // 14.7. PATCH /api/inbox/conversations/:id (Update Status, Automation State, or Labels)
+  if (pathname.startsWith('/api/inbox/conversations/') && method === 'PATCH') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    try {
+      const conversationId = pathname.replace('/api/inbox/conversations/', '');
+      const body = await parseBody(req);
+      const result = await updateConversationMetadata(conversationId, body);
+      return sendJson(res, 200, result);
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // 14.75. POST /api/inbox/conversations/:id/notes (Add Internal Staff Note)
+  if (pathname.startsWith('/api/inbox/conversations/') && pathname.endsWith('/notes') && method === 'POST') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    try {
+      const conversationId = pathname.replace('/api/inbox/conversations/', '').replace('/notes', '');
+      const body = await parseBody(req);
+      const author = body.author || (auth.role === 'superadmin' ? 'Store Admin' : 'Store Manager');
+      const result = await addConversationInternalNote(conversationId, body.text, author);
+      return sendJson(res, 200, result);
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // 14.76. GET /api/inbox/automation (Get Global AI Automation Status)
+  if (pathname === '/api/inbox/automation' && method === 'GET') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    return sendJson(res, 200, {
+      success: true,
+      aiAutoReplyEnabled: isAiAutoReplyEnabled(),
+      aiFollowUpEnabled: isAiFollowUpEnabled()
+    });
+  }
+
+  // 14.77. POST /api/inbox/automation (Toggle Global AI Automation)
+  if (pathname === '/api/inbox/automation' && method === 'POST') {
+    const auth = verifyAdminAuth(req, parsedUrl);
+    if (!auth.authenticated) {
+      return sendJson(res, 401, { success: false, message: 'Unauthorized: Admin authentication required.' });
+    }
+    const body = await parseBody(req);
+    const enabled = body.enabled !== undefined ? Boolean(body.enabled) : !isAiAutoReplyEnabled();
+    setAiAutoReply(enabled);
+    return sendJson(res, 200, {
+      success: true,
+      aiAutoReplyEnabled: isAiAutoReplyEnabled()
+    });
   }
 
   // 15. POST /api/whatsapp/simulate (Admin Live WhatsApp AI Bot Simulator)
@@ -1347,6 +1490,10 @@ const server = http.createServer(async (req, res) => {
                          ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.ico', '.css', '.js', '.json', '.map', '.woff', '.woff2', '.ttf'].includes(pathnameExt);
 
   let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
+  if (pathname.startsWith('/uploads/')) {
+    const relUpload = pathname.replace('/uploads/', '');
+    filePath = path.join(UPLOADS_DIR, relUpload);
+  }
   if (!fs.existsSync(filePath)) {
     if (isAssetRequest) {
       res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });

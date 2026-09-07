@@ -45,5 +45,6 @@
       "instructions": "EasyPaisa App > Send Money > 03362438422 (Title: Arsalan Arsalan) par raqam bhejein aur TID / slip upload karein."
     }
   },
-  "announcement": "✨ FREE DELIVERY across North Nazimabad & Karachi on orders above Rs. 5,000! Freshly Prepared & Fast Chilled Delivery."
+  "announcement": "✨ FREE DELIVERY across North Nazimabad & Karachi on orders above Rs. 5,000! Freshly Prepared & Fast Chilled Delivery.",
+  "aiAutoReplyEnabled": true
 }
