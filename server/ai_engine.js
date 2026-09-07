@@ -83,11 +83,11 @@ const TOOL_DECLARATIONS = [
   },
   {
     name: 'create_order',
-    description: 'Create a confirmed order in MongoDB Atlas. ONLY call this after the customer has explicitly confirmed their order (e.g. said "haan", "confirm", "yes", "kar do", "book karo"). Do NOT call this speculatively. Each order must have at least one item and a delivery address.',
+    description: 'Create a confirmed order in MongoDB Atlas. Call this tool immediately when the customer confirms their order (e.g. "haan", "confirm", "yes", "yess", "kar do", "theek hai", "book karo", "sahi hai"). Each order must have at least one item and a delivery address.',
     parameters: {
       type: 'OBJECT',
       properties: {
-        customer_phone: { type: 'STRING', description: 'Customer WhatsApp phone number' },
+        customer_phone: { type: 'STRING', description: 'Customer WhatsApp phone number (optional, system will auto-use active chat phone)' },
         customer_name: { type: 'STRING', description: 'Customer name (if provided)' },
         delivery_address: { type: 'STRING', description: 'Full delivery address' },
         delivery_area: { type: 'STRING', description: 'Delivery area/neighbourhood name' },
@@ -97,18 +97,18 @@ const TOOL_DECLARATIONS = [
           items: {
             type: 'OBJECT',
             properties: {
-              product_id: { type: 'STRING', description: 'Product ID from catalog' },
+              product_id: { type: 'STRING', description: 'Product ID or name from catalog' },
               product_name: { type: 'STRING', description: 'Product name for display' },
               quantity: { type: 'NUMBER', description: 'Number of packets/units' }
             },
-            required: ['product_id', 'quantity']
+            required: ['quantity']
           }
         },
         payment_method: { type: 'STRING', description: 'cod, easypaisa, or bank_transfer. Default: cod' },
         notes: { type: 'STRING', description: 'Any special instructions or notes from customer' },
         idempotency_key: { type: 'STRING', description: 'Unique key to prevent duplicate orders — use the WhatsApp message ID' }
       },
-      required: ['customer_phone', 'items', 'delivery_address']
+      required: ['items', 'delivery_address']
     }
   },
   {
@@ -266,12 +266,16 @@ async function executeToolCall(toolName, args, customerPhone) {
             5000
           );
           if (!dbProduct) {
-            const searchKeyword = (item.product_name || item.product_id || '').trim();
-            if (searchKeyword) {
-              const cleanKeyword = searchKeyword.replace(/[-_]/g, ' ');
+            const rawKeyword = (item.product_name || item.product_id || '').trim();
+            if (rawKeyword) {
+              const cleanKeyword = rawKeyword
+                .replace(/\b(\d+\s*pcs?|\d+\s*pieces?|pack|packet|half kg|1kg|dozen)\b/gi, '')
+                .replace(/[-_()]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
               const regex = new RegExp(cleanKeyword, 'i');
               dbProduct = await withTimeout(
-                Product.findOne({ $or: [{ name: regex }, { nameUrdu: regex }, { id: regex }] }, { _id: 0, __v: 0, image: 0 }).lean(),
+                Product.findOne({ $or: [{ name: regex }, { nameUrdu: regex }, { id: regex }, { id: rawKeyword.toLowerCase().replace(/\s+/g, '-') }] }, { _id: 0, __v: 0, image: 0 }).lean(),
                 5000
               );
             }
@@ -308,9 +312,9 @@ async function executeToolCall(toolName, args, customerPhone) {
       const deliveryFee = calculateAreaDeliveryFee(args.delivery_area || args.delivery_address);
       const totalAmount = subtotal + deliveryFee;
 
-      // Generate order reference
+      // Generate standard order reference HYD-XXXXXX
       const now = new Date();
-      const orderRef = `WA-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
+      const orderRef = 'HYD-' + Math.floor(100000 + Math.random() * 900000);
       const orderId = `wa_order_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
       const orderDoc = {
@@ -472,8 +476,12 @@ async function executeToolCall(toolName, args, customerPhone) {
 // ---------------------------------------------------------------------------
 // SYSTEM PROMPT — injected once per Gemini conversation
 // ---------------------------------------------------------------------------
-function buildSystemPrompt() {
+function buildSystemPrompt(customerPhone = '') {
   return `You are the official AI Sales & Customer Care Agent for "New Hyderi Nimco & Frozen Foods (Since 1970)" on WhatsApp.
+
+CUSTOMER WHATSAPP CONTEXT:
+- Customer Phone Number: "${customerPhone || 'Verified WhatsApp Customer'}"
+- You are chatting directly on WhatsApp. The customer's phone number is ALREADY VERIFIED and stored in system context. You do NOT need to ask them for their phone number!
 
 IDENTITY & LANGUAGE:
 - Speak warm, respectful Roman Urdu by default. Switch to English or Urdu if the customer uses those.
@@ -487,17 +495,20 @@ TOOL USAGE — CRITICAL RULES:
 3. If a product is not in the tool result, tell the customer it is not available rather than inventing it.
 4. For product recommendations, call get_products first, then suggest from actual results.
 
-ORDER FLOW — MANDATORY:
+ORDER FLOW & MANDATORY FUNCTION CALLING — CRITICAL:
 1. When a customer mentions products they want, use get_product_by_name to verify each one.
-2. Build an order summary and present it clearly to the customer for confirmation.
-3. Ask: "Kya main order confirm kar doon?" (or equivalent)
-4. ONLY call create_order after the customer CLEARLY confirms (e.g. "haan", "confirm", "yes", "kar do", "theek hai", "book karo").
-5. Do NOT interpret a casual "haan" (in response to another question) as order confirmation.
-6. Before calling create_order, you MUST have:
-   - At least one verified product with its MongoDB ID
-   - A delivery address from the customer
-   - Payment method (default to COD if not specified)
-7. If any required info is missing, ask for it naturally before confirming.
+2. Build an itemized order summary (product names, quantities, prices, delivery fee according to area, and grand total) and present it clearly to the customer.
+3. Ask: "Kya main order confirm kar doon? Delivery ke liye apna naam bata dein."
+4. WHEN THE CUSTOMER CONFIRMS (e.g. says "haan", "yes", "yess", "confirm", "theek hai", "kar do", "book karo", "ok", "sahi hai"):
+   YOU MUST EXECUTE THE "create_order" FUNCTION CALL IMMEDIATELY!
+5. ZERO TOLERANCE FOR FAKE ORDERS: You are STRICTLY FORBIDDEN from outputting an order confirmation message, saying "order book ho gaya hai", or inventing any fake Order Reference (like HYD-... or WA-...) in text without calling the "create_order" tool!
+   If you do not call the tool, the order will NEVER be saved to the database, the kitchen will never prepare it, and the rider will never deliver it!
+6. Always pass to create_order:
+   - customer_phone: "${customerPhone}"
+   - customer_name: the customer's name
+   - delivery_address: full address provided by customer
+   - delivery_area: area name
+   - items: list of items with product_id/product_name and quantity
 
 DELIVERY CHARGES (BYKEA EXPRESS COLD-BOX DELIVERY):
 Delivery charges are based strictly on Bykea area distance (no free delivery):
@@ -607,11 +618,11 @@ const GROQ_TOOLS = [
     type: 'function',
     function: {
       name: 'create_order',
-      description: 'Create a confirmed order in MongoDB Atlas. ONLY call this after the customer has explicitly confirmed their order (e.g. said "haan", "confirm", "yes", "kar do", "book karo"). Do NOT call this speculatively. Each order must have at least one item and a delivery address.',
+      description: 'Create a confirmed order in MongoDB Atlas. Call this tool immediately when the customer confirms their order (e.g. "haan", "confirm", "yes", "yess", "kar do", "theek hai", "book karo", "sahi hai"). Each order must have at least one item and a delivery address.',
       parameters: {
         type: 'object',
         properties: {
-          customer_phone: { type: 'string', description: 'Customer WhatsApp phone number' },
+          customer_phone: { type: 'string', description: 'Customer WhatsApp phone number (optional, system will auto-use active chat phone)' },
           customer_name: { type: 'string', description: 'Customer name (if provided)' },
           delivery_address: { type: 'string', description: 'Full delivery address' },
           delivery_area: { type: 'string', description: 'Delivery area/neighbourhood name' },
@@ -621,18 +632,18 @@ const GROQ_TOOLS = [
             items: {
               type: 'object',
               properties: {
-                product_id: { type: 'string', description: 'Product ID from catalog' },
+                product_id: { type: 'string', description: 'Product ID or name from catalog' },
                 product_name: { type: 'string', description: 'Product name for display' },
                 quantity: { type: 'number', description: 'Number of packets/units' }
               },
-              required: ['product_id', 'quantity']
+              required: ['quantity']
             }
           },
           payment_method: { type: 'string', description: 'cod, easypaisa, or bank_transfer. Default: cod' },
           notes: { type: 'string', description: 'Any special instructions or notes from customer' },
           idempotency_key: { type: 'string', description: 'Unique key to prevent duplicate orders — use the WhatsApp message ID' }
         },
-        required: ['customer_phone', 'items', 'delivery_address']
+        required: ['items', 'delivery_address']
       }
     }
   },
@@ -676,13 +687,13 @@ async function generateGroqResponseAsync(userMessage, conversationHistory = [], 
   if (!apiKey) return null;
 
   const groqModels = [
-    'qwen/qwen3.6-27b',
-    'qwen/qwen3.8-27b',
+    'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
-    'openai/gpt-oss-120b'
+    'groq/compound',
+    'qwen/qwen3.8-27b'
   ];
 
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(customerPhone);
   const messages = [
     { role: 'system', content: systemPrompt }
   ];
@@ -760,6 +771,24 @@ async function generateGroqResponseAsync(userMessage, conversationHistory = [], 
           const toolResult = await executeToolCall(toolName, toolArgs, customerPhone);
           console.log(`[AI Tool:Groq] ${toolName} result:`, JSON.stringify(toolResult).slice(0, 200));
 
+          // If create_order succeeded, return definitive customer confirmation immediately!
+          if (toolName === 'create_order' && toolResult && toolResult.success && toolResult.orderRef) {
+            const itemsList = Array.isArray(toolResult.items) ? toolResult.items.map(it => `• ${it}`).join('\n') : '• Fresh Prepared Items';
+            return {
+              reply: `Aapka order successfully book ho gaya hai! 🎉📦\n\n*Order Details:*\n• *Order Ref:* ${toolResult.orderRef}\n${itemsList}\n• *Delivery Fee:* Rs. ${toolResult.deliveryFee || 100}/-\n• *Grand Total:* Rs. ${toolResult.totalAmount}/- (Cash on Delivery)\n\nAapka order kitchen mein prepare kiya ja raha hai aur jald hi Bykea rider ke zariye deliver kiya jayega. Shukriya Hyderi Nimco par aitmaad karne ka! 😊🛵`,
+              suggestions: ['📋 Order Status', '🥟 Full Menu', '📞 Helpline Call'],
+              action: { type: 'order_created', orderRef: toolResult.orderRef }
+            };
+          }
+
+          if (toolName === 'cancel_order' && toolResult && toolResult.success) {
+            return {
+              reply: toolResult.message || `Aapka order cancel kar diya gaya hai.`,
+              suggestions: ['🛒 Naya Order Book Karein', '🥟 Full Menu'],
+              action: { type: 'order_cancelled', orderRef: toolResult.orderRef }
+            };
+          }
+
           currentMessages.push({
             role: 'tool',
             tool_call_id: tc.id,
@@ -799,12 +828,11 @@ async function generateGeminiResponseAsync(userMessage, conversationHistory = []
   }
 
   const modelsToTry = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b'
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-latest'
   ];
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(customerPhone);
 
   // Build conversation contents
   const contentsPayload = [
@@ -883,6 +911,24 @@ async function generateGeminiResponseAsync(userMessage, conversationHistory = []
           const toolResult = await executeToolCall(toolName, toolArgs || {}, customerPhone);
           console.log(`[AI Tool:Gemini] ${toolName} result:`, JSON.stringify(toolResult).slice(0, 200));
 
+          // If create_order succeeded, return definitive customer confirmation immediately!
+          if (toolName === 'create_order' && toolResult && toolResult.success && toolResult.orderRef) {
+            const itemsList = Array.isArray(toolResult.items) ? toolResult.items.map(it => `• ${it}`).join('\n') : '• Fresh Prepared Items';
+            return {
+              reply: `Aapka order successfully book ho gaya hai! 🎉📦\n\n*Order Details:*\n• *Order Ref:* ${toolResult.orderRef}\n${itemsList}\n• *Delivery Fee:* Rs. ${toolResult.deliveryFee || 100}/-\n• *Grand Total:* Rs. ${toolResult.totalAmount}/- (Cash on Delivery)\n\nAapka order kitchen mein prepare kiya ja raha hai aur jald hi Bykea rider ke zariye deliver kiya jayega. Shukriya Hyderi Nimco par aitmaad karne ka! 😊🛵`,
+              suggestions: ['📋 Order Status', '🥟 Full Menu', '📞 Helpline Call'],
+              action: { type: 'order_created', orderRef: toolResult.orderRef }
+            };
+          }
+
+          if (toolName === 'cancel_order' && toolResult && toolResult.success) {
+            return {
+              reply: toolResult.message || `Aapka order cancel kar diya gaya hai.`,
+              suggestions: ['🛒 Naya Order Book Karein', '🥟 Full Menu'],
+              action: { type: 'order_cancelled', orderRef: toolResult.orderRef }
+            };
+          }
+
           toolResultParts.push({
             functionResponse: {
               name: toolName,
@@ -922,23 +968,177 @@ async function generateGeminiResponseAsync(userMessage, conversationHistory = []
 }
 
 // ---------------------------------------------------------------------------
-// MAIN AI ENGINE ENTRYPOINT — Groq Primary (Super Fast) + Gemini Fallback
+// ZERO-LOSS SAFETY NET & AUTO-RECOVERY GUARD
+// ---------------------------------------------------------------------------
+async function ensureOrderSavedIfConfirmed(aiResult, userMessage, conversationHistory, customerPhone) {
+  if (!aiResult || !aiResult.reply || !isDBConnected()) return aiResult;
+
+  const reply = aiResult.reply;
+  const lowerReply = reply.toLowerCase();
+  const lowerUser = (userMessage || '').trim().toLowerCase();
+
+  // Check if AI reply or customer message implies an order was booked/confirmed
+  const replyClaimsOrder =
+    lowerReply.includes('successfully book') ||
+    lowerReply.includes('order book ho gaya') ||
+    lowerReply.includes('order placed') ||
+    lowerReply.includes('order details:') ||
+    /\border ref\b/i.test(reply) ||
+    /\b(HYD-\d+|WA-[A-Z0-9-]+)\b/i.test(reply);
+
+  const userConfirmed =
+    /^(haan|yes|yess|confirm|theek hai|kar do|book karo|ok|sahi hai|done|bhejo)\b/i.test(lowerUser) ||
+    lowerUser.includes('confirm') ||
+    lowerUser.includes('order book');
+
+  if (!replyClaimsOrder && !userConfirmed) {
+    return aiResult;
+  }
+
+  try {
+    const cleanPhone = (customerPhone || '').replace(/[^0-9]/g, '');
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+
+    // Check if an order was created in MongoDB for this customer in the last 2 minutes
+    const recentOrder = await Order.findOne({
+      $or: [
+        { 'customer.phone': { $regex: cleanPhone.slice(-10) } },
+        { 'notes': { $regex: cleanPhone.slice(-10) } }
+      ],
+      createdAt: { $gte: twoMinutesAgo }
+    }).sort({ createdAt: -1 });
+
+    if (recentOrder) {
+      // Order was already successfully created by tool!
+      // If AI reply contained a different or hallucinated reference, replace with real orderRef
+      if (!reply.includes(recentOrder.orderRef)) {
+        aiResult.reply = reply.replace(/\b(HYD-\d+|WA-[A-Z0-9-]+)\b/g, recentOrder.orderRef);
+      }
+      return aiResult;
+    }
+
+    console.warn(`⚠️ [Order Safety Net] AI text suggested order confirmation, but NO order was found in MongoDB for ${cleanPhone}. Auto-recovering order from chat history...`);
+
+    // Extract address, customer name, and products from conversation history
+    const allMessages = [...(conversationHistory || []), { sender: 'user', text: userMessage }];
+    const allText = allMessages.map(m => m.text || '').join('\n');
+
+    let address = '';
+    let name = 'WhatsApp Customer';
+
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+      const msg = allMessages[i];
+      if (msg.sender === 'user') {
+        const t = (msg.text || '').trim();
+        if (/address|block|house|street|road|floor|flat|sector|nazimabad/i.test(t) && t.length > 8) {
+          if (!address) address = t.replace(/^address\s*[:=-]?\s*/i, '').trim();
+        } else if (!name || name === 'WhatsApp Customer') {
+          // If message is 1-3 words and not a command, it's likely the customer's name
+          if (t.split(/\s+/).length <= 3 && !/^(haan|yes|yess|ok|theek|samosa|roll|hi|hello|chicken|beef|confirm)/i.test(t)) {
+            name = t;
+          }
+        }
+      }
+    }
+
+    // Match products from live database catalog
+    const products = await Product.find({ isAvailable: { $ne: false } }, { id: 1, name: 1, nameUrdu: 1, price: 1 }).lean();
+    const orderedItems = [];
+    const lowerChat = allText.toLowerCase();
+
+    for (const p of products) {
+      const pNameLower = p.name.toLowerCase();
+      const pIdLower = p.id.toLowerCase();
+      if (lowerChat.includes(pNameLower) || lowerChat.includes(pIdLower) || (p.nameUrdu && lowerChat.includes(p.nameUrdu))) {
+        let qty = 1;
+        const qtyMatch = lowerChat.match(new RegExp(`(\\d+)\\s*(?:x|pack|packet|plate)?\\s*${pNameLower.slice(0, 8)}`)) ||
+                         lowerChat.match(new RegExp(`${pNameLower.slice(0, 8)}[\\s\\S]{0,20}?(\\d+)\\s*(?:pack|packet|pcs)?`));
+        if (qtyMatch && Number(qtyMatch[1]) > 0 && Number(qtyMatch[1]) <= 20) {
+          qty = Number(qtyMatch[1]);
+        }
+        orderedItems.push({
+          product_id: p.id,
+          product_name: p.name,
+          quantity: qty
+        });
+      }
+    }
+
+    if (orderedItems.length > 0 && address) {
+      console.log(`🛠️ [Order Safety Net] Auto-creating order with:`, { items: orderedItems, address, name, cleanPhone });
+      const toolRes = await executeToolCall('create_order', {
+        customer_phone: cleanPhone,
+        customer_name: name,
+        delivery_address: address,
+        items: orderedItems,
+        payment_method: 'cod',
+        notes: 'Safety Net Auto-Recovery from WhatsApp Chat'
+      }, cleanPhone);
+
+      if (toolRes && toolRes.success && toolRes.orderRef) {
+        console.log(`✅ [Order Safety Net] Successfully rescued and created order in MongoDB: ${toolRes.orderRef}`);
+        // Ensure reply contains real order reference
+        let updatedReply = reply.replace(/\b(HYD-\d+|WA-[A-Z0-9-]+)\b/g, toolRes.orderRef);
+        if (!updatedReply.includes(toolRes.orderRef)) {
+          updatedReply += `\n\n*Order Ref:* ${toolRes.orderRef}\n*Grand Total:* Rs. ${toolRes.totalAmount}/- (Cash on Delivery)\n*Status:* Confirmed & Sent to Kitchen 🥟`;
+        }
+        aiResult.reply = updatedReply;
+        return aiResult;
+      }
+    }
+  } catch (safetyErr) {
+    console.error('[Order Safety Net Error]:', safetyErr.message);
+  }
+
+  return aiResult;
+}
+
+// ---------------------------------------------------------------------------
+// MAIN AI ENGINE ENTRYPOINT — Gemini Primary + Groq Fallback + Safety Net
 // ---------------------------------------------------------------------------
 export async function generateAIResponseAsync(userMessage, conversationHistory = [], customerPhone = '', messageId = '') {
-  // 1. Try Groq first for lightning-fast sub-second response & massive free quota
-  if (process.env.GROQ_API_KEY) {
+  let aiResult = null;
+
+  // 1. Try Gemini 3.6 Flash / 3.1 Flash Lite first (Fastest, highly reliable tool calling)
+  if (process.env.GEMINI_API_KEY) {
     try {
-      const groqResult = await generateGroqResponseAsync(userMessage, conversationHistory, customerPhone, messageId);
-      if (groqResult && groqResult.reply) {
-        return groqResult;
+      const geminiResult = await generateGeminiResponseAsync(userMessage, conversationHistory, customerPhone, messageId);
+      if (geminiResult && geminiResult.reply) {
+        aiResult = geminiResult;
       }
     } catch (err) {
-      console.warn('[AI Engine] Groq primary failed, falling back to Gemini:', err.message);
+      console.warn('[AI Engine] Gemini primary failed, falling back to Groq:', err.message);
     }
   }
 
-  // 2. Fallback to Gemini if Groq is not configured or failed
-  return await generateGeminiResponseAsync(userMessage, conversationHistory, customerPhone, messageId);
+  // 2. Fallback to Groq if Gemini failed or is not configured
+  if (!aiResult && process.env.GROQ_API_KEY) {
+    try {
+      const groqResult = await generateGroqResponseAsync(userMessage, conversationHistory, customerPhone, messageId);
+      if (groqResult && groqResult.reply) {
+        aiResult = groqResult;
+      }
+    } catch (err) {
+      console.warn('[AI Engine] Groq fallback failed:', err.message);
+    }
+  }
+
+  if (!aiResult) {
+    aiResult = {
+      reply: 'Maafi chahte hain, AI service abhi temporarily unavailable hai. Thodi der baad dobara try karein, ya seedha call karein: 0336-2438422 | 021-36625698',
+      suggestions: [],
+      action: null
+    };
+  }
+
+  // 3. Run Zero-Loss Safety Net to guarantee any confirmed order is saved to MongoDB
+  try {
+    aiResult = await ensureOrderSavedIfConfirmed(aiResult, userMessage, conversationHistory, customerPhone);
+  } catch (guardErr) {
+    console.error('[AI Engine Safety Net Guard Exception]:', guardErr.message);
+  }
+
+  return aiResult;
 }
 
 // ---------------------------------------------------------------------------
