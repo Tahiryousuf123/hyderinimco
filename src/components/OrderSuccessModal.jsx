@@ -87,14 +87,9 @@ export default function OrderSuccessModal({ order, isOpen, onClose, settings, on
         setCancelSuccessMsg('Aapka order kamiyabi se cancel kar diya gaya hai. Confirmation WhatsApp par bhej di gayi hai.');
         setShowCancelPrompt(false);
 
-        // Update localStorage
+        // Clear active order from localStorage upon cancellation
         try {
-          const saved = localStorage.getItem('hyderi_active_order');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            parsed.status = 'cancelled';
-            localStorage.setItem('hyderi_active_order', JSON.stringify(parsed));
-          }
+          localStorage.removeItem('hyderi_active_order');
         } catch (e) {}
 
         if (onCancelOrder) {

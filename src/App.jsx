@@ -35,7 +35,13 @@ export default function App() {
   const [activeOrder, setActiveOrder] = useState(() => {
     try {
       const saved = localStorage.getItem('hyderi_active_order');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed && (parsed.status === 'cancelled' || parsed.status === 'completed')) {
+        localStorage.removeItem('hyderi_active_order');
+        return null;
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -75,11 +81,19 @@ export default function App() {
           return;
         }
         const data = await res.json();
-        if (data.success && data.order && data.order.status !== activeOrder.status) {
-          setActiveOrder(data.order);
-          try { localStorage.setItem('hyderi_active_order', JSON.stringify(data.order)); } catch (e) {}
-          if (latestOrder && latestOrder.orderRef === data.order.orderRef) {
-            setLatestOrder(data.order);
+        if (data.success && data.order) {
+          if (data.order.status === 'cancelled' || data.order.status === 'completed') {
+            try { localStorage.removeItem('hyderi_active_order'); } catch (e) {}
+            setActiveOrder(null);
+            if (latestOrder && latestOrder.orderRef === data.order.orderRef) {
+              setLatestOrder(data.order);
+            }
+          } else if (data.order.status !== activeOrder.status) {
+            setActiveOrder(data.order);
+            try { localStorage.setItem('hyderi_active_order', JSON.stringify(data.order)); } catch (e) {}
+            if (latestOrder && latestOrder.orderRef === data.order.orderRef) {
+              setLatestOrder(data.order);
+            }
           }
         }
       } catch (e) {}
@@ -311,13 +325,19 @@ export default function App() {
         settings={settings}
         onCancelOrder={(cancelledOrder) => {
           setLatestOrder(cancelledOrder);
-          setActiveOrder(cancelledOrder);
+          setActiveOrder(null);
+          try { localStorage.removeItem('hyderi_active_order'); } catch (e) {}
         }}
       />
 
       <OrderTrackingModal
         isOpen={isTrackingOpen}
         onClose={() => setIsTrackingOpen(false)}
+        onCancelOrder={(cancelledOrder) => {
+          setLatestOrder(cancelledOrder);
+          setActiveOrder(null);
+          try { localStorage.removeItem('hyderi_active_order'); } catch (e) {}
+        }}
       />
 
       <AdminPortal
@@ -329,8 +349,8 @@ export default function App() {
         onRefreshSettings={fetchSettings}
       />
 
-      {/* Customer Active Order Persistent Screen Banner (Hidden when any modal is open or dismissed) */}
-      {activeOrder && activeOrder.status !== 'completed' && !isSuccessOpen && !isTrackingOpen && !isCheckoutOpen && !isCartOpen && !isAdminOpen && !isBannerDismissed && (
+      {/* Customer Active Order Persistent Screen Banner (Hidden when any modal is open or when cancelled/completed) */}
+      {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && !isSuccessOpen && !isTrackingOpen && !isCheckoutOpen && !isCartOpen && !isAdminOpen && !isBannerDismissed && (
         <div
           style={{ bottom: '70px' }}
           className="fixed bottom-[70px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-[410px] z-30 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 border-2 border-amber-400/80 shadow-emerald-950/50 animate-in slide-in-from-bottom-5"
@@ -338,9 +358,9 @@ export default function App() {
           {/* Top Row: Indicator + Order Ref + Total Amount + Dismiss Button */}
           <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
             <div className="flex items-center gap-2 min-w-0">
-              <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'cancelled' ? 'bg-rose-500' : (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping'))} />
-              <span className="text-[11px] text-slate-400 font-semibold shrink-0">{activeOrder.status === 'cancelled' ? 'Cancelled:' : 'Active:'}</span>
-              <span className={"font-mono font-black text-xs tracking-wider truncate " + (activeOrder.status === 'cancelled' ? 'text-rose-400' : 'text-amber-300')}>{activeOrder.orderRef}</span>
+              <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
+              <span className="text-[11px] text-slate-400 font-semibold shrink-0">Active:</span>
+              <span className="font-mono font-black text-xs text-amber-300 tracking-wider truncate">{activeOrder.orderRef}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="font-mono font-black text-xs text-emerald-400">Rs. {activeOrder.totalAmount}/-</span>
@@ -358,12 +378,7 @@ export default function App() {
           {/* Bottom Row: Status Badge & Thumb-Friendly Action Buttons */}
           <div className="flex items-center justify-between gap-2 pt-2">
             <div className="text-[11px] text-slate-300 font-medium truncate min-w-0">
-              {activeOrder.status === 'cancelled' ? (
-                <span className="text-rose-400 font-bold flex items-center gap-1">
-                  <span>❌</span>
-                  <span className="truncate">Order Cancelled</span>
-                </span>
-              ) : activeOrder.status === 'out_for_delivery' ? (
+              {activeOrder.status === 'out_for_delivery' ? (
                 <span className="text-amber-300 font-bold flex items-center gap-1">
                   <span>🛵</span>
                   <span className="truncate">Out for Delivery</span>
@@ -377,19 +392,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {activeOrder.status === 'cancelled' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLatestOrder(activeOrder);
-                    setIsSuccessOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center gap-1"
-                >
-                  <span>📄</span>
-                  <span>View Slip</span>
-                </button>
-              ) : (activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
+              {(activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
                 <button
                   type="button"
                   onClick={() => {

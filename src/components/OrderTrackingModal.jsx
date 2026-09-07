@@ -13,7 +13,7 @@ const CANCELLATION_REASONS = [
   "Other reason (Koi doosri wajah)"
 ];
 
-export default function OrderTrackingModal({ isOpen, onClose }) {
+export default function OrderTrackingModal({ isOpen, onClose, onCancelOrder }) {
   const [orderRef, setOrderRef] = useState(() => {
     try {
       const s = localStorage.getItem('hyderi_active_order');
@@ -82,17 +82,14 @@ export default function OrderTrackingModal({ isOpen, onClose }) {
         setCancelMsg('Order kamiyabi se cancel ho gaya hai. Confirmation WhatsApp par bhej di gayi hai.');
         setShowCancelPrompt(false);
 
-        // Update localStorage
+        // Clear active order from localStorage
         try {
-          const saved = localStorage.getItem('hyderi_active_order');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed.orderRef === searchedOrder.orderRef) {
-              parsed.status = 'cancelled';
-              localStorage.setItem('hyderi_active_order', JSON.stringify(parsed));
-            }
-          }
+          localStorage.removeItem('hyderi_active_order');
         } catch (e) {}
+
+        if (onCancelOrder) {
+          onCancelOrder({ ...searchedOrder, status: 'cancelled', cancellationReason: finalReason });
+        }
       } else {
         throw new Error(data.message || 'Failed to cancel order');
       }

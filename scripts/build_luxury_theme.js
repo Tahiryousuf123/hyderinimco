@@ -1552,7 +1552,13 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const [activeOrder, setActiveOrder] = useState(() => {
         try {
           const s = localStorage.getItem('hyderi_active_order');
-          return s ? JSON.parse(s) : null;
+          if (!s) return null;
+          const parsed = JSON.parse(s);
+          if (parsed && (parsed.status === 'cancelled' || parsed.status === 'completed')) {
+            localStorage.removeItem('hyderi_active_order');
+            return null;
+          }
+          return parsed;
         } catch(e) { return null; }
       });
       const [isTrackingOpen, setIsTrackingOpen] = useState(false);
@@ -1579,10 +1585,16 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               return;
             }
             const data = await res.json();
-            if (data.success && data.order && data.order.status !== activeOrder.status) {
-              setActiveOrder(data.order);
-              try { localStorage.setItem('hyderi_active_order', JSON.stringify(data.order)); } catch (e) {}
-              setCompletedOrder(prev => (prev && prev.orderRef === data.order.orderRef ? data.order : prev));
+            if (data.success && data.order) {
+              if (data.order.status === 'cancelled' || data.order.status === 'completed') {
+                try { localStorage.removeItem('hyderi_active_order'); } catch (e) {}
+                setActiveOrder(null);
+                setCompletedOrder(prev => (prev && prev.orderRef === data.order.orderRef ? data.order : prev));
+              } else if (data.order.status !== activeOrder.status) {
+                setActiveOrder(data.order);
+                try { localStorage.setItem('hyderi_active_order', JSON.stringify(data.order)); } catch (e) {}
+                setCompletedOrder(prev => (prev && prev.orderRef === data.order.orderRef ? data.order : prev));
+              }
             }
           } catch (e) {}
         };
@@ -2759,8 +2771,8 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               settings={settings}
               onCancelOrder={(updated) => {
                 setCompletedOrder(updated);
-                setActiveOrder(updated);
-                try { localStorage.setItem('hyderi_active_order', JSON.stringify(updated)); } catch(e) {}
+                setActiveOrder(null);
+                try { localStorage.removeItem('hyderi_active_order'); } catch(e) {}
               }}
             />
           )}
@@ -2771,11 +2783,15 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               isOpen={isTrackingOpen}
               isUrdu={isUrdu}
               onClose={() => setIsTrackingOpen(false)}
+              onCancelOrder={(cancelled) => {
+                setActiveOrder(null);
+                try { localStorage.removeItem('hyderi_active_order'); } catch(e) {}
+              }}
             />
           )}
 
-          {/* Active Order Persistent Screen Banner (Hidden when any modal is open) */}
-          {activeOrder && activeOrder.status !== 'completed' && !completedOrder && !isTrackingOpen && !isCheckoutOpen && !isCartOpen && !isChatOpen && !isBrochureModalOpen && !isBannerDismissed && (
+          {/* Active Order Persistent Screen Banner (Hidden when any modal is open or when cancelled/completed) */}
+          {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && !completedOrder && !isTrackingOpen && !isCheckoutOpen && !isCartOpen && !isChatOpen && !isBrochureModalOpen && !isBannerDismissed && (
             <div
               style={{ bottom: '70px' }}
               className="fixed bottom-[70px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-[410px] z-30 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 border-2 border-goldBrand-400/90 shadow-emeraldBrand-950/50 animate-in slide-in-from-bottom-5"
@@ -2783,9 +2799,9 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               {/* Top Row: Indicator + Order Ref + Total Amount + Dismiss Button */}
               <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'cancelled' ? 'bg-rose-500' : (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping'))} />
-                  <span className="text-[11px] text-slate-400 font-semibold shrink-0">{activeOrder.status === 'cancelled' ? (isUrdu ? 'منسوخ:' : 'Cancelled:') : (isUrdu ? 'آرڈر:' : 'Active:')}</span>
-                  <span className={"font-mono font-black text-xs tracking-wider truncate " + (activeOrder.status === 'cancelled' ? 'text-rose-300' : 'text-goldBrand-300')}>{activeOrder.orderRef}</span>
+                  <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
+                  <span className="text-[11px] text-slate-400 font-semibold shrink-0">{isUrdu ? 'آرڈر:' : 'Active:'}</span>
+                  <span className="font-mono font-black text-xs text-goldBrand-300 tracking-wider truncate">{activeOrder.orderRef}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="font-mono font-black text-xs text-emerald-400">Rs. {activeOrder.totalAmount}/-</span>
@@ -2803,12 +2819,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               {/* Bottom Row: Status Badge & Thumb-Friendly Action Buttons */}
               <div className="flex items-center justify-between gap-2 pt-2">
                 <div className="text-[11px] text-slate-300 font-medium truncate min-w-0">
-                  {activeOrder.status === 'cancelled' ? (
-                    <span className="text-rose-400 font-bold flex items-center gap-1">
-                      <span>❌</span>
-                      <span className="truncate">{isUrdu ? 'آرڈر کینسل ہو چکا ہے' : 'Order Cancelled'}</span>
-                    </span>
-                  ) : activeOrder.status === 'out_for_delivery' ? (
+                  {activeOrder.status === 'out_for_delivery' ? (
                     <span className="text-amber-300 font-bold flex items-center gap-1">
                       <span>🛵</span>
                       <span className="truncate">{isUrdu ? 'رائیڈر کے پاس ہے' : 'Out for Delivery'}</span>
@@ -2822,16 +2833,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {activeOrder.status === 'cancelled' ? (
-                    <button
-                      type="button"
-                      onClick={() => setCompletedOrder(activeOrder)}
-                      className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center gap-1"
-                    >
-                      <span>📄</span>
-                      <span>{isUrdu ? 'رسید دیکھیں' : 'View Slip'}</span>
-                    </button>
-                  ) : (activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
+                  {(activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
                     <button
                       type="button"
                       onClick={() => setCompletedOrder(activeOrder)}
@@ -3284,14 +3286,14 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               </button>
             </div>
 
-            {/* Active / Recent Order Card in Cart */}
-            {activeOrder && (
-              <div className="m-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-emerald-950 text-white rounded-2xl border-2 border-goldBrand-400 shadow-xl space-y-2.5">
+            {/* Active Customer Order Card (Hides automatically when cancelled or completed) */}
+            {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
+              <div className="m-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-emerald-950 text-white rounded-2xl border-2 border-goldBrand-400 shadow-xl space-y-2.5 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className={"w-2.5 h-2.5 rounded-full shrink-0 " + (activeOrder.status === 'cancelled' ? 'bg-rose-500' : (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping'))} />
+                    <span className={"w-2.5 h-2.5 rounded-full shrink-0 " + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
                     <span className="text-[11px] text-goldBrand-300 font-bold uppercase tracking-wider">
-                      {activeOrder.status === 'cancelled' ? (isUrdu ? 'منسوخ شدہ آرڈر' : 'Cancelled Order') : (isUrdu ? 'آپ کا آرڈر' : 'Active Order')}
+                      {isUrdu ? 'آپ کا فعال آرڈر' : 'Active Order'}
                     </span>
                     <span className="font-mono font-black text-xs text-white tracking-wider truncate">#{activeOrder.orderRef}</span>
                   </div>
@@ -3300,12 +3302,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
                 <div className="flex items-center justify-between gap-2 pt-0.5">
                   <div className="text-[11px] text-slate-300 truncate min-w-0">
-                    {activeOrder.status === 'cancelled' ? (
-                      <span className="text-rose-400 font-bold flex items-center gap-1">
-                        <span>❌</span>
-                        <span className="truncate">{isUrdu ? 'آرڈر کینسل ہو چکا ہے' : 'Order Cancelled'}</span>
-                      </span>
-                    ) : activeOrder.status === 'out_for_delivery' ? (
+                    {activeOrder.status === 'out_for_delivery' ? (
                       <span className="text-amber-300 font-bold flex items-center gap-1">
                         <span>🛵</span>
                         <span className="truncate">{isUrdu ? 'رائیڈر کے پاس ہے' : 'Out for Delivery'}</span>
@@ -3328,7 +3325,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                       className="px-2.5 py-1.5 bg-goldBrand-500 hover:bg-goldBrand-400 active:scale-95 text-emeraldBrand-950 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                     >
                       <span>📄</span>
-                      <span>{activeOrder.status === 'cancelled' ? (isUrdu ? 'رسید دیکھیں' : 'View Slip') : (isUrdu ? 'رسید / کینسل' : 'Receipt / Cancel')}</span>
+                      <span>{isUrdu ? 'رسید / کینسل' : 'Receipt / Cancel'}</span>
                     </button>
                     <button
                       type="button"
@@ -3844,12 +3841,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             setCancelSuccessMsg(isUrdu ? 'آپ کا آرڈر منسوخ کر دیا گیا ہے۔ کنفرمیشن واٹس ایپ پر بھیج دی گئی ہے۔' : 'Your order has been cancelled successfully. Confirmation sent via WhatsApp.');
             setShowCancelPrompt(false);
             try {
-              const saved = localStorage.getItem('hyderi_active_order');
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                parsed.status = 'cancelled';
-                localStorage.setItem('hyderi_active_order', JSON.stringify(parsed));
-              }
+              localStorage.removeItem('hyderi_active_order');
             } catch (e) {}
             if (onCancelOrder) onCancelOrder(data.order || { ...order, status: 'cancelled' });
           } else {
@@ -4070,7 +4062,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     }
 
     // Order Tracking Modal with Instant Cancellation
-    function OrderTrackingModal({ isOpen, isUrdu, onClose }) {
+    function OrderTrackingModal({ isOpen, isUrdu, onClose, onCancelOrder }) {
       const [ref, setRef] = useState(() => {
         try {
           const s = localStorage.getItem('hyderi_active_order');
@@ -4129,15 +4121,9 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             setCancelSuccessMsg(isUrdu ? 'آرڈر منسوخ کر دیا گیا ہے۔' : 'Order has been cancelled.');
             setShowCancelPrompt(false);
             try {
-              const saved = localStorage.getItem('hyderi_active_order');
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                if (parsed.orderRef === order.orderRef) {
-                  parsed.status = 'cancelled';
-                  localStorage.setItem('hyderi_active_order', JSON.stringify(parsed));
-                }
-              }
+              localStorage.removeItem('hyderi_active_order');
             } catch(e) {}
+            if (onCancelOrder) onCancelOrder({ ...order, status: 'cancelled' });
           } else {
             setError(data.message || 'Cancellation failed');
           }

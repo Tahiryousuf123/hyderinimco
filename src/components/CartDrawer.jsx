@@ -49,14 +49,14 @@ export default function CartDrawer({
           </button>
         </div>
 
-        {/* Customer Active or Recent Order Card */}
-        {activeOrder && (
-          <div className="m-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-emerald-950 text-white rounded-2xl border-2 border-amber-400 shadow-xl space-y-2.5">
+        {/* Customer Active Order Card (Hides automatically when cancelled or completed) */}
+        {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
+          <div className="m-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-emerald-950 text-white rounded-2xl border-2 border-amber-400 shadow-xl space-y-2.5 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2 min-w-0">
-                <span className={"w-2.5 h-2.5 rounded-full shrink-0 " + (activeOrder.status === 'cancelled' ? 'bg-rose-500' : (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping'))} />
+                <span className={"w-2.5 h-2.5 rounded-full shrink-0 " + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
                 <span className="text-[11px] text-amber-300 font-bold uppercase tracking-wider">
-                  {activeOrder.status === 'cancelled' ? 'Cancelled Order' : 'Active Order'}
+                  Active Order
                 </span>
                 <span className="font-mono font-black text-xs text-white tracking-wider truncate">#{activeOrder.orderRef}</span>
               </div>
@@ -65,12 +65,7 @@ export default function CartDrawer({
 
             <div className="flex items-center justify-between gap-2 pt-0.5">
               <div className="text-[11px] text-slate-300 truncate min-w-0">
-                {activeOrder.status === 'cancelled' ? (
-                  <span className="text-rose-400 font-bold flex items-center gap-1">
-                    <span>❌</span>
-                    <span className="truncate">Order Cancelled</span>
-                  </span>
-                ) : activeOrder.status === 'out_for_delivery' ? (
+                {activeOrder.status === 'out_for_delivery' ? (
                   <span className="text-amber-300 font-bold flex items-center gap-1">
                     <span>🛵</span>
                     <span className="truncate">Out for Delivery</span>
@@ -93,7 +88,7 @@ export default function CartDrawer({
                   className="px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-gray-950 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                 >
                   <span>📄</span>
-                  <span>{activeOrder.status === 'cancelled' ? 'View Slip' : 'Slip / Cancel'}</span>
+                  <span>Slip / Cancel</span>
                 </button>
                 <button
                   type="button"
