@@ -2570,7 +2570,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               className="flex flex-col items-center gap-0.5 text-goldBrand-300 hover:text-white"
             >
               <span className="text-base">🛵</span>
-              <span className="text-[9px] font-bold">{isUrdu ? 'ٹریک/کینسل' : 'Track/Cancel'}</span>
+              <span className="text-[9px] font-bold">{isUrdu ? 'ٹریک' : 'Track'}</span>
             </button>
 
             <button
@@ -2766,7 +2766,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
           {/* Active Order Persistent Screen Banner */}
           {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
-            <div className="fixed bottom-18 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-40 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3.5 border-2 border-goldBrand-400 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
+            <div style={{ bottom: '68px' }} className="fixed bottom-[68px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 border-2 border-goldBrand-400 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
                 <div className="truncate text-xs">

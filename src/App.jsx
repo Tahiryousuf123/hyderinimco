@@ -320,7 +320,10 @@ export default function App() {
 
       {/* Customer Active Order Persistent Screen Banner */}
       {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
-        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-40 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3.5 border border-slate-700 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
+        <div
+          style={{ bottom: '68px' }}
+          className="fixed bottom-[68px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3.5 border border-slate-700 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5"
+        >
           <div className="flex items-center gap-2.5 overflow-hidden">
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
             <div className="truncate text-xs">
