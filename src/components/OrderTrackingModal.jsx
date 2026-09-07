@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Search, CheckCircle2, Clock, Truck, Package,
   AlertCircle, XCircle, AlertTriangle, RefreshCw
@@ -14,7 +14,12 @@ const CANCELLATION_REASONS = [
 ];
 
 export default function OrderTrackingModal({ isOpen, onClose }) {
-  const [orderRef, setOrderRef] = useState('');
+  const [orderRef, setOrderRef] = useState(() => {
+    try {
+      const s = localStorage.getItem('hyderi_active_order');
+      return s ? (JSON.parse(s).orderRef || '') : '';
+    } catch(e) { return ''; }
+  });
   const [loading, setLoading] = useState(false);
   const [searchedOrder, setSearchedOrder] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -23,6 +28,12 @@ export default function OrderTrackingModal({ isOpen, onClose }) {
   const [customReason, setCustomReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelMsg, setCancelMsg] = useState('');
+
+  useEffect(() => {
+    if (isOpen && orderRef && orderRef.trim() && !searchedOrder) {
+      handleTrack();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

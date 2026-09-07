@@ -2708,6 +2708,15 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               isUrdu={isUrdu}
               onClose={() => setIsCartOpen(false)}
               cart={cart}
+              activeOrder={activeOrder}
+              onOpenOrderSlip={(order) => {
+                setIsCartOpen(false);
+                setCompletedOrder(order);
+              }}
+              onOpenTracking={() => {
+                setIsCartOpen(false);
+                setIsTrackingOpen(true);
+              }}
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeItem}
               subtotal={subtotal}
@@ -2766,7 +2775,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           )}
 
           {/* Active Order Persistent Screen Banner (Hidden when any modal is open) */}
-          {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && !completedOrder && !isTrackingOpen && !isCheckoutOpen && !isCartOpen && !isChatOpen && !isBrochureModalOpen && !isBannerDismissed && (
+          {activeOrder && activeOrder.status !== 'completed' && !completedOrder && !isTrackingOpen && !isCheckoutOpen && !isCartOpen && !isChatOpen && !isBrochureModalOpen && !isBannerDismissed && (
             <div
               style={{ bottom: '70px' }}
               className="fixed bottom-[70px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-[410px] z-30 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3 border-2 border-goldBrand-400/90 shadow-emeraldBrand-950/50 animate-in slide-in-from-bottom-5"
@@ -2774,9 +2783,9 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               {/* Top Row: Indicator + Order Ref + Total Amount + Dismiss Button */}
               <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
-                  <span className="text-[11px] text-slate-400 font-semibold shrink-0">{isUrdu ? 'آرڈر:' : 'Active:'}</span>
-                  <span className="font-mono font-black text-xs text-goldBrand-300 tracking-wider truncate">{activeOrder.orderRef}</span>
+                  <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'cancelled' ? 'bg-rose-500' : (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping'))} />
+                  <span className="text-[11px] text-slate-400 font-semibold shrink-0">{activeOrder.status === 'cancelled' ? (isUrdu ? 'منسوخ:' : 'Cancelled:') : (isUrdu ? 'آرڈر:' : 'Active:')}</span>
+                  <span className={"font-mono font-black text-xs tracking-wider truncate " + (activeOrder.status === 'cancelled' ? 'text-rose-300' : 'text-goldBrand-300')}>{activeOrder.orderRef}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="font-mono font-black text-xs text-emerald-400">Rs. {activeOrder.totalAmount}/-</span>
@@ -2794,7 +2803,12 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
               {/* Bottom Row: Status Badge & Thumb-Friendly Action Buttons */}
               <div className="flex items-center justify-between gap-2 pt-2">
                 <div className="text-[11px] text-slate-300 font-medium truncate min-w-0">
-                  {activeOrder.status === 'out_for_delivery' ? (
+                  {activeOrder.status === 'cancelled' ? (
+                    <span className="text-rose-400 font-bold flex items-center gap-1">
+                      <span>❌</span>
+                      <span className="truncate">{isUrdu ? 'آرڈر کینسل ہو چکا ہے' : 'Order Cancelled'}</span>
+                    </span>
+                  ) : activeOrder.status === 'out_for_delivery' ? (
                     <span className="text-amber-300 font-bold flex items-center gap-1">
                       <span>🛵</span>
                       <span className="truncate">{isUrdu ? 'رائیڈر کے پاس ہے' : 'Out for Delivery'}</span>
@@ -2808,7 +2822,16 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {(activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
+                  {activeOrder.status === 'cancelled' ? (
+                    <button
+                      type="button"
+                      onClick={() => setCompletedOrder(activeOrder)}
+                      className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center gap-1"
+                    >
+                      <span>📄</span>
+                      <span>{isUrdu ? 'رسید دیکھیں' : 'View Slip'}</span>
+                    </button>
+                  ) : (activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
                     <button
                       type="button"
                       onClick={() => setCompletedOrder(activeOrder)}
@@ -3237,7 +3260,7 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
     }
 
     // Shopping Cart Drawer Component
-    function CartDrawer({ isOpen, isUrdu, onClose, cart, onUpdateQuantity, onRemoveItem, subtotal, settings, onProceedCheckout }) {
+    function CartDrawer({ isOpen, isUrdu, onClose, cart, activeOrder, onOpenOrderSlip, onOpenTracking, onUpdateQuantity, onRemoveItem, subtotal, settings, onProceedCheckout }) {
       if (!isOpen) return null;
 
       const freeLimit = Number(settings?.freeDeliveryAbove) || 5000;
@@ -3260,6 +3283,68 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                 ✕
               </button>
             </div>
+
+            {/* Active / Recent Order Card in Cart */}
+            {activeOrder && (
+              <div className="m-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-emerald-950 text-white rounded-2xl border-2 border-goldBrand-400 shadow-xl space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={"w-2.5 h-2.5 rounded-full shrink-0 " + (activeOrder.status === 'cancelled' ? 'bg-rose-500' : (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping'))} />
+                    <span className="text-[11px] text-goldBrand-300 font-bold uppercase tracking-wider">
+                      {activeOrder.status === 'cancelled' ? (isUrdu ? 'منسوخ شدہ آرڈر' : 'Cancelled Order') : (isUrdu ? 'آپ کا آرڈر' : 'Active Order')}
+                    </span>
+                    <span className="font-mono font-black text-xs text-white tracking-wider truncate">#{activeOrder.orderRef}</span>
+                  </div>
+                  <span className="font-mono font-black text-xs text-emerald-400 shrink-0">Rs. {activeOrder.totalAmount}/-</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <div className="text-[11px] text-slate-300 truncate min-w-0">
+                    {activeOrder.status === 'cancelled' ? (
+                      <span className="text-rose-400 font-bold flex items-center gap-1">
+                        <span>❌</span>
+                        <span className="truncate">{isUrdu ? 'آرڈر کینسل ہو چکا ہے' : 'Order Cancelled'}</span>
+                      </span>
+                    ) : activeOrder.status === 'out_for_delivery' ? (
+                      <span className="text-amber-300 font-bold flex items-center gap-1">
+                        <span>🛵</span>
+                        <span className="truncate">{isUrdu ? 'رائیڈر کے پاس ہے' : 'Out for Delivery'}</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-300 flex items-center gap-1.5 capitalize truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                        <span className="truncate">{activeOrder.status ? activeOrder.status.replace(/_/g, ' ') : 'Pending Verification'}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        if (onOpenOrderSlip) onOpenOrderSlip(activeOrder);
+                      }}
+                      className="px-2.5 py-1.5 bg-goldBrand-500 hover:bg-goldBrand-400 active:scale-95 text-emeraldBrand-950 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>📄</span>
+                      <span>{activeOrder.status === 'cancelled' ? (isUrdu ? 'رسید دیکھیں' : 'View Slip') : (isUrdu ? 'رسید / کینسل' : 'Receipt / Cancel')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        if (onOpenTracking) onOpenTracking();
+                      }}
+                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-goldBrand-200 border border-slate-600 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>🛵</span>
+                      <span>{isUrdu ? 'ٹریک' : 'Track'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Free Delivery Meter */}
             <div className="bg-parchment-100 p-3 border-b border-goldBrand-400/30 text-xs">
@@ -3986,7 +4071,12 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
     // Order Tracking Modal with Instant Cancellation
     function OrderTrackingModal({ isOpen, isUrdu, onClose }) {
-      const [ref, setRef] = useState('');
+      const [ref, setRef] = useState(() => {
+        try {
+          const s = localStorage.getItem('hyderi_active_order');
+          return s ? (JSON.parse(s).orderRef || '') : '';
+        } catch(e) { return ''; }
+      });
       const [order, setOrder] = useState(null);
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState('');
@@ -3994,6 +4084,12 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
       const [cancelReason, setCancelReason] = useState('Ghalat item select ho gaya');
       const [cancelLoading, setCancelLoading] = useState(false);
       const [cancelSuccessMsg, setCancelSuccessMsg] = useState('');
+
+      useEffect(() => {
+        if (isOpen && ref && ref.trim() && !order) {
+          handleSearch();
+        }
+      }, [isOpen]);
 
       const handleSearch = async (e) => {
         if (e) e.preventDefault();

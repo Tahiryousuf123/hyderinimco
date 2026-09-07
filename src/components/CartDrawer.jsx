@@ -5,6 +5,9 @@ export default function CartDrawer({
   isOpen,
   onClose,
   cartItems,
+  activeOrder,
+  onOpenOrderSlip,
+  onOpenTracking,
   onUpdateQuantity,
   onRemoveItem,
   onProceedCheckout,
@@ -45,6 +48,68 @@ export default function CartDrawer({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Customer Active or Recent Order Card */}
+        {activeOrder && (
+          <div className="m-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-emerald-950 text-white rounded-2xl border-2 border-amber-400 shadow-xl space-y-2.5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={"w-2.5 h-2.5 rounded-full shrink-0 " + (activeOrder.status === 'cancelled' ? 'bg-rose-500' : (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping'))} />
+                <span className="text-[11px] text-amber-300 font-bold uppercase tracking-wider">
+                  {activeOrder.status === 'cancelled' ? 'Cancelled Order' : 'Active Order'}
+                </span>
+                <span className="font-mono font-black text-xs text-white tracking-wider truncate">#{activeOrder.orderRef}</span>
+              </div>
+              <span className="font-mono font-black text-xs text-emerald-400 shrink-0">Rs. {activeOrder.totalAmount}/-</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <div className="text-[11px] text-slate-300 truncate min-w-0">
+                {activeOrder.status === 'cancelled' ? (
+                  <span className="text-rose-400 font-bold flex items-center gap-1">
+                    <span>❌</span>
+                    <span className="truncate">Order Cancelled</span>
+                  </span>
+                ) : activeOrder.status === 'out_for_delivery' ? (
+                  <span className="text-amber-300 font-bold flex items-center gap-1">
+                    <span>🛵</span>
+                    <span className="truncate">Out for Delivery</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-300 flex items-center gap-1.5 capitalize truncate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                    <span className="truncate">{activeOrder.status ? activeOrder.status.replace(/_/g, ' ') : 'Pending Verification'}</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenOrderSlip) onOpenOrderSlip(activeOrder);
+                  }}
+                  className="px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-gray-950 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                >
+                  <span>📄</span>
+                  <span>{activeOrder.status === 'cancelled' ? 'View Slip' : 'Slip / Cancel'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenTracking) onOpenTracking();
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-200 border border-slate-600 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <span>🛵</span>
+                  <span>Track</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Free Delivery Progress Banner */}
         <div className="bg-amber-50 px-4 py-3 border-b border-amber-200/60">
