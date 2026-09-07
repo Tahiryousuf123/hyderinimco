@@ -66,6 +66,13 @@ export default function App() {
     const syncActiveOrder = async () => {
       try {
         const res = await fetch(`/api/orders/${encodeURIComponent(activeOrder.orderRef)}`);
+        if (res.status === 404) {
+          try { localStorage.removeItem('hyderi_active_order'); } catch (e) {}
+          setActiveOrder(null);
+          setLatestOrder(null);
+          setIsSuccessOpen(false);
+          return;
+        }
         const data = await res.json();
         if (data.success && data.order && data.order.status !== activeOrder.status) {
           setActiveOrder(data.order);

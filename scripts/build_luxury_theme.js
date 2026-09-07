@@ -1571,6 +1571,12 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         const syncActiveOrder = async () => {
           try {
             const res = await fetch(getApiBase() + '/api/orders/' + encodeURIComponent(activeOrder.orderRef));
+            if (res.status === 404) {
+              try { localStorage.removeItem('hyderi_active_order'); } catch (e) {}
+              setActiveOrder(null);
+              setCompletedOrder(null);
+              return;
+            }
             const data = await res.json();
             if (data.success && data.order && data.order.status !== activeOrder.status) {
               setActiveOrder(data.order);
@@ -3705,6 +3711,14 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason: finalReason })
           });
+          if (res.status === 404) {
+            try { localStorage.removeItem('hyderi_active_order'); } catch (e) {}
+            setOrderStatus('cancelled');
+            setCancelSuccessMsg(isUrdu ? 'آرڈر ڈیٹا بیس میں نہیں ملا۔ اس کا ریکارڈ صاف کر دیا گیا ہے۔' : 'Order record not found in database. Stale session cleared.');
+            setShowCancelPrompt(false);
+            if (onCancelOrder) onCancelOrder({ ...order, status: 'cancelled' });
+            return;
+          }
           const data = await res.json();
           if (res.ok && data.success) {
             setOrderStatus('cancelled');
