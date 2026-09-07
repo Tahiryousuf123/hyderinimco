@@ -10,7 +10,7 @@ import { Order } from './models/Order.js';
 import { Setting } from './models/Setting.js';
 import { generateAIResponse, generateAIResponseAsync, calculateAreaDeliveryFee } from './ai_engine.js';
 import { handleWhatsAppIncoming } from './whatsapp_ai.js';
-import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast, sendMetaWhatsAppMessage } from './whatsapp_service.js';
+import { startWhatsAppService, getWhatsAppStatus, disconnectWhatsApp, notifyOwnerNewOrder, sendCustomerOrderSlip, notifyOwnerOrderCancelled, notifyCustomerOrderCancelled, setAiAutoReply, isAiAutoReplyEnabled, setAiFollowUp, isAiFollowUpEnabled, sendMassBroadcast, sendMetaWhatsAppMessage } from './whatsapp_service.js';
 import { sendTextMessage, sendTypingIndicator, recordWebhookReceived, getCloudApiStatus, getMetaConfig } from './services/whatsappCloudApi.js';
 import {
   processIncomingWebhook,
@@ -1069,6 +1069,8 @@ const server = http.createServer(async (req, res) => {
       console.log(`[MongoDB Authoritative] Created order ${orderRef} (${orderId}) in MongoDB Atlas`);
       // Instant real-time WhatsApp alert to shop owner exclusively (0336-2438422)
       notifyOwnerNewOrder(newOrder).catch(err => console.error('Error notifying owner on WhatsApp:', err));
+      // Official WhatsApp slip sent directly to customer's phone ("dosre number")
+      sendCustomerOrderSlip(newOrder).catch(err => console.error('Error sending customer WhatsApp slip:', err));
 
       return sendJson(res, 200, { success: true, message: 'Order placed successfully', order: savedOrder || newOrder });
     } catch (e) {
@@ -1430,6 +1432,77 @@ const server = http.createServer(async (req, res) => {
     } catch (dbErr) {
       console.error('[MongoDB Error] PATCH /api/orders/:id/status failed:', dbErr.message);
       return sendJson(res, 500, { success: false, error: `Failed to update order in MongoDB: ${dbErr.message}` });
+    }
+  }
+
+  // 15.6. POST /api/orders/:ref/cancel (Customer Order Cancellation)
+  if (pathname.startsWith('/api/orders/') && pathname.endsWith('/cancel') && (method === 'POST' || method === 'PATCH')) {
+    const rawRef = pathname.replace('/api/orders/', '').replace('/cancel', '').trim();
+    const ref = decodeURIComponent(rawRef);
+    const body = await parseBody(req);
+    const reason = body.reason || 'Customer cancelled on screen';
+    const now = new Date().toISOString();
+
+    if (!isDBConnected()) {
+      const connected = await connectDB();
+      if (!connected) {
+        return sendJson(res, 503, { success: false, error: 'MongoDB database is not connected. Order cannot be cancelled.' });
+      }
+    }
+
+    try {
+      const existingOrder = await executeDBQuery(
+        () => Order.findOne({ $or: [{ id: ref }, { orderRef: ref }] }).lean(),
+        2,
+        5000
+      );
+
+      if (!existingOrder) {
+        return sendJson(res, 404, { success: false, message: `Order reference "${ref}" not found.` });
+      }
+
+      if (existingOrder.status === 'cancelled') {
+        return sendJson(res, 200, { success: true, message: 'Order is already cancelled.', order: existingOrder });
+      }
+
+      if (existingOrder.status === 'out_for_delivery' || existingOrder.status === 'completed') {
+        return sendJson(res, 400, {
+          success: false,
+          message: `Order cannot be cancelled because it is already "${existingOrder.status.replace(/_/g, ' ')}". Please call shop helpline: 0336-2438422.`
+        });
+      }
+
+      const updatedDoc = await executeDBQuery(
+        () => Order.findOneAndUpdate(
+          { $or: [{ id: ref }, { orderRef: ref }] },
+          {
+            $set: {
+              status: 'cancelled',
+              cancellationReason: reason,
+              cancelledAt: now,
+              updatedAt: now
+            }
+          },
+          { returnDocument: 'after', lean: true, projection: { _id: 0, __v: 0 } }
+        ),
+        2,
+        8000
+      );
+
+      console.log(`[Order Cancelled] Order ${ref} (${updatedDoc.id}) cancelled by customer. Reason: ${reason}`);
+
+      // Alert owner and confirm with customer on WhatsApp
+      notifyOwnerOrderCancelled(updatedDoc, reason).catch(err => console.error('Error alerting owner of cancel:', err));
+      notifyCustomerOrderCancelled(updatedDoc, reason).catch(err => console.error('Error alerting customer of cancel:', err));
+
+      return sendJson(res, 200, {
+        success: true,
+        message: 'Aapka order kamiyabi se cancel kar diya gaya hai.',
+        order: updatedDoc
+      });
+    } catch (dbErr) {
+      console.error('[MongoDB Error] Order cancellation failed:', dbErr.message);
+      return sendJson(res, 500, { success: false, error: `Cancellation failed: ${dbErr.message}` });
     }
   }
 

@@ -110,7 +110,6 @@ export async function connectDB() {
         connectTimeoutMS: 15000,
         heartbeatFrequencyMS: 10000,
         autoIndex: false,
-        family: 4, // Force IPv4 on cloud environments (Render) to eliminate IPv6 fallback delay
       });
 
       // Actively verify that the connection can execute queries via an admin ping
@@ -118,7 +117,36 @@ export async function connectDB() {
       console.log(`[MongoDB] Successfully connected & verified ping to MongoDB Atlas [Database: ${dbName}]`);
       return true;
     } catch (error) {
-      console.error(`[MongoDB] Connection/Ping verification failed: ${error.message} (${error.name})`);
+      console.warn(`[MongoDB] Primary connection failed: ${error.message} (${error.name})`);
+
+      // Fallback for SRV DNS resolution failure (common on Windows local networks with blocked port 53 UDP)
+      if (uri.includes('cluster0.gtvbnlu.mongodb.net') || error.message.includes('querySrv') || error.message.includes('ECONNREFUSED')) {
+        try {
+          console.log('[MongoDB] Attempting connection via direct replica-set seed list fallback...');
+          const credMatch = uri.match(/mongodb(?:\+srv)?:\/\/([^:]+):([^@]+)@/);
+          const user = credMatch ? credMatch[1] : 'htm69404_db_user';
+          const pass = credMatch ? credMatch[2] : 'htm40461620';
+          const directUri = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@ac-3frjwgc-shard-00-00.gtvbnlu.mongodb.net:27017,ac-3frjwgc-shard-00-01.gtvbnlu.mongodb.net:27017,ac-3frjwgc-shard-00-02.gtvbnlu.mongodb.net:27017/${dbName}?ssl=true&authSource=admin&retryWrites=true&w=majority`;
+
+          await mongoose.connect(directUri, {
+            dbName: dbName,
+            maxPoolSize: 50,
+            minPoolSize: 5,
+            serverSelectionTimeoutMS: 15000,
+            socketTimeoutMS: 45000,
+            connectTimeoutMS: 15000,
+            heartbeatFrequencyMS: 10000,
+            autoIndex: false,
+          });
+
+          await mongoose.connection.db.admin().ping();
+          console.log(`[MongoDB] Successfully connected via replica-set seed list fallback! [Database: ${dbName}]`);
+          return true;
+        } catch (fallbackErr) {
+          console.error(`[MongoDB] Fallback connection failed: ${fallbackErr.message}`);
+        }
+      }
+
       return false;
     } finally {
       connectionPromise = null;

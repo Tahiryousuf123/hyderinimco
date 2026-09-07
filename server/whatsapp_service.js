@@ -573,11 +573,138 @@ export async function notifyOwnerNewOrder(order) {
 
 /**
  * Sends official WhatsApp order receipt slip directly to customer's phone
- * (Disabled by owner preference — order notifications are strictly routed to owner 03362438422)
  */
 export async function sendCustomerOrderSlip(order) {
-  // Disabled by owner preference — order notifications are strictly routed only to owner 03362438422
-  return;
+  const customerPhone = order.customer?.phone;
+  if (!customerPhone) {
+    console.warn('⚠️ [WhatsApp Service] No customer phone provided in order; skipping customer slip.');
+    return { success: false, error: 'No phone' };
+  }
+
+  let cleanPhone = String(customerPhone).replace(/[^0-9]/g, '');
+  if (cleanPhone.startsWith('03')) cleanPhone = '92' + cleanPhone.slice(1);
+  else if (!cleanPhone.startsWith('92') && cleanPhone.length === 10) cleanPhone = '92' + cleanPhone;
+
+  if (cleanPhone.length < 10) {
+    console.warn(`⚠️ [WhatsApp Service] Invalid customer phone format (${customerPhone}); skipping customer slip.`);
+    return { success: false, error: 'Invalid phone format' };
+  }
+
+  const useCloudApi = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN.trim());
+
+  const itemsList = (order.items || [])
+    .map(it => `• *${it.quantity}x* ${it.name} (${it.packQuantity}) - Rs. ${it.price * it.quantity}/-`)
+    .join('\n');
+
+  const customerReceipt = `🧾 *NEW HYDERI NIMCO & FROZEN (SINCE 1970)*\n` +
+    `*OFFICIAL ORDER RECEIPT & SLIP* 🥟\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `📋 *Order Ref:* ${order.orderRef}\n` +
+    `👤 *Customer:* ${order.customer?.fullName || 'Valued Customer'}\n` +
+    `📞 *Phone:* ${order.customer?.phone || cleanPhone}\n` +
+    `📍 *Area:* ${order.customer?.area || 'Karachi'}\n` +
+    `🏠 *Address:* ${order.customer?.address || 'N/A'}\n` +
+    `⏰ *Date:* ${order.formattedDate || new Date().toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })}\n\n` +
+    `🛒 *ITEMS ORDERED:*\n${itemsList}\n\n` +
+    `💰 *Subtotal:* Rs. ${order.subtotal}/-\n` +
+    `🛵 *Delivery Fee:* ${order.deliveryFee === 0 ? 'FREE' : `Rs. ${order.deliveryFee}/-`}\n` +
+    `💵 *Total Amount:* Rs. ${order.totalAmount}/-\n\n` +
+    `💳 *Payment Method:* ${order.paymentMethod === 'cod' ? '💵 Cash on Delivery (COD)' : order.paymentMethod?.toUpperCase()}\n` +
+    (order.paymentDetails?.transactionId ? `🔢 *TID / Ref:* ${order.paymentDetails.transactionId}\n` : '') +
+    (order.paymentDetails?.senderAccountName ? `👤 *Sender Title:* ${order.paymentDetails.senderAccountName}\n` : '') +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `📌 *Order Status:* ⏳ Pending Verification\n` +
+    `🚀 *Order Tracking:* Track on website with Ref: *${order.orderRef}*\n\n` +
+    `⚠️ *Order Cancellation / Changes:*\n` +
+    `Agar aapko yeh order cancel ya modify karna ho, to website par screen se foran "Cancel Order" karein ya humein yahan reply karein: "CANCEL ${order.orderRef}"\n\n` +
+    `📞 *Hotline:* 0336-2438422 | 021-36625698\n` +
+    `_Shukriya Hyderi Nimco par aitmaad karne ka! Humara rider jald aap se rabta karega._`;
+
+  try {
+    if (useCloudApi) {
+      const res = await sendTextMessage(cleanPhone, customerReceipt);
+      if (res.success) {
+        console.log(`✅ [Meta Cloud API] Official Order Slip sent to customer at ${cleanPhone} (Ref: ${order.orderRef})`);
+        return { success: true, messageId: res.messageId };
+      } else {
+        console.warn(`⚠️ [Meta Cloud API] Failed to send order slip to customer ${cleanPhone}:`, res.error);
+        return { success: false, error: res.error };
+      }
+    } else if (sock && connectionStatus === 'connected') {
+      const jid = `${cleanPhone}@s.whatsapp.net`;
+      await sock.sendMessage(jid, { text: customerReceipt });
+      console.log(`✅ [WhatsApp Baileys] Official Order Slip sent to customer at ${cleanPhone} (Ref: ${order.orderRef})`);
+      return { success: true };
+    } else {
+      console.log(`ℹ️ [WhatsApp Service] No active WhatsApp connection to send customer slip to ${cleanPhone}.`);
+      return { success: false, error: 'No connection' };
+    }
+  } catch (err) {
+    console.error(`❌ [WhatsApp Service] Error sending customer slip to ${cleanPhone}:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Notifies shop owner that an order has been cancelled by customer
+ */
+export async function notifyOwnerOrderCancelled(order, reason = '') {
+  const useCloudApi = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN.trim());
+  const text = `❌ *ORDER CANCELLED BY CUSTOMER - HYDERI NIMCO* ⚠️\n\n` +
+    `📋 *Order Ref:* ${order.orderRef}\n` +
+    `👤 *Customer Name:* ${order.customer?.fullName || 'N/A'}\n` +
+    `📞 *Customer Phone:* ${order.customer?.phone || 'N/A'}\n` +
+    `📍 *Area:* ${order.customer?.area || 'N/A'}\n` +
+    `💵 *Total Amount:* Rs. ${order.totalAmount}/-\n` +
+    `💳 *Payment Method:* ${order.paymentMethod?.toUpperCase()}\n` +
+    (reason ? `📝 *Cancellation Reason:* ${reason}\n` : '') +
+    `\n⏰ *Time:* ${new Date().toLocaleString('en-PK', { timeZone: 'Asia/Karachi' })}`;
+
+  const recipientPhones = ['923362438422'];
+  for (const phone of recipientPhones) {
+    try {
+      if (useCloudApi) {
+        await sendTextMessage(phone, text);
+      } else if (sock && connectionStatus === 'connected') {
+        await sock.sendMessage(`${phone}@s.whatsapp.net`, { text });
+      }
+      console.log(`✅ [WhatsApp Service] Owner alerted of order cancellation: ${order.orderRef}`);
+    } catch (err) {
+      console.error(`Failed to alert owner of cancellation:`, err.message);
+    }
+  }
+}
+
+/**
+ * Notifies customer that their cancellation request has been executed
+ */
+export async function notifyCustomerOrderCancelled(order, reason = '') {
+  const customerPhone = order.customer?.phone;
+  if (!customerPhone) return;
+
+  let cleanPhone = String(customerPhone).replace(/[^0-9]/g, '');
+  if (cleanPhone.startsWith('03')) cleanPhone = '92' + cleanPhone.slice(1);
+  else if (!cleanPhone.startsWith('92') && cleanPhone.length === 10) cleanPhone = '92' + cleanPhone;
+
+  const text = `❌ *ORDER CANCELLED - HYDERI NIMCO & FROZEN*\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `Aapka order *${order.orderRef}* kamiyabi se cancel ho gaya hai.\n` +
+    `💵 Total Bill: Rs. ${order.totalAmount}/-\n` +
+    (reason ? `📝 Wajah: ${reason}\n` : '') +
+    `\nOnline payment refund ya kisi bhi sawal ke liye humari helpline par rabta karein: 0336-2438422 | 021-36625698.\n` +
+    `_Shukriya Hyderi Nimco!_`;
+
+  const useCloudApi = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN.trim());
+  try {
+    if (useCloudApi) {
+      await sendTextMessage(cleanPhone, text);
+    } else if (sock && connectionStatus === 'connected') {
+      await sock.sendMessage(`${cleanPhone}@s.whatsapp.net`, { text });
+    }
+    console.log(`✅ [WhatsApp Service] Customer notified of cancellation: ${cleanPhone}`);
+  } catch (err) {
+    console.error(`Failed to notify customer of cancellation:`, err.message);
+  }
 }
 
 /**

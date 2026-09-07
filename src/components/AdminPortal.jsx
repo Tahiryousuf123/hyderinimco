@@ -52,8 +52,12 @@ export default function AdminPortal({
   useEffect(() => {
     if (isOpen && isAuthenticated) {
       fetchOrders();
+      const interval = setInterval(() => {
+        if (activeTab === 'orders') fetchOrders();
+      }, 12000);
+      return () => clearInterval(interval);
     }
-  }, [isOpen, isAuthenticated]);
+  }, [isOpen, isAuthenticated, activeTab]);
 
   useEffect(() => {
     if (settings) {
@@ -385,7 +389,7 @@ export default function AdminPortal({
                 <div className="space-y-4">
                   {/* Status Filter */}
                   <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
-                    {['all', 'pending_verification', 'payment_verified', 'preparing', 'out_for_delivery', 'completed'].map((st) => (
+                    {['all', 'pending_verification', 'payment_verified', 'preparing', 'out_for_delivery', 'completed', 'cancelled'].map((st) => (
                       <button
                         key={st}
                         onClick={() => setOrderStatusFilter(st)}
@@ -417,10 +421,19 @@ export default function AdminPortal({
                           >
                             <div className="flex items-start justify-between flex-wrap gap-2">
                               <div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-mono font-black text-sm text-gray-900">
                                     {ord.orderRef}
                                   </span>
+                                  {ord.source === 'whatsapp' ? (
+                                    <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <span>📱 WhatsApp</span>
+                                    </span>
+                                  ) : (
+                                    <span className="bg-blue-100 text-blue-800 border border-blue-300 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <span>🌐 Website</span>
+                                    </span>
+                                  )}
                                   <span className="text-xs text-gray-400">•</span>
                                   <span className="text-xs text-gray-500 font-medium">
                                     {ord.formattedDate || new Date(ord.createdAt).toLocaleString()}

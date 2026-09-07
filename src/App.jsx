@@ -31,6 +31,16 @@ export default function App() {
     }
   });
 
+  // Active customer order persisted in localStorage
+  const [activeOrder, setActiveOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hyderi_active_order');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Modals
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -121,6 +131,7 @@ export default function App() {
 
   const handleOrderComplete = (order) => {
     setLatestOrder(order);
+    setActiveOrder(order);
     setCartItems([]);
     setIsCheckoutOpen(false);
     setIsSuccessOpen(true);
@@ -256,10 +267,14 @@ export default function App() {
       />
 
       <OrderSuccessModal
-        order={latestOrder}
+        order={latestOrder || activeOrder}
         isOpen={isSuccessOpen}
         onClose={() => setIsSuccessOpen(false)}
         settings={settings}
+        onCancelOrder={(cancelledOrder) => {
+          setLatestOrder(cancelledOrder);
+          setActiveOrder(cancelledOrder);
+        }}
       />
 
       <OrderTrackingModal
@@ -275,6 +290,38 @@ export default function App() {
         settings={settings}
         onRefreshSettings={fetchSettings}
       />
+
+      {/* Customer Active Order Persistent Screen Banner */}
+      {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-40 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3.5 border border-slate-700 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+            <div className="truncate text-xs">
+              <span className="font-extrabold text-amber-300 block">Active Order: {activeOrder.orderRef}</span>
+              <span className="text-[11px] text-slate-300 capitalize">{activeOrder.status?.replace(/_/g, ' ')} • Rs. {activeOrder.totalAmount}/-</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => {
+                setLatestOrder(activeOrder);
+                setIsSuccessOpen(true);
+              }}
+              className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+            >
+              Cancel / Slip
+            </button>
+            <button
+              onClick={() => {
+                setIsTrackingOpen(true);
+              }}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-lg text-xs font-semibold transition-colors"
+            >
+              Track
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

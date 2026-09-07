@@ -121,6 +121,19 @@ const TOOL_DECLARATIONS = [
       },
       required: ['customer_phone']
     }
+  },
+  {
+    name: 'cancel_order',
+    description: "Cancel an existing customer order. Call this when customer requests to cancel their order (e.g. 'cancel order', 'mera order cancel kardo', 'cancel HYD-123456').",
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        order_ref: { type: 'STRING', description: 'Order reference if mentioned (e.g. HYD-123456 or WA-2026...)' },
+        customer_phone: { type: 'STRING', description: 'Customer WhatsApp phone number' },
+        reason: { type: 'STRING', description: 'Reason for cancellation' }
+      },
+      required: []
+    }
   }
 ];
 
@@ -217,6 +230,12 @@ async function executeToolCall(toolName, args, customerPhone) {
     }
 
     case 'create_order': {
+      if (!isDBConnected()) {
+        try {
+          const { connectDB } = await import('./db.js');
+          await connectDB();
+        } catch (e) {}
+      }
       if (!isDBConnected()) return { error: 'Database unavailable — order cannot be created' };
 
       // Idempotency check
@@ -242,12 +261,23 @@ async function executeToolCall(toolName, args, customerPhone) {
 
       for (const item of (args.items || [])) {
         try {
-          const dbProduct = await withTimeout(
+          let dbProduct = await withTimeout(
             Product.findOne({ id: item.product_id }, { _id: 0, __v: 0, image: 0 }).lean(),
             5000
           );
           if (!dbProduct) {
-            return { success: false, error: `Product "${item.product_id}" not found in MongoDB. Order aborted.` };
+            const searchKeyword = (item.product_name || item.product_id || '').trim();
+            if (searchKeyword) {
+              const cleanKeyword = searchKeyword.replace(/[-_]/g, ' ');
+              const regex = new RegExp(cleanKeyword, 'i');
+              dbProduct = await withTimeout(
+                Product.findOne({ $or: [{ name: regex }, { nameUrdu: regex }, { id: regex }] }, { _id: 0, __v: 0, image: 0 }).lean(),
+                5000
+              );
+            }
+          }
+          if (!dbProduct) {
+            return { success: false, error: `Product "${item.product_name || item.product_id}" not found in MongoDB catalog. Order aborted.` };
           }
           if (dbProduct.isAvailable === false) {
             return { success: false, error: `Product "${dbProduct.name}" is currently out of stock. Please remove it or choose an alternative.` };
@@ -312,9 +342,10 @@ async function executeToolCall(toolName, args, customerPhone) {
         await Order.create(orderDoc);
         console.log(`[WhatsApp Order] Created order ${orderRef} for phone ${customerPhone} — Rs. ${totalAmount}`);
 
-        // Notify shop owner immediately on WhatsApp
+        // Notify shop owner immediately on WhatsApp AND send official receipt slip to customer ("dosre number")
         import('./whatsapp_service.js').then(m => {
           if (m.notifyOwnerNewOrder) m.notifyOwnerNewOrder(orderDoc).catch(() => {});
+          if (m.sendCustomerOrderSlip) m.sendCustomerOrderSlip(orderDoc).catch(() => {});
         }).catch(() => {});
 
         return {
@@ -362,6 +393,73 @@ async function executeToolCall(toolName, args, customerPhone) {
         };
       } catch (e) {
         console.error('[Tool:get_order_status] Error:', e.message);
+        return { error: e.message };
+      }
+    }
+
+    case 'cancel_order': {
+      if (!isDBConnected()) {
+        try {
+          const { connectDB } = await import('./db.js');
+          await connectDB();
+        } catch (e) {}
+      }
+      try {
+        const phone = (args.customer_phone || customerPhone || '').replace(/[^0-9]/g, '');
+        const variants = [phone, phone.replace(/^92/, '0'), '92' + phone.replace(/^0/, '')];
+        const query = args.order_ref
+          ? { $or: [{ orderRef: args.order_ref.trim().toUpperCase() }, { id: args.order_ref.trim() }] }
+          : {
+              $or: [
+                { 'customer.phone': { $in: variants } },
+                { 'notes': { $regex: phone } }
+              ]
+            };
+
+        const order = await withTimeout(
+          Order.findOne(query).sort({ createdAt: -1 }),
+          5000
+        );
+
+        if (!order) {
+          return { success: false, message: 'Koi active order nahi mila jise cancel kiya ja sake.' };
+        }
+
+        if (order.status === 'cancelled') {
+          return { success: true, orderRef: order.orderRef, message: `Order ${order.orderRef} pehle hi cancel ho chuka hai.` };
+        }
+
+        if (order.status === 'out_for_delivery' || order.status === 'completed') {
+          return {
+            success: false,
+            orderRef: order.orderRef,
+            message: `Order ${order.orderRef} abhi "${order.status.replace(/_/g, ' ')}" status par hai is liye automatically cancel nahi ho sakta. Baraye meherbani shop helpline 0336-2438422 par call karein.`
+          };
+        }
+
+        const reason = args.reason || 'Customer requested cancellation via WhatsApp';
+        const now = new Date();
+        order.status = 'cancelled';
+        order.cancellationReason = reason;
+        order.cancelledAt = now;
+        order.updatedAt = now;
+        await order.save();
+
+        console.log(`[WhatsApp AI:cancel_order] Order ${order.orderRef} cancelled for customer ${phone}`);
+
+        const plainOrder = order.toObject ? order.toObject() : order;
+        import('./whatsapp_service.js').then(m => {
+          if (m.notifyOwnerOrderCancelled) m.notifyOwnerOrderCancelled(plainOrder, reason).catch(() => {});
+          if (m.notifyCustomerOrderCancelled) m.notifyCustomerOrderCancelled(plainOrder, reason).catch(() => {});
+        }).catch(() => {});
+
+        return {
+          success: true,
+          orderRef: order.orderRef,
+          message: `Aapka order ${order.orderRef} kamiyabi se cancel kar diya gaya hai. Agar aapne online payment ki thi to accounts team refund ke liye rabta karegi.`
+        };
+      } catch (e) {
+        console.error('[Tool:cancel_order] Error:', e.message);
         return { error: e.message };
       }
     }
@@ -429,6 +527,10 @@ STORE INFO:
 
 ORDER STATUS:
 - If customer asks "mera order kahan hai" or "order status", call get_order_status.
+
+ORDER CANCELLATION:
+- If customer says "order cancel kardo", "cancel order", "nahi chahiye", or gives an order ref to cancel, call cancel_order immediately.
+- Confirm politely that their order has been cancelled, and assure them that if any advance payment was transferred, the accounts team will process the refund. Hotline: 0336-2438422.
 
 IMPORTANT PEOPLE (answer only if asked):
 - Muneeb: HTM ka Co-Founder
@@ -545,6 +647,22 @@ const GROQ_TOOLS = [
           customer_phone: { type: 'string', description: 'Customer WhatsApp phone number' }
         },
         required: ['customer_phone']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cancel_order',
+      description: "Cancel an existing customer order. Call this when customer requests to cancel their order (e.g. 'cancel order', 'mera order cancel kardo', 'cancel HYD-123456').",
+      parameters: {
+        type: 'object',
+        properties: {
+          order_ref: { type: 'string', description: 'Order reference if mentioned (e.g. HYD-123456 or WA-2026...)' },
+          customer_phone: { type: 'string', description: 'Customer WhatsApp phone number' },
+          reason: { type: 'string', description: 'Reason for cancellation' }
+        },
+        required: []
       }
     }
   }
