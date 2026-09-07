@@ -60,6 +60,26 @@ export default function App() {
     }
   }, [cartItems]);
 
+  // Auto-sync active order status in real-time (like Foodpanda)
+  useEffect(() => {
+    if (!activeOrder || activeOrder.status === 'cancelled' || activeOrder.status === 'completed') return;
+    const syncActiveOrder = async () => {
+      try {
+        const res = await fetch(`/api/orders/${encodeURIComponent(activeOrder.orderRef)}`);
+        const data = await res.json();
+        if (data.success && data.order && data.order.status !== activeOrder.status) {
+          setActiveOrder(data.order);
+          try { localStorage.setItem('hyderi_active_order', JSON.stringify(data.order)); } catch (e) {}
+          if (latestOrder && latestOrder.orderRef === data.order.orderRef) {
+            setLatestOrder(data.order);
+          }
+        }
+      } catch (e) {}
+    };
+    const timer = setInterval(syncActiveOrder, 8000);
+    return () => clearInterval(timer);
+  }, [activeOrder, latestOrder]);
+
   // Fetch live products and settings
   const fetchProducts = async () => {
     try {
@@ -302,15 +322,29 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => {
-                setLatestOrder(activeOrder);
-                setIsSuccessOpen(true);
-              }}
-              className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
-            >
-              Cancel / Slip
-            </button>
+            {(activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
+              <button
+                onClick={() => {
+                  setLatestOrder(activeOrder);
+                  setIsSuccessOpen(true);
+                }}
+                className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
+              >
+                <span>❌</span>
+                <span>Cancel / Slip</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setLatestOrder(activeOrder);
+                  setIsSuccessOpen(true);
+                }}
+                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
+              >
+                <span>📄</span>
+                <span>View Slip</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 setIsTrackingOpen(true);

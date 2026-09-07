@@ -168,6 +168,19 @@ export default function OrderTrackingModal({ isOpen, onClose }) {
           {/* Order Status Display */}
           {searchedOrder && (
             <div className="space-y-4 pt-2">
+              {/* Foodpanda Style: Out For Delivery Notice in Tracking */}
+              {searchedOrder.status === 'out_for_delivery' && (
+                <div className="p-3.5 bg-amber-50 border-2 border-amber-400 rounded-2xl flex items-center gap-3 text-xs text-amber-950 font-bold shadow-sm">
+                  <span className="text-2xl animate-bounce">🛵</span>
+                  <div>
+                    <p className="font-extrabold text-amber-950">Order is Out for Delivery!</p>
+                    <p className="text-[11px] font-normal text-amber-800 mt-0.5">
+                      Rider aapka parcel le kar nikal chuka hai, is liye ab cancel karne ka option band hai. Helpline: 0336-2438422
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Order Quick Summary */}
               <div className="bg-amber-50/80 p-4 rounded-2xl border border-amber-200 text-xs space-y-1">
                 <div className="flex justify-between items-center">

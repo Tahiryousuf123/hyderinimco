@@ -185,6 +185,19 @@ export default function OrderSuccessModal({ order, isOpen, onClose, settings, on
             </div>
           )}
 
+          {/* Out for Delivery Notice (Foodpanda style: cancellation option closed) */}
+          {orderStatus === 'out_for_delivery' && !isCancelled && (
+            <div className="p-3.5 bg-amber-50 border-2 border-amber-400 rounded-2xl flex items-center gap-3 text-xs text-amber-950 font-bold shadow-sm">
+              <span className="text-2xl animate-bounce">🛵</span>
+              <div>
+                <p className="font-extrabold text-amber-950">Order is Out for Delivery!</p>
+                <p className="text-[11px] font-normal text-amber-800 mt-0.5">
+                  Rider parcel le kar nikal chuka hai, is liye ab Foodpanda ki tarah cancel karne ka option band ho chuka hai.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Order Ref Box */}
           <div className="flex items-center justify-between bg-amber-50 p-3.5 rounded-2xl border border-amber-200">
             <div>

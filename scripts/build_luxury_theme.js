@@ -1565,6 +1565,24 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
         try { localStorage.setItem('hyderi_cart', JSON.stringify(cart)); } catch (e) {}
       }, [cart]);
 
+      // Auto-sync active order status in real-time (like Foodpanda)
+      useEffect(() => {
+        if (!activeOrder || activeOrder.status === 'cancelled' || activeOrder.status === 'completed') return;
+        const syncActiveOrder = async () => {
+          try {
+            const res = await fetch(getApiBase() + '/api/orders/' + encodeURIComponent(activeOrder.orderRef));
+            const data = await res.json();
+            if (data.success && data.order && data.order.status !== activeOrder.status) {
+              setActiveOrder(data.order);
+              try { localStorage.setItem('hyderi_active_order', JSON.stringify(data.order)); } catch (e) {}
+              setCompletedOrder(prev => (prev && prev.orderRef === data.order.orderRef ? data.order : prev));
+            }
+          } catch (e) {}
+        };
+        const syncTimer = setInterval(syncActiveOrder, 8000);
+        return () => clearInterval(syncTimer);
+      }, [activeOrder]);
+
       const loadProducts = async () => {
         try {
           const res = await fetch(getApiBase() + '/api/products');
@@ -2744,20 +2762,35 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
           {activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed' && (
             <div className="fixed bottom-18 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-40 bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl p-3.5 border-2 border-goldBrand-400 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <div className={'w-2.5 h-2.5 rounded-full shrink-0 ' + (activeOrder.status === 'out_for_delivery' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-ping')} />
                 <div className="truncate text-xs">
                   <span className="font-extrabold text-goldBrand-300 block">{isUrdu ? 'آپ کا فعال آرڈر:' : 'Active Order:'} {activeOrder.orderRef}</span>
-                  <span className="text-[11px] text-slate-300 capitalize">{activeOrder.status ? activeOrder.status.replace(/_/g, ' ') : 'Pending'} • Rs. {activeOrder.totalAmount}/-</span>
+                  <span className="text-[11px] text-slate-300 capitalize">
+                    {activeOrder.status === 'out_for_delivery'
+                      ? (isUrdu ? '🛵 رائیڈر روانہ ہو چکا ہے' : '🛵 Out for Delivery with Rider')
+                      : ((activeOrder.status ? activeOrder.status.replace(/_/g, ' ') : 'Pending') + ' • Rs. ' + activeOrder.totalAmount + '/-')
+                    }
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => setCompletedOrder(activeOrder)}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
-                >
-                  <span>❌</span>
-                  <span>{isUrdu ? 'کینسل / رسید' : 'Cancel / Slip'}</span>
-                </button>
+                {(activeOrder.status === 'pending_verification' || activeOrder.status === 'payment_verified') ? (
+                  <button
+                    onClick={() => setCompletedOrder(activeOrder)}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
+                  >
+                    <span>❌</span>
+                    <span>{isUrdu ? 'کینسل / رسید' : 'Cancel / Slip'}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setCompletedOrder(activeOrder)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1"
+                  >
+                    <span>📄</span>
+                    <span>{isUrdu ? 'رسید دیکھیں' : 'View Slip'}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setIsTrackingOpen(true)}
                   className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-goldBrand-200 border border-slate-600 rounded-lg text-xs font-semibold transition-colors"
@@ -3746,6 +3779,23 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
                 </div>
               )}
 
+              {/* Foodpanda Style: Out For Delivery Notice */}
+              {orderStatus === 'out_for_delivery' && !isCancelled && (
+                <div className="p-3.5 bg-amber-50 border-2 border-amber-400/80 rounded-2xl flex items-center gap-3 text-xs text-amber-950 font-bold shadow-sm animate-in fade-in">
+                  <span className="text-2xl animate-bounce">🛵</span>
+                  <div>
+                    <p className="font-extrabold text-amber-950 text-xs">
+                      {isUrdu ? 'آرڈر رائیڈر کے حوالے ہو چکا ہے (Out for Delivery)!' : 'Order is Out for Delivery!'}
+                    </p>
+                    <p className="text-[11px] font-normal text-amber-800 mt-0.5">
+                      {isUrdu
+                        ? 'آپ کا کھانا پیک ہو کر رائیڈر نکل چکا ہے، اس لیے فوڈ پانڈا کی طرح اب آرڈر کینسل کرنے کا آپشن بند ہو گیا ہے۔'
+                        : 'Your parcel is on the way with the rider. Cancellation option is now closed.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Automatic Shop Alert + Customer Slip Badge */}
               {!isCancelled && (
                 <div className="bg-emerald-50 border-2 border-emerald-400/60 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-emerald-950 shadow-sm">
@@ -3975,6 +4025,22 @@ const htmlContent = `<!-- Hyderi Luxury Theme Build v2.5 - Immutable Base64 Pers
 
             {order && (
               <div className="space-y-3 pt-2 text-xs">
+                {/* Foodpanda Style: Out For Delivery Notice in Tracking */}
+                {order.status === 'out_for_delivery' && (
+                  <div className="p-3.5 bg-amber-50 border-2 border-amber-400 rounded-2xl flex items-center gap-3 text-xs text-amber-950 font-bold shadow-sm">
+                    <span className="text-2xl animate-bounce">🛵</span>
+                    <div>
+                      <p className="font-extrabold text-amber-950">
+                        {isUrdu ? 'آرڈر رائیڈر کے حوالے ہو چکا ہے (Out for Delivery)!' : 'Order is Out for Delivery!'}
+                      </p>
+                      <p className="text-[11px] font-normal text-amber-800 mt-0.5">
+                        {isUrdu
+                          ? 'کھانا تیار ہو کر رائیڈر روانہ ہو چکا ہے، اب کینسل کا آپشن بند ہے۔ مدد کے لیے کال کریں: 0336-2438422'
+                          : 'Rider is on the way with your food. Cancellation closed. Call: 0336-2438422'}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="bg-parchment-100 p-4 rounded-2xl border border-goldBrand-400">
                   <div className="flex justify-between font-bold">
                     <span>{isUrdu ? 'آرڈر:' : 'Order:'} {order.orderRef}</span>
